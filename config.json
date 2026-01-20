@@ -1,0 +1,17 @@
+{
+  "EnableSimulation": true,
+  "Equipments": [
+    {
+        "Id": "TS0003",
+        "Name": "TS0003",
+        "Protocol": "MQTT",
+        "Topic": "TN2/Floor2/Yellow/TS0003/"
+    },
+    {
+        "Id": "TS0004",
+        "Name": "TS0004",
+        "Protocol": "MQTT",
+        "Topic": "TN2/Floor2/Yellow/TS0004/"
+    }
+  ]
+}

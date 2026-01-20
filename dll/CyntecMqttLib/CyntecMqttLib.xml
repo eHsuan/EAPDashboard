@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>CyntecMqttLib</name>
+    </assembly>
+    <members>
+        <member name="T:CyntecMqttLib.Contracts.MessageEnvelope">
+            <summary>
+            MQTT 訊息標準封包（強制）
+            </summary>
+        </member>
+        <member name="T:CyntecMqttLib.Interfaces.MqttBus">
+            <summary>
+            MQTT 標準通訊匯流排
+            Client / Server 皆使用此類別
+            </summary>
+        </member>
+        <member name="T:CyntecMqttLib.Models.TopicSchema">
+            <summary>
+            MQTT Topic 命名標準
+            </summary>
+        </member>
+    </members>
+</doc>

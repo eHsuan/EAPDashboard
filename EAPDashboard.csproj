@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>EAPDashboard</AssemblyName>
+    <RootNamespace>EAPDashboard</RootNamespace>
+    <Authors>YH.CHIU</Authors>
+    <Company>Cyntec</Company>
+    <Product>EAP Dashboard</Product>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="log4net" Version="2.0.15" />
+    <PackageReference Include="MQTTnet" Version="3.0.16" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="CyntecMqttLib">
+      <HintPath>dll\CyntecMqttLib\CyntecMqttLib.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Protocol.Core">
+      <HintPath>dll\Protocol.Core\Protocol.Core.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Protocol.MES">
+      <HintPath>dll\Protocol.MES\Protocol.MES.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.ServiceModel" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Controls\EquipmentCard.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Update="Controls\EquipmentCard.Designer.cs">
+      <DependentUpon>EquipmentCard.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="log4net.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
