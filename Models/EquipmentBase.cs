@@ -137,7 +137,7 @@ namespace EAPDashboard.Models
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
-        public abstract void StartSimulation(CancellationToken cancellationToken, MqttBus _bus);
+        public abstract void Start(CancellationToken cancellationToken, MqttBus _bus, int heartbeatIntervalSeconds);
         
         // Helper to get status color for the UI strip
         public static Color GetColorForState(EquipmentState state)
@@ -159,7 +159,7 @@ namespace EAPDashboard.Models
         }
         
         // This is a new virtual method that can be overridden by derived classes for specific cleanup
-        public virtual void StopSimulation()
+        public virtual void Stop()
         {
             // Derived classes will implement specific cancellation logic
         }

@@ -10,7 +10,14 @@
     <Company>Cyntec</Company>
     <Product>EAP Dashboard</Product>
     <Version>1.0.0</Version>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.15" />
@@ -19,18 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="CyntecMqttLib">
-      <HintPath>dll\CyntecMqttLib\CyntecMqttLib.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Protocol.Core">
-      <HintPath>dll\Protocol.Core\Protocol.Core.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Protocol.MES">
-      <HintPath>dll\Protocol.MES\Protocol.MES.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
+    <ProjectReference Include="CyntecMqttLib\CyntecMqttLib.csproj" />
+    <ProjectReference Include="Protocol.Core\Protocol.Core.csproj" />
+    <ProjectReference Include="Protocol.MES\Protocol.MES.csproj" />
     <Reference Include="System.ServiceModel" />
   </ItemGroup>
 

@@ -1,17 +1,24 @@
 {
-  "EnableSimulation": true,
+  "MqttBrokerHost": "127.0.0.1",
+  "MqttBrokerPort": 1883,
+  "HeartbeatIntervalSeconds": 30,
+  "MesSettings": {
+    "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
+    "TestUrl": "http://localhost:8080/Eqp_Portal.asmx",
+    "ActiveEnvironment": "Test"
+  },
+  "DbSettings": {
+    "ConnectionString": "Server=cloud-sql-server;Database=EAP_DB;User Id=eap_user;Password=your_password;",
+    "BindingTable": "CassetteWorkOrderBinding",
+    "CassetteColumn": "CassetteID",
+    "WoColumn": "WorkOrder"
+  },
   "Equipments": [
     {
-        "Id": "TS0003",
-        "Name": "TS0003",
-        "Protocol": "MQTT",
-        "Topic": "TN2/Floor2/Yellow/TS0003/"
-    },
-    {
-        "Id": "TS0004",
-        "Name": "TS0004",
-        "Protocol": "MQTT",
-        "Topic": "TN2/Floor2/Yellow/TS0004/"
+      "Id": "TS0003",
+      "Name": "測試機台 01",
+      "Protocol": "MQTT",
+      "Topic": "TN2/Floor2/Yellow/TS0003/"
     }
   ]
 }
