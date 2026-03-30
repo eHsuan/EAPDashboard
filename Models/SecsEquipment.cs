@@ -112,10 +112,9 @@ namespace EAPDashboard.Models
                     _secsGem = gem;
                     OnLogReceived(LogLevel.Info, "[CONN] HSMS Transport and SECS-II engine instantiated.");
 
-                    // 2. Start state monitoring task BEFORE message iteration
-                    // This ensures we see state changes even if the message loop is blocked waiting for connection
+                    // 2. Start state monitoring task
                     var commTask = Task.Run(async () => {
-                        ConnectionState lastState = (ConnectionState)99; // Force initial report
+                        ConnectionState lastState = (ConnectionState)99;
                         while (!token.IsCancellationRequested && _secsGem != null)
                         {
                             var currentState = connection.State;
@@ -126,7 +125,7 @@ namespace EAPDashboard.Models
                                 
                                 if (currentState == ConnectionState.Selected)
                                 {
-                                    OnLogReceived(LogLevel.Info, "[CONN] Transport Selected. Attempting logic handshake (S1F13)...");
+                                    OnLogReceived(LogLevel.Info, "[CONN] Transport Selected. Initiating S1F13 Handshake...");
                                     await SendS1F13(gem);
                                 }
                                 else if ((int)currentState == 0) // Disconnected
@@ -134,24 +133,42 @@ namespace EAPDashboard.Models
                                     Connection = ConnectionStatus.Disconnected;
                                 }
                             }
-                            await Task.Delay(2000, token); // Faster check for debugging
+                            await Task.Delay(1000, token);
                         }
                     }, token);
 
-                    // 3. Message loop
-                    OnLogReceived(LogLevel.Debug, "[CONN] Entering Primary Message iteration...");
-                    await foreach (var primaryMessageWrapper in gem.GetPrimaryMessageAsync(token))
+                    // 3. Message loop in background task to avoid blocking
+                    _ = Task.Run(async () =>
                     {
-                        using (primaryMessageWrapper.PrimaryMessage)
+                        try
                         {
-                            if (Connection != ConnectionStatus.Connected)
+                            OnLogReceived(LogLevel.Debug, "[CONN] Listening for Primary Messages...");
+                            await foreach (var primaryMessageWrapper in gem.GetPrimaryMessageAsync(token))
                             {
-                                Connection = ConnectionStatus.Connected;
-                                OnLogReceived(LogLevel.Info, "[CONN] Logic Link established via Message reception.");
+                                using (primaryMessageWrapper.PrimaryMessage)
+                                {
+                                    if (Connection != ConnectionStatus.Connected)
+                                    {
+                                        Connection = ConnectionStatus.Connected;
+                                        OnLogReceived(LogLevel.Info, "[CONN] Logic Link established via Message reception.");
+                                    }
+                                    await HandlePrimaryMessage(primaryMessageWrapper);
+                                }
                             }
-                            await HandlePrimaryMessage(primaryMessageWrapper);
                         }
-                    }
+                        catch (OperationCanceledException) { }
+                        catch (Exception ex)
+                        {
+                            OnLogReceived(LogLevel.Error, $"[CONN] Message Loop Exception: {ex.Message}");
+                        }
+                    }, token);
+
+                    // 4. Start the HSMS Transport task (Connect/Listen)
+                    OnLogReceived(LogLevel.Info, "[CONN] Starting HSMS Transport...");
+                    connection.Start(token);
+
+                    // Wait indefinitely until the token is cancelled to keep the using blocks alive
+                    await Task.Delay(-1, token);
                 }
             }
             catch (OperationCanceledException) { }
@@ -177,6 +194,7 @@ namespace EAPDashboard.Models
             {
                 case 1:
                     if (f == 1) await message.TryReplyAsync(new SecsMessage(1, 2) { SecsItem = Item.L(Item.A(Name), Item.A(Id)) });
+                    else if (f == 13) await message.TryReplyAsync(new SecsMessage(1, 14) { SecsItem = Item.B(0) });
                     break;
                 case 6:
                     if (f == 11) await HandleS6F11(message);

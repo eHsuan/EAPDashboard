@@ -11,12 +11,17 @@
     <Product>EAP Dashboard</Product>
     <Version>1.0.0</Version>
     <LangVersion>latest</LangVersion>
+    <ApplicationIcon>EAP.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
     <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
     <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="EAP.ico" />
   </ItemGroup>
 
   <ItemGroup>

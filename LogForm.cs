@@ -25,16 +25,34 @@ namespace EAPDashboard
             dateTimePickerStart.Value = DateTime.Today; // Today at 00:00:00
             dateTimePickerEnd.Value = DateTime.Now;     // Current time
 
-            // Wire up event handlers for new buttons
-            this.btnSearch.Click += new System.EventHandler(this.btnSearch_Click);
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // btnLiveView_Click event handler
             this.btnLiveView.Click += new System.EventHandler(this.btnLiveView_Click);
 
-            // Subscribe to the log event
+            // 1. è¼‰å…¥éŽåŽ» 30 åˆ†é˜çš„æ­·å²æ—¥èªŒ
+            LoadHistoricalLogs(TimeSpan.FromMinutes(30));
+
+            // 2. è¨‚é–±å³æ™‚æ—¥èªŒäº‹ä»¶
             _equipment.LogReceived += AppendLog;
             
             // Unsubscribe when form is closed to prevent memory leaks
             this.FormClosed += (s, e) => _equipment.LogReceived -= AppendLog;
+        }
+
+        private void LoadHistoricalLogs(TimeSpan duration)
+        {
+            DateTime end = DateTime.Now;
+            DateTime start = end.Subtract(duration);
+
+            var historicalLogs = GetLogsInRange(start, end);
+
+            richTextBoxLogs.SuspendLayout();
+            foreach (var log in historicalLogs)
+            {
+                AppendLogToRichTextBoxInternal(log.Item1, log.Item2, log.Item3);
+            }
+
+            richTextBoxLogs.ResumeLayout();
+            richTextBoxLogs.ScrollToCaret();
         }
 
         private void AppendLog(DateTime timestamp, LogLevel level, string message)
@@ -126,12 +144,12 @@ namespace EAPDashboard
             else
             {
                 message = message
-                    .Replace("\0", "")       // ²¾°£ Null ¦r¤¸
-                    .Replace("\r", "")       // ²¾°£ CR
-                    .Replace("\t", "    ");  // Tab ´«¦¨ªÅ®æ
+                    .Replace("\0", "")       // ï¿½ï¿½ï¿½ï¿½ Null ï¿½rï¿½ï¿½
+                    .Replace("\r", "")       // ï¿½ï¿½ï¿½ï¿½ CR
+                    .Replace("\t", "    ");  // Tab ï¿½ï¿½ï¿½ï¿½ï¿½Å®ï¿½
             }
 
-            // 3?? ©î¦h¦æ¤å¦r
+            // 3?? ï¿½ï¿½hï¿½ï¿½ï¿½r
             var lines = message.Split('\n');
             foreach (var line in lines)
             {
@@ -143,7 +161,7 @@ namespace EAPDashboard
                 richTextBoxLogs.SelectionColor = richTextBoxLogs.ForeColor;
             }
 
-            // 4?? ¦Û°Ê±²°Ê¨ì©³
+            // 4?? ï¿½Û°Ê±ï¿½ï¿½Ê¨ì©³
             richTextBoxLogs.ScrollToCaret();
             //richTextBoxLogs.SelectionStart = richTextBoxLogs.TextLength;
             //richTextBoxLogs.SelectionLength = 0;
@@ -271,7 +289,7 @@ namespace EAPDashboard
             var logPattern = new Regex(@"^\[(.*?)\]\s+\[(.*?)\]\s+\[(.*?)\]\s+(.*)$", RegexOptions.Compiled);
             string equipmentTag = $"[{_equipment.Id}]";
 
-            // ¹M¾ú¨C­Ó¤p®É
+            // ï¿½Mï¿½ï¿½ï¿½Cï¿½Ó¤pï¿½ï¿½
             for (DateTime currentHour = new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0);
                  currentHour <= end;
                  currentHour = currentHour.AddHours(1))
@@ -302,7 +320,7 @@ namespace EAPDashboard
                         var match = logPattern.Match(line);
                         if (match.Success)
                         {
-                            // ·s log ¶}©l¡A¥ý§â¤W¤@­Ó log ¥[¤Jµ²ªG
+                            // ï¿½s log ï¿½}ï¿½lï¿½Aï¿½ï¿½ï¿½ï¿½Wï¿½@ï¿½ï¿½ log ï¿½[ï¿½Jï¿½ï¿½ï¿½G
                             if (currentMessage != null &&
                                 currentEqId == _equipment.Id &&
                                 currentTimestamp >= start && currentTimestamp <= end)
@@ -310,7 +328,7 @@ namespace EAPDashboard
                                 logs.Add(new Tuple<DateTime, LogLevel, string>(currentTimestamp, currentLevel, currentMessage));
                             }
 
-                            // ªì©l¤Æ·sªº log
+                            // ï¿½ï¿½lï¿½Æ·sï¿½ï¿½ log
                             currentTimestamp = DateTime.ParseExact(match.Groups[1].Value, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
                             currentLevel = Enum.TryParse(match.Groups[2].Value.Trim(), true, out LogLevel lvl) ? lvl : LogLevel.Info;
                             currentEqId = match.Groups[3].Value.Trim();
@@ -318,7 +336,7 @@ namespace EAPDashboard
                         }
                         else
                         {
-                            // ©µ¦ù¦æ¡]¦h¦æ JSON ©Î¨ä¥L¡^¡÷ ªþ¥[¨ì currentMessage
+                            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½]ï¿½hï¿½ï¿½ JSON ï¿½Î¨ï¿½Lï¿½^ï¿½ï¿½ ï¿½ï¿½ï¿½[ï¿½ï¿½ currentMessage
                             if (currentMessage != null)
                             {
                                 currentMessage += Environment.NewLine + line;
@@ -326,7 +344,7 @@ namespace EAPDashboard
                         }
                     }
 
-                    // §â³Ì«á¤@±ø log ¥[¤Jµ²ªG
+                    // ï¿½ï¿½Ì«ï¿½@ï¿½ï¿½ log ï¿½[ï¿½Jï¿½ï¿½ï¿½G
                     if (currentMessage != null &&
                         currentEqId == _equipment.Id &&
                         currentTimestamp >= start && currentTimestamp <= end)

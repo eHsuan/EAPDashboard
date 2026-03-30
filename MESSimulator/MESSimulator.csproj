@@ -7,7 +7,12 @@
     <RootNamespace>MESSimulator</RootNamespace>
     <AssemblyName>MESSimulator</AssemblyName>
     <LangVersion>latest</LangVersion>
+    <ApplicationIcon>MES.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="MES.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="System.Web.Services" />

@@ -8,11 +8,16 @@
     <LangVersion>latest</LangVersion>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <ApplicationIcon>EQ.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="bin\**;obj\**" />
     <None Remove="bin\**;obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="EQ.ico" />
   </ItemGroup>
 
   <ItemGroup>
