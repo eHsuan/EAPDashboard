@@ -4,8 +4,8 @@
   "HeartbeatIntervalSeconds": 30,
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
-    "TestUrl": "http://localhost:8080/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Test"
+    "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
+    "ActiveEnvironment": "Production"
   },
   "DbSettings": {
     "ConnectionString": "Server=cloud-sql-server;Database=EAP_DB;User Id=eap_user;Password=your_password;",
@@ -15,10 +15,22 @@
   },
   "Equipments": [
     {
-      "Id": "TS0003",
-      "Name": "測試機台 01",
+      "Id": "ZZ0304",
+      "Name": "顯影測試主線",
       "Protocol": "MQTT",
-      "Topic": "TN2/Floor2/Yellow/TS0003/"
+      "Topic": "TN2/Floor2/Yellow/ZZ0304/"
+    },
+    {
+      "Id": "TOWA01",
+      "Name": "TOWA Molding 01",
+      "Protocol": "SECS",
+      "Ip": "127.0.0.1",
+      "Port": 5500,
+      "DeviceId": 1,
+      "IsActive": true,
+      "DictionaryPath": "Dictionaries/TOWA_YPM.json"
     }
+
+
   ]
 }

@@ -45,6 +45,9 @@ namespace EAPDashboard
         public string Protocol { get; set; }
         public string Ip { get; set; }
         public int Port { get; set; }
+        public ushort DeviceId { get; set; }
+        public bool IsActive { get; set; }
+        public string DictionaryPath { get; set; }
         public string Topic { get; set; }
     }
 
@@ -54,6 +57,8 @@ namespace EAPDashboard
         private AppConfig _appConfig;
         private CancellationTokenSource _mainCts;
         private MqttBus _bus;
+     
+        private bool _isStarted = false;
      
         public MainForm()
         {
@@ -69,6 +74,7 @@ namespace EAPDashboard
         {
             LoadConfig();  
             PopulateDashboard();
+            // StartEquipments() 移至 UpdateBrokerStatus 或 InitMqtt 以確保啟動順序正確且僅執行一次
             AdjustCardSize();
         }
 
@@ -127,6 +133,20 @@ namespace EAPDashboard
                             // 傳遞資料庫設定
                             mqttEq.DbConfig = _appConfig.DbSettings;
                             _equipments.Add(mqttEq);
+                        }
+                        else if (config.Protocol == "SECS")
+                        {
+                            var secsEq = new SecsEquipment
+                            {
+                                Id = config.Id,
+                                Name = config.Name,
+                                Ip = config.Ip,
+                                Port = config.Port,
+                                DeviceId = config.DeviceId,
+                                IsActive = config.IsActive,
+                                DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath)
+                            };
+                            _equipments.Add(secsEq);
                         }
                     }
                 }
@@ -261,15 +281,23 @@ namespace EAPDashboard
             }
         }
 
-        private void MenuTimeSync_Click(object sender, EventArgs e)
+        private async void MenuTimeSync_Click(object sender, EventArgs e)
         {
             int count = 0;
             foreach (var eq in _equipments)
             {
-                if (eq.Connection == ConnectionStatus.Connected && eq is MqttEquipment mqttEq)
+                if (eq.Connection == ConnectionStatus.Connected)
                 {
-                    mqttEq.SendTimeCalibration();
-                    count++;
+                    if (eq is MqttEquipment mqttEq)
+                    {
+                        await mqttEq.SendTimeCalibration();
+                        count++;
+                    }
+                    else if (eq is SecsEquipment secsEq)
+                    {
+                        await secsEq.SendTimeCalibration();
+                        count++;
+                    }
                 }
             }
             MessageBox.Show($"已對 {count} 台連線中的設備發出時間校正指令。", "指令已發送", MessageBoxButtons.OK, MessageBoxIcon.Information);

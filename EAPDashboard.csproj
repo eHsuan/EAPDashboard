@@ -14,15 +14,16 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="log4net" Version="2.0.15" />
     <PackageReference Include="MQTTnet" Version="3.0.16" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Secs4Net" Version="2.4.4" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +45,9 @@
   <ItemGroup>
     <None Update="config.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Dictionaries\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="log4net.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

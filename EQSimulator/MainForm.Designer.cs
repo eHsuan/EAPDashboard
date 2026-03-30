@@ -101,7 +101,7 @@ namespace EQSimulator
             this._txtEqId.Name = "_txtEqId";
             this._txtEqId.Size = new System.Drawing.Size(100, 22);
             this._txtEqId.TabIndex = 3;
-            this._txtEqId.Text = "TS0003";
+            this._txtEqId.Text = "ZZ0304";
             // 
             // lblBaseTopic
             // 
@@ -117,7 +117,7 @@ namespace EQSimulator
             this._txtTopic.Name = "_txtTopic";
             this._txtTopic.Size = new System.Drawing.Size(260, 22);
             this._txtTopic.TabIndex = 5;
-            this._txtTopic.Text = "TN2/Floor2/Yellow/TS0003/";
+            this._txtTopic.Text = "TN2/Floor2/Yellow/ZZ0304/";
             // 
             // _btnConnect
             // 

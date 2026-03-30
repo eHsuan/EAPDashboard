@@ -21,9 +21,9 @@ namespace EAPDashboard.Models
     // Enums based on SPEC 1.6 and 2.7
     public enum ConnectionStatus
     {
-        Connected,
+        Disconnected,
         Connecting,
-        Disconnected
+        Connected
     }
 
     public enum EquipmentState
@@ -138,6 +138,7 @@ namespace EAPDashboard.Models
         }
 
         public abstract void Start(CancellationToken cancellationToken, MqttBus _bus, int heartbeatIntervalSeconds);
+        public abstract Task SendTimeCalibration();
         
         // Helper to get status color for the UI strip
         public static Color GetColorForState(EquipmentState state)
