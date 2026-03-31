@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 using CyntecMqttLib.Interfaces;
 using Microsoft.Extensions.Options;
 using Secs4Net;
+using Protocol.MES.Factory;
+using Protocol.MES.Messages;
+using Protocol.MES.Enums;
 
 namespace EAPDashboard.Models
 {
@@ -18,12 +21,39 @@ namespace EAPDashboard.Models
         private ISecsGem _secsGem;
         private SecsDictionary _dictionary;
         private System.Timers.Timer _retryTimer;
+        private string _currentOperator = "UNKNOWN";
+
+        // 用於追蹤正在處理中的進站上下文
+        private class TrackInContext
+        {
+            public string CassetteID { get; set; }
+            public string WorkOrder { get; set; }
+            public string RecipeID { get; set; }
+        }
+        private readonly Dictionary<string, TrackInContext> _pendingTrackIn = new Dictionary<string, TrackInContext>();
+
+        // 用於存放暫時發送失敗的狀態更新請求 (斷線緩衝)
+        private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
+
+        private static readonly Dictionary<int, EquipmentState> SecsStatusMap = new Dictionary<int, EquipmentState>()
+        {
+           { 0, EquipmentState.Down },    // DOWN
+           { 1, EquipmentState.Idle },    // READY
+           { 2, EquipmentState.Idle },    // IDLE
+           { 3, EquipmentState.Running }, // RUN
+           { 4, EquipmentState.Paused },  // PAUSE
+           { 5, EquipmentState.Down },    // MAINTE
+           { 6, EquipmentState.Idle }     // READY OFF
+        };
 
         public string Ip { get; set; }
         public int Port { get; set; }
         public ushort DeviceId { get; set; } = 0;
         public string DictionaryPath { get; set; }
         public bool IsActive { get; set; } = true;
+
+        // 資料庫設定
+        public DbSettings DbConfig { get; set; }
 
         public SecsEquipment()
         {
@@ -52,6 +82,9 @@ namespace EAPDashboard.Models
                     }
                 }
 
+                // Start status buffer processor
+                StartStatusBufferProcessor(token);
+
                 // 啟動重連監控
                 _retryTimer = new System.Timers.Timer(15000);
                 _retryTimer.Elapsed += (s, e) => {
@@ -72,13 +105,52 @@ namespace EAPDashboard.Models
             }
         }
 
+        private void StartStatusBufferProcessor(CancellationToken ct)
+        {
+            Task.Run(async () =>
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    if (!_statusBuffer.IsEmpty)
+                    {
+                        if (_statusBuffer.TryPeek(out var req))
+                        {
+                            try
+                            {
+                                await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req));
+                                _statusBuffer.TryDequeue(out _);
+                                OnLogReceived(LogLevel.Info, $"[補傳成功] SECS 設備狀態/警報已同步至 MES (佇列剩餘: {_statusBuffer.Count})");
+                            }
+                            catch { /* Wait for next cycle */ }
+                        }
+                    }
+                    await Task.Delay(30000, ct);
+                }
+            }, ct);
+        }
+
+        private void HandleEqpStatusCall(EQPSTATUSRequest req)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req);
+                }
+                catch (Exception ex)
+                {
+                    OnLogReceived(LogLevel.Warn, $"[MES 斷線] SECS 狀態同步失敗，已進入緩衝區。原因: {ex.Message}");
+                    _statusBuffer.Enqueue(req);
+                }
+            });
+        }
+
         private async Task RunConnectionTask(CancellationToken token)
         {
             if (Connection != ConnectionStatus.Disconnected) return;
 
             try
             {
-                // 1. Explicit Parameter Validation
                 if (!IPAddress.TryParse(Ip, out var ipAddr))
                 {
                     OnLogReceived(LogLevel.Error, $"[CONN] Invalid IP address format: {Ip}");
@@ -112,7 +184,6 @@ namespace EAPDashboard.Models
                     _secsGem = gem;
                     OnLogReceived(LogLevel.Info, "[CONN] HSMS Transport and SECS-II engine instantiated.");
 
-                    // 2. Start state monitoring task
                     var commTask = Task.Run(async () => {
                         ConnectionState lastState = (ConnectionState)99;
                         while (!token.IsCancellationRequested && _secsGem != null)
@@ -137,7 +208,6 @@ namespace EAPDashboard.Models
                         }
                     }, token);
 
-                    // 3. Message loop in background task to avoid blocking
                     _ = Task.Run(async () =>
                     {
                         try
@@ -163,11 +233,8 @@ namespace EAPDashboard.Models
                         }
                     }, token);
 
-                    // 4. Start the HSMS Transport task (Connect/Listen)
                     OnLogReceived(LogLevel.Info, "[CONN] Starting HSMS Transport...");
                     connection.Start(token);
-
-                    // Wait indefinitely until the token is cancelled to keep the using blocks alive
                     await Task.Delay(-1, token);
                 }
             }
@@ -210,15 +277,199 @@ namespace EAPDashboard.Models
             try
             {
                 var rootList = message.PrimaryMessage.SecsItem;
-                if (rootList != null && rootList.Count >= 2)
+                if (rootList == null || rootList.Count < 3) return;
+
+                string ceid = rootList.Items[1].GetString();
+                string eventName = _dictionary?.GetEventName(ceid) ?? ceid;
+                OnLogReceived(LogLevel.Info, $"[EVENT] {eventName} (CEID:{ceid})");
+// 處理狀態同步 (嘗試從報告列表中找出 VID 102)
+string statusCode = ExtractVidValue(rootList, "102");
+if (int.TryParse(statusCode, out int code))
+{
+    if (SecsStatusMap.TryGetValue(code, out var mappedState))
+    {
+        // 狀態保護邏輯：如果目前是 Alarm 且新狀態是 Idle/Running，除非是特定解除事件，否則不隨便覆蓋
+        if (State == EquipmentState.Alarm && (mappedState == EquipmentState.Idle || mappedState == EquipmentState.Running))
+        {
+            // 保持為 Alarm，不執行狀態變更
+        }
+        else
+        {
+            State = mappedState;
+        }
+    }
+}
+
+                switch (ceid)
                 {
-                    string ceid = rootList.Items[1].GetString();
-                    string eventName = _dictionary?.GetEventName(ceid) ?? ceid;
-                    OnLogReceived(LogLevel.Info, $"[EVENT] {eventName} (CEID:{ceid})");
+                    case "200": // AUTO FRAME LOADING (Track-In)
+                        await HandleTrackInEvent(rootList);
+                        break;
+                    case "206": // AUTO UNLOADING (Track-Out)
+                        await HandleTrackOutEvent(rootList);
+                        break;
+                    case "50": case "51": case "52": case "53":
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
+                        break;
                 }
+
                 await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
             }
             catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
+        }
+
+        private async Task HandleTrackInEvent(Item rootList)
+        {
+            try
+            {
+                string recipeId = ExtractVidValue(rootList, "111") ?? "UNKNOWN";
+                string cassetteId = ExtractVidValue(rootList, "300") ?? ExtractVidValue(rootList, "320") ?? "UNKNOWN";
+
+                OnLogReceived(LogLevel.Info, $"[AUTO] 偵測到進站事件: Cassette={cassetteId}, Recipe={recipeId}");
+
+                string wo = QueryWorkOrderFromDb(cassetteId);
+                if (string.IsNullOrEmpty(wo))
+                {
+                    OnLogReceived(LogLevel.Warn, $"[AUTO] 進站中止: 載具 {cassetteId} 在資料庫中查無綁定工單。");
+                    return;
+                }
+
+                var qryReq = new WOQRYRequest { WONO = wo, EqpNo = Id, UserID = _currentOperator };
+                var qryReply = await Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
+
+                if (qryReply.Result != "success")
+                {
+                    OnLogReceived(LogLevel.Error, $"[MES] WOQRY 失敗: {qryReply.Message}");
+                    return;
+                }
+
+                string targetRecipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
+                
+                OnLogReceived(LogLevel.Info, $"[CMD] 向機台要求下換 Recipe (PPID): {targetRecipe}");
+                var remoteCmd = new SecsMessage(2, 41)
+                {
+                    SecsItem = Item.L(
+                        Item.A("PP-SELECT"),
+                        Item.L(
+                            Item.L(Item.A("PPID"), Item.A(targetRecipe))
+                        )
+                    )
+                };
+
+                using (var reply = await _secsGem.SendAsync(remoteCmd))
+                {
+                    if (reply.S == 2 && reply.F == 42)
+                    {
+                        byte hcack = reply.SecsItem.Items[0].FirstValue<byte>();
+                        if (hcack == 0)
+                        {
+                            OnLogReceived(LogLevel.Info, "[AUTO] 機台已接受 PP-SELECT，執行正式進站報工...");
+                            var checkInReq = new WOCHECKINRequest { WONO = wo, EqpNo = Id, UserID = _currentOperator };
+                            var checkInReply = await Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(checkInReq));
+                            OnLogReceived(LogLevel.Info, $"[MES] 進站報工完成: {checkInReply.Result}");
+                        }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Error, $"[CMD] 機台拒絕 PP-SELECT 指令. HCACK: {hcack}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] 自動進站流程崩潰: {ex.Message}"); }
+        }
+
+        private async Task HandleTrackOutEvent(Item rootList)
+        {
+            try
+            {
+                string wo = ExtractVidValue(rootList, "111") ?? "UNKNOWN";
+                OnLogReceived(LogLevel.Info, $"[AUTO] 執行自動出站報工: WorkOrder={wo}");
+
+                var mesReq = new WOCHECKOUTRequest { WONO = wo, EqpNo = Id, UserID = _currentOperator, OutPut = "1" };
+                var mesReply = await Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(mesReq));
+                OnLogReceived(LogLevel.Info, $"[MES] 出站報工結果: {mesReply.Result}");
+            }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] 出站流程異常: {ex.Message}"); }
+        }
+
+        private string QueryWorkOrderFromDb(string cassetteId)
+        {
+            if (DbConfig == null || string.IsNullOrEmpty(DbConfig.ConnectionString)) return null;
+            try
+            {
+                using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
+                {
+                    conn.Open();
+                    string sql = $"SELECT TOP 1 {DbConfig.WoColumn} FROM {DbConfig.BindingTable} WHERE {DbConfig.CassetteColumn} = @cid";
+                    using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@cid", cassetteId);
+                        return cmd.ExecuteScalar()?.ToString();
+                    }
+                }
+            }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"資料庫查詢失敗: {ex.Message}"); return null; }
+        }
+
+        private string ExtractVidValue(Item rootList, string targetVid)
+        {
+            if (rootList == null) return null;
+            
+            // 遞迴搜尋所有非 List 項目
+            if (rootList.Format != SecsFormat.List)
+            {
+                // 根據不同的格式使用正確的泛型型別提取值
+                switch (rootList.Format)
+                {
+                    case SecsFormat.ASCII:
+                    case SecsFormat.JIS8:
+                        return rootList.GetString();
+                    case SecsFormat.U1:
+                    case SecsFormat.Binary:
+                        return rootList.FirstValue<byte>().ToString();
+                    case SecsFormat.U2:
+                        return rootList.FirstValue<ushort>().ToString();
+                    case SecsFormat.U4:
+                        return rootList.FirstValue<uint>().ToString();
+                    case SecsFormat.U8:
+                        return rootList.FirstValue<ulong>().ToString();
+                    case SecsFormat.I1:
+                        return rootList.FirstValue<sbyte>().ToString();
+                    case SecsFormat.I2:
+                        return rootList.FirstValue<short>().ToString();
+                    case SecsFormat.I4:
+                        return rootList.FirstValue<int>().ToString();
+                    case SecsFormat.I8:
+                        return rootList.FirstValue<long>().ToString();
+                    case SecsFormat.F4:
+                        return rootList.FirstValue<float>().ToString();
+                    case SecsFormat.F8:
+                        return rootList.FirstValue<double>().ToString();
+                    case SecsFormat.Boolean:
+                        return rootList.FirstValue<bool>().ToString();
+                    default:
+                        return string.Empty;
+                }
+            }
+
+            foreach (var item in rootList.Items)
+            {
+                var found = ExtractVidValue(item, targetVid);
+                if (!string.IsNullOrEmpty(found)) return found;
+            }
+            return null; 
+        }
+
+        private string ExtractRecipeFromMes(string inputParamListDt)
+        {
+            if (string.IsNullOrEmpty(inputParamListDt)) return "UNKNOWN";
+            try
+            {
+                var list = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Newtonsoft.Json.Linq.JObject>>(inputParamListDt);
+                var recipeObj = list.FirstOrDefault(x => x["ParamName"]?.ToString() == "RECIPEID" || x["RefFieldCode"]?.ToString() == "RECIPE ID");
+                return recipeObj?["DefaultValue"]?.ToString() ?? "UNKNOWN";
+            }
+            catch { return "ERROR"; }
         }
 
         private async Task HandleS5F1(PrimaryMessageWrapper message)
@@ -230,9 +481,25 @@ namespace EAPDashboard.Models
                 {
                     byte alcd = rootList.Items[0].FirstValue<byte>();
                     string altx = rootList.Items[2].GetString();
-                    bool isSet = (alcd & 0x80) != 0;
-                    OnLogReceived(LogLevel.Info, $"[ALARM] {(isSet ? "SET" : "CLEAR")}: {altx}");
-                    State = isSet ? EquipmentState.Alarm : EquipmentState.Idle;
+                    
+                    // SECS 標準：第 8 位元為 1 表示發生，為 0 表示清除。
+                    // 為了容錯，如果模擬器發送 1 或 0 (非標準位元操作)，也進行相應判定。
+                    bool isSet = (alcd & 0x80) != 0 || alcd == 1;
+                    
+                    OnLogReceived(LogLevel.Info, $"[ALARM] (RawALCD:0x{alcd:X2}) {(isSet ? "SET" : "CLEAR")}: {altx}");
+                    
+                    if (isSet)
+                    {
+                        State = EquipmentState.Alarm;
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = altx });
+                    }
+                    else
+                    {
+                        // 告警清除時，不強制轉為 IDLE，應讓後續事件更新真實狀態。
+                        // 若要清除 UI 紅色狀態，可考慮轉為 Idle 或保持原樣直到 S6F11。
+                        if (State == EquipmentState.Alarm) State = EquipmentState.Idle;
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = altx });
+                    }
                 }
                 await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
             }
@@ -260,10 +527,7 @@ namespace EAPDashboard.Models
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                OnLogReceived(LogLevel.Debug, $"[CONN] S1F13 attempt failed: {ex.Message}");
-            }
+            catch (Exception ex) { OnLogReceived(LogLevel.Debug, $"[CONN] S1F13 attempt failed: {ex.Message}"); }
         }
 
         public override async Task SendTimeCalibration()

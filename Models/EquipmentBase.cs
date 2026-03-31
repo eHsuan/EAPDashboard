@@ -151,9 +151,8 @@ namespace EAPDashboard.Models
                 case EquipmentState.Down:
                     return Color.Crimson;
                 case EquipmentState.Paused:
-                    return Color.Gold;
                 case EquipmentState.Idle:
-                    return Color.LightGray;
+                    return Color.Gold;
                 default:
                     return Color.Black;
             }
