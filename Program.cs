@@ -12,6 +12,18 @@ namespace EAPDashboard
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // 初始化 SQLite 資料庫
+            try
+            {
+                Models.DatabaseHelper.InitializeDatabase();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("資料庫初始化失敗: " + ex.Message, "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             Application.Run(new MainForm());
         }
     }

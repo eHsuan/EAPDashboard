@@ -12,25 +12,5 @@
     "BindingTable": "CassetteWorkOrderBinding",
     "CassetteColumn": "CassetteID",
     "WoColumn": "WorkOrder"
-  },
-  "Equipments": [
-    {
-      "Id": "ZZ0304",
-      "Name": "顯影測試主線",
-      "Protocol": "MQTT",
-      "Topic": "TN2/Floor2/Yellow/ZZ0304/"
-    },
-    {
-      "Id": "TOWA01",
-      "Name": "TOWA Molding 01",
-      "Protocol": "SECS",
-      "Ip": "127.0.0.1",
-      "Port": 5500,
-      "DeviceId": 1,
-      "IsActive": true,
-      "DictionaryPath": "Dictionaries/TOWA_YPM.json"
-    }
-
-
-  ]
+  }
 }

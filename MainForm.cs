@@ -10,6 +10,8 @@ using System.Windows.Forms;
 using System.Threading;
 using System.Threading.Tasks;
 using CyntecMqttLib.Interfaces;
+using System.Net.Sockets;
+using Modbus.Device;
 
 namespace EAPDashboard
 {
@@ -57,9 +59,12 @@ namespace EAPDashboard
         private AppConfig _appConfig;
         private CancellationTokenSource _mainCts;
         private MqttBus _bus;
-     
-        private bool _isStarted = false;
-     
+
+        // Modbus 連線池管理器
+        private static readonly Dictionary<string, IModbusMaster> _modbusPool = new Dictionary<string, IModbusMaster>();
+        private static readonly Dictionary<string, TcpClient> _tcpPool = new Dictionary<string, TcpClient>();
+        private static readonly SemaphoreSlim _poolLock = new SemaphoreSlim(1, 1);
+
         public MainForm()
         {
             InitializeComponent();
@@ -70,11 +75,27 @@ namespace EAPDashboard
             _mainCts = new CancellationTokenSource();
         }
 
+        public static async Task<IModbusMaster> GetModbusMasterAsync(string ip, int port)
+        {
+            string key = $"{ip}:{port}";
+            await _poolLock.WaitAsync();
+            try {
+                if (_tcpPool.TryGetValue(key, out var client) && client.Connected) return _modbusPool[key];
+                
+                var newClient = new TcpClient();
+                await newClient.ConnectAsync(ip, port);
+                var master = ModbusIpMaster.CreateIp(newClient);
+                
+                _tcpPool[key] = newClient;
+                _modbusPool[key] = master;
+                return master;
+            } finally { _poolLock.Release(); }
+        }
+
         private void MainForm_Load(object sender, EventArgs e)
         {
             LoadConfig();  
             PopulateDashboard();
-            // StartEquipments() 移至 UpdateBrokerStatus 或 InitMqtt 以確保啟動順序正確且僅執行一次
             AdjustCardSize();
         }
 
@@ -82,14 +103,8 @@ namespace EAPDashboard
         {
             _mainCts?.Cancel();
             _mainCts?.Dispose();
-            
-            if (_equipments != null)
-            {
-                foreach (var equipment in _equipments)
-                {
-                    equipment.Stop();
-                }
-            }
+            foreach (var eq in _equipments) eq.Stop();
+            foreach (var tcp in _tcpPool.Values) tcp.Close();
             if (_bus != null) _bus.Dispose();
         }
 
@@ -97,233 +112,112 @@ namespace EAPDashboard
         {
             _equipments = new List<EquipmentBase>();
             var path = Path.Combine(Application.StartupPath, "config.json");
-            if (!File.Exists(path))
-            {
-                MessageBox.Show("config.json not found!", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            try
-            {
+            if (!File.Exists(path)) return;
+            try {
                 var json = File.ReadAllText(path);
                 _appConfig = JsonConvert.DeserializeObject<AppConfig>(json);
-                
-                if (_appConfig.MesSettings != null)
-                {
+                if (_appConfig.MesSettings != null) {
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";
-                    string url = env.Equals("Production", StringComparison.OrdinalIgnoreCase) 
-                                 ? _appConfig.MesSettings.ProductionUrl 
-                                 : _appConfig.MesSettings.TestUrl;
-                    
-                    Protocol.MES.Factory.MESMessageFactory.TargetUrl = url;
+                    Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
                 }
+                if (_appConfig.Equipments != null) {
+                    foreach (var config in _appConfig.Equipments) {
+                        if (config.Protocol == "MQTT") _equipments.Add(new MqttEquipment { Id = config.Id, Name = config.Name, Topic = config.Topic, DbConfig = _appConfig.DbSettings });
+                        else if (config.Protocol == "SECS") _equipments.Add(new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings });
+                    }
+                }
+                LoadSQLiteEquipments();
+                foreach (var eq in _equipments) eq.LoadAlarmMappings();
+            } catch (Exception ex) { MessageBox.Show("Load Error: " + ex.Message); }
+        }
 
-                if (_appConfig.Equipments != null)
-                {
-                    foreach (var config in _appConfig.Equipments)
-                    {
-                        if (config.Protocol == "MQTT")
-                        {
-                            var mqttEq = new MqttEquipment
-                            {
-                                Id = config.Id,
-                                Name = config.Name,
-                                Topic = config.Topic
-                            };
-                            // 傳遞資料庫設定
-                            mqttEq.DbConfig = _appConfig.DbSettings;
-                            _equipments.Add(mqttEq);
-                        }
-                        else if (config.Protocol == "SECS")
-                        {
-                            var secsEq = new SecsEquipment
-                            {
-                                Id = config.Id,
-                                Name = config.Name,
-                                Ip = config.Ip,
-                                Port = config.Port,
-                                DeviceId = config.DeviceId,
-                                IsActive = config.IsActive,
-                                DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath)
-                            };
-                            _equipments.Add(secsEq);
+        private void LoadSQLiteEquipments()
+        {
+            try {
+                using (var conn = DatabaseHelper.GetConnection()) {
+                    conn.Open();
+                    using (var cmd = new System.Data.SQLite.SQLiteCommand("SELECT * FROM Equipment WHERE IsActive = 1", conn)) {
+                        using (var reader = cmd.ExecuteReader()) {
+                            while (reader.Read()) {
+                                string eqId = reader["EqpId"].ToString();
+                                string name = reader["Name"].ToString();
+                                string protocol = reader["Protocol"].ToString().ToUpper();
+                                List<string> missing = new List<string>();
+                                if (protocol == "MQTT") {
+                                    string topic = reader["Topic"].ToString();
+                                    if (string.IsNullOrEmpty(topic)) missing.Add("Topic");
+                                    else _equipments.Add(new MqttEquipment { Id = eqId, Name = name, Topic = topic, DbConfig = _appConfig.DbSettings });
+                                } else if (protocol == "SECS") {
+                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
+                                    else _equipments.Add(new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings });
+                                } else if (protocol == "MODBUSTCP") {
+                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
+                                    else {
+                                        var modEq = new ModbusEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DbConfig = _appConfig.DbSettings };
+                                        modEq.SetEvents(DatabaseHelper.GetModbusConfigs(eqId));
+                                        _equipments.Add(modEq);
+                                    }
+                                }
+                                if (missing.Count > 0) System.Diagnostics.Debug.WriteLine($"[DB] {eqId} missing: {string.Join(",", missing)}");
+                            }
                         }
                     }
                 }
-
-                // 載入持久化狀態
-                LoadStates();
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"設定檔讀取失敗：\n{ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                _appConfig = new AppConfig();
-            }
+            } catch { }
         }
 
         private void PopulateDashboard()
         {
             flowLayoutPanel.Controls.Clear();
-            foreach (var equipment in _equipments)
-            {
-                // 訂閱狀態變更以即時存檔
-                equipment.PropertyChanged += (s, e) => {
-                    if (e.PropertyName == nameof(EquipmentBase.State) || e.PropertyName == nameof(EquipmentBase.CurrentRecipe))
-                    {
-                        SaveStates();
-                    }
-                };
-
-                var card = new EquipmentCard(equipment);
-                flowLayoutPanel.Controls.Add(card);
+            foreach (var eq in _equipments) {
+                eq.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(EquipmentBase.State)) SaveStates(); };
+                flowLayoutPanel.Controls.Add(new EquipmentCard(eq));
             }
-
             InitMqtt();
         }
 
         private async void InitMqtt()
         {
-            try
-            {
-                _bus = new MqttBus(
-                          host: _appConfig.MqttBrokerHost ?? "127.0.0.1",
-                          port: _appConfig.MqttBrokerPort > 0 ? _appConfig.MqttBrokerPort : 1883,
-                          clientId: $"EAPDashboard_{Dns.GetHostName()}"
-                       );
-
+            try {
+                _bus = new MqttBus(host: _appConfig.MqttBrokerHost ?? "127.0.0.1", port: _appConfig.MqttBrokerPort > 0 ? _appConfig.MqttBrokerPort : 1883, clientId: $"EAP_{Dns.GetHostName()}");
                 _bus.Connected += () => UpdateBrokerStatus(true);
                 _bus.Disconnected += () => UpdateBrokerStatus(false);
-
                 await _bus.ConnectAsync();
-            }
-            catch (Exception ex)
-            {
-                UpdateBrokerStatus(false);
-                System.Diagnostics.Debug.WriteLine($"MQTT 連線失敗: {ex.Message}");
-            }
+            } catch { UpdateBrokerStatus(false); }
         }
 
         private void StartEquipments()
         {
-            foreach (var equipment in _equipments)
-            {
-                int interval = _appConfig.HeartbeatIntervalSeconds > 0 ? _appConfig.HeartbeatIntervalSeconds : 30;
-                equipment.Start(_mainCts.Token, _bus, interval);
-            }
+            foreach (var eq in _equipments) eq.Start(_mainCts.Token, _bus, _appConfig.HeartbeatIntervalSeconds);
         }
 
         private void UpdateBrokerStatus(bool isConnected)
         {
-            if (lblBrokerStatus.InvokeRequired)
-            {
-                lblBrokerStatus.Invoke(new Action(() => UpdateBrokerStatus(isConnected)));
-                return;
-            }
-
-            if (isConnected)
-            {
-                lblBrokerStatus.ForeColor = Color.Lime;
-                lblBrokerStatus.Text = "● MQTT Broker: Connected";
-                StartEquipments();
-            }
-            else
-            {
-                lblBrokerStatus.ForeColor = Color.Red;
-                lblBrokerStatus.Text = "● MQTT Broker: Disconnected (Retrying...)";
-            }
+            if (lblBrokerStatus.InvokeRequired) { lblBrokerStatus.Invoke(new Action(() => UpdateBrokerStatus(isConnected))); return; }
+            lblBrokerStatus.ForeColor = isConnected ? Color.Lime : Color.Red;
+            lblBrokerStatus.Text = isConnected ? "● MQTT Broker: Connected" : "● MQTT Broker: Disconnected";
+            if (isConnected) StartEquipments();
         }
 
         private void SaveStates()
         {
-            try
-            {
-                var states = new Dictionary<string, object>();
-                foreach (var eq in _equipments)
-                {
-                    states[eq.Id] = new { eq.State, eq.CurrentRecipe };
-                }
-                string json = JsonConvert.SerializeObject(states, Formatting.Indented);
-                File.WriteAllText(Path.Combine(Application.StartupPath, "equipment_state.json"), json);
-            }
-            catch { }
+            try {
+                var dict = new Dictionary<string, object>();
+                foreach (var eq in _equipments) dict[eq.Id] = new { eq.State, eq.CurrentRecipe };
+                File.WriteAllText(Path.Combine(Application.StartupPath, "equipment_state.json"), JsonConvert.SerializeObject(dict));
+            } catch { }
         }
 
-        private void LoadStates()
-        {
-            string path = Path.Combine(Application.StartupPath, "equipment_state.json");
-            if (!File.Exists(path)) return;
-            try
-            {
-                string json = File.ReadAllText(path);
-                var states = JsonConvert.DeserializeObject<Dictionary<string, Newtonsoft.Json.Linq.JObject>>(json);
-                foreach (var eq in _equipments)
-                {
-                    if (states.TryGetValue(eq.Id, out var stateObj))
-                    {
-                        if (stateObj["State"] != null) eq.State = stateObj["State"].ToObject<EquipmentState>();
-                        if (stateObj["CurrentRecipe"] != null) eq.CurrentRecipe = stateObj["CurrentRecipe"].ToString();
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private void MainForm_Resize(object sender, EventArgs e)
-        {
-            AdjustCardSize();
-        }
-
-        private void MenuSettings_Click(object sender, EventArgs e)
-        {
-            using (var form = new SettingsForm())
-            {
-                form.ShowDialog(this);
-            }
-        }
-
-        private async void MenuTimeSync_Click(object sender, EventArgs e)
-        {
-            int count = 0;
-            foreach (var eq in _equipments)
-            {
-                if (eq.Connection == ConnectionStatus.Connected)
-                {
-                    if (eq is MqttEquipment mqttEq)
-                    {
-                        await mqttEq.SendTimeCalibration();
-                        count++;
-                    }
-                    else if (eq is SecsEquipment secsEq)
-                    {
-                        await secsEq.SendTimeCalibration();
-                        count++;
-                    }
-                }
-            }
-            MessageBox.Show($"已對 {count} 台連線中的設備發出時間校正指令。", "指令已發送", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
+        private void MainForm_Resize(object sender, EventArgs e) => AdjustCardSize();
+        private void MenuSettings_Click(object sender, EventArgs e) { using (var f = new SettingsForm()) f.ShowDialog(this); }
+        private async void MenuTimeSync_Click(object sender, EventArgs e) { foreach (var eq in _equipments) if (eq.Connection == ConnectionStatus.Connected) await eq.SendTimeCalibration(); }
 
         private void AdjustCardSize()
         {
             if (flowLayoutPanel.Width < 100) return;
-
-            int margin = 10;
-            int cardsPerRow = 4;
-            
-            if (flowLayoutPanel.Width < 600) cardsPerRow = 1;
-            else if (flowLayoutPanel.Width < 900) cardsPerRow = 2;
-            else if (flowLayoutPanel.Width < 1200) cardsPerRow = 3;
-
-            int cardWidth = (flowLayoutPanel.Width / cardsPerRow) - (margin * 2);
-            int cardHeight = 180;
-
-            foreach (Control control in flowLayoutPanel.Controls)
-            {
-                if (control is EquipmentCard card)
-                {
-                    card.Size = new Size(cardWidth, cardHeight);
-                }
-            }
+            int cardsPerRow = flowLayoutPanel.Width < 600 ? 1 : (flowLayoutPanel.Width < 900 ? 2 : (flowLayoutPanel.Width < 1200 ? 3 : 4));
+            int cardWidth = (flowLayoutPanel.Width / cardsPerRow) - 20;
+            foreach (Control c in flowLayoutPanel.Controls) if (c is EquipmentCard card) card.Size = new Size(cardWidth, 180);
         }
     }
 }
