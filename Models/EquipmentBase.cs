@@ -6,6 +6,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Protocol.MES.Factory;
@@ -115,10 +116,22 @@ namespace EAPDashboard.Models
 
                 string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
                 
-                // 2. PP-SELECT (回傳 RecipeID 讓子類別執行機台下換)
-                return $"PP-SELECT|{wo}|{recipe}";
+                // 2. PP-SELECT (回傳 RecipeID 與原始參數清單，讓子類別執行機台下換)
+                return $"PP-SELECT|{wo}|{recipe}|{qryReply.InputParamListDT}";
             }
             catch (Exception ex) { return $"ERROR|進站流程異常: {ex.Message}"; }
+        }
+
+        protected string GetMesParamValue(string inputParamListDt, string paramName)
+        {
+            if (string.IsNullOrEmpty(inputParamListDt)) return null;
+            try
+            {
+                var list = JsonConvert.DeserializeObject<List<JObject>>(inputParamListDt);
+                var paramObj = list.FirstOrDefault(x => x["ParamName"]?.ToString() == paramName || x["ParamCode"]?.ToString() == paramName);
+                return paramObj?["DefaultValue"]?.ToString();
+            }
+            catch { return null; }
         }
 
         public async Task<string> ProcessTrackInFinalAsync(string workOrder)

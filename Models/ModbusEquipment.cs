@@ -131,11 +131,37 @@ namespace EAPDashboard.Models
                     res = await ProcessTrackInAsync(getVal("CassetteID", ""), getVal("WorkOrder", ""));
                     if (res.StartsWith("PP-SELECT")) {
                         string[] p = res.Split('|');
-                        var rp = evt.DataPoints.FirstOrDefault(x => x.Key == "RecipeID" && x.AccessType == "WRITE");
-                        if (rp != null) await WriteAscii(rp.Address, p[2], rp.Length);
-                        res = await ProcessTrackInFinalAsync(p[1]);
+                        string wo = p[1];
+                        string inputParams = p.Length > 3 ? p[3] : "";
+
+                        // 1. 取得子設備配置
+                        var subConfigs = DatabaseHelper.GetSubEqpConfigs(Id);
+                        if (subConfigs.Count > 0) {
+                            OnLogReceived(LogLevel.Info, $"[TRACKIN] 偵測到 {subConfigs.Count} 個子設備配置，開始寫入配方...");
+                            foreach (var sub in subConfigs) {
+                                string subRecipe = GetMesParamValue(inputParams, sub.MesParamKey);
+                                if (!string.IsNullOrEmpty(subRecipe)) {
+                                    var dp = evt.DataPoints.FirstOrDefault(x => x.Key == sub.DataKey && x.AccessType == "WRITE");
+                                    if (dp != null) {
+                                        OnLogReceived(LogLevel.Info, $"[TRACKIN] 寫入子設備 {sub.SubEqpName} 配方: {subRecipe} 到位址 {dp.Address}");
+                                        await WriteAscii(dp.Address, subRecipe, dp.Length);
+                                    } else {
+                                        OnLogReceived(LogLevel.Warn, $"[TRACKIN] 找不到子設備 {sub.SubEqpName} 對應的 DataPoint: {sub.DataKey}");
+                                    }
+                                } else {
+                                    OnLogReceived(LogLevel.Warn, $"[TRACKIN] MES 參數清單中找不到子設備 {sub.SubEqpName} 的 Key: {sub.MesParamKey}");
+                                }
+                            }
+                        } else {
+                            // 相容舊邏輯：若無子設備配置，則尋找預設 RecipeID 寫入位址
+                            var rp = evt.DataPoints.FirstOrDefault(x => x.Key == "RecipeID" && x.AccessType == "WRITE");
+                            if (rp != null) await WriteAscii(rp.Address, p[2], rp.Length);
+                        }
+
+                        res = await ProcessTrackInFinalAsync(wo);
                     } break;
-                case "TRACKOUT": res = await ProcessTrackOutAsync(getVal("WorkOrder", ""), getVal("Qty", "1")); break;
+                case "TRACKOUT":
+ res = await ProcessTrackOutAsync(getVal("WorkOrder", ""), getVal("Qty", "1")); break;
                 case "USERVERIFY": res = await ProcessUserVerifyAsync(getVal("Barcode", "")); break;
                 case "ALARM": 
                     string mc = TransformAlarmCode(getVal("AlarmCode", ""));

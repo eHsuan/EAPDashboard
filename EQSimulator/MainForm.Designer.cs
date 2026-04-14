@@ -282,6 +282,8 @@ namespace EQSimulator
             this.flowActions.Controls.Add(this.btnUser);
             this.flowActions.Controls.Add(this.btnTrackIn);
             this.flowActions.Controls.Add(this.btnTrackOut);
+            this.flowActions.Controls.Add(this.btnPanelIn);
+            this.flowActions.Controls.Add(this.btnPanelOut);
             this.flowActions.Controls.Add(this.btnAlarm);
             this.flowActions.Controls.Add(this.pnlStatusReport);
             this.flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -423,6 +425,8 @@ namespace EQSimulator
         private System.Windows.Forms.Button btnUser;
         private System.Windows.Forms.Button btnTrackIn;
         private System.Windows.Forms.Button btnTrackOut;
+        private System.Windows.Forms.Button btnPanelIn;
+        private System.Windows.Forms.Button btnPanelOut;
         private System.Windows.Forms.Button btnAlarm;
         private System.Windows.Forms.Panel pnlStatusReport;
         private System.Windows.Forms.ComboBox _cmbStatus;

@@ -169,7 +169,19 @@ namespace EAPDashboard.Models
                         await SaveProductionDataAsync("BatchDataReport", "", bpdr);
                         await SendReply(new ReplyBatchProcessDataReportMessage { CMD = CommandType.ReplyBatchProcessDataReport, RtnResult = RtnResult.PASS });
                         break;
+                    case CommandType.PanelInReport:
+                        var pIn = JsonConvert.DeserializeObject<PanelInReportMessage>(innerJson);
+                        await SaveProductionDataAsync("PanelIn", "", pIn);
+                        await SendReply(new ReplyPanelInReportMessage { CMD = CommandType.ReplyPanelInReport, RtnResult = RtnResult.PASS });
+                        break;
+                    case CommandType.PanelOutReport:
+                        var pOut = JsonConvert.DeserializeObject<PanelOutReportMessage>(innerJson);
+                        await SaveProductionDataAsync("PanelOut", "", pOut);
+                        await SendReply(new ReplyPanelOutReportMessage { CMD = CommandType.ReplyPanelOutReport, RtnResult = RtnResult.PASS });
+                        break;
                 }
+            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"解析 Report 失敗: {ex.Message}"); }
+        }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) {
             Task.Run(() => { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); } 

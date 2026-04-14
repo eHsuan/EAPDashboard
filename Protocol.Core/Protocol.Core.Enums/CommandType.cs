@@ -38,5 +38,9 @@ public enum CommandType
 	BatchProcessDataReport,
 	ReplyBatchProcessDataReport,
 	STOP,
-	ReplySTOP
+	ReplySTOP,
+	PanelInReport,
+	ReplyPanelInReport,
+	PanelOutReport,
+	ReplyPanelOutReport
 }

@@ -172,6 +172,15 @@ namespace EQSimulator
                             SendMessage(new IamHereMessage { CMD = CommandType.IamHere });
                             break;
                         
+                        case CommandType.ReplyTrackInReq:
+                            var rti = (ReplyTrackInReqMessage)msg;
+                            if (rti.RtnResult == RtnResult.PASS) {
+                                Log($"-> TrackIn PASS! Panels: {(rti.PanelList != null ? string.Join(",", rti.PanelList) : "None")}");
+                            } else {
+                                Log($"-> TrackIn FAIL: {rti.RtnMsg}");
+                            }
+                            break;
+
                         case CommandType.PP_SELECT:
                             var pp = (PPSelectMessage)msg;
                             Log($"-> Recipe Change Requested: {pp.RecipeID}. Switching...");

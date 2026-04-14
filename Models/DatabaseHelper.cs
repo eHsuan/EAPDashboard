@@ -73,6 +73,16 @@ namespace EAPDashboard.Models
                         DataJson TEXT,
                         Timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
                     );
+
+                    -- 6. 子設備配置表 (用於群組線別多配方管理)
+                    CREATE TABLE IF NOT EXISTS Sub_Equipment (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EqpId TEXT,
+                        SubEqpName TEXT,
+                        MesParamKey TEXT, -- MES 參數名稱 (如 RECIPEID_LOADER)
+                        DataKey TEXT,      -- 對應 Modbus_DataPoints 的 Key (如 RecipeID_L)
+                        FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
+                    );
                 ";
 
                 using (var cmd = new SQLiteCommand(schema, conn))
@@ -85,6 +95,33 @@ namespace EAPDashboard.Models
         public static SQLiteConnection GetConnection()
         {
             return new SQLiteConnection(ConnectionString);
+        }
+
+        public static List<SubEqpConfig> GetSubEqpConfigs(string eqpId)
+        {
+            var configs = new List<SubEqpConfig>();
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                string sql = "SELECT * FROM Sub_Equipment WHERE EqpId = @eqid";
+                using (var cmd = new SQLiteCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("@eqid", eqpId);
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            configs.Add(new SubEqpConfig
+                            {
+                                SubEqpName = reader["SubEqpName"].ToString(),
+                                MesParamKey = reader["MesParamKey"].ToString(),
+                                DataKey = reader["DataKey"].ToString()
+                            });
+                        }
+                    }
+                }
+            }
+            return configs;
         }
 
         public static List<ModbusEventConfig> GetModbusConfigs(string eqpId)
@@ -160,5 +197,12 @@ namespace EAPDashboard.Models
         public ushort Length { get; set; }
         public string DataType { get; set; }
         public string AccessType { get; set; }
+    }
+
+    public class SubEqpConfig
+    {
+        public string SubEqpName { get; set; }
+        public string MesParamKey { get; set; }
+        public string DataKey { get; set; }
     }
 }
