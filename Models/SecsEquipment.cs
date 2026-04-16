@@ -144,13 +144,13 @@ namespace EAPDashboard.Models
         {
             string rid = ExtractVidValue(root, "111") ?? "UNKNOWN";
             string cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
-            string res = await ProcessTrackInAsync(cid, null);
+            string res = await ProcessTrackInAsync(cid, null, "UNKNOWN");
             if (res.StartsWith("PP-SELECT")) {
                 string[] p = res.Split('|');
                 var remoteCmd = new SecsMessage(2, 41) { SecsItem = Item.L(Item.A("PP-SELECT"), Item.L(Item.L(Item.A("PPID"), Item.A(p[2])))) };
                 using (var reply = await _secsGem.SendAsync(remoteCmd)) {
                     if (reply.S == 2 && reply.F == 42 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
-                        string fin = await ProcessTrackInFinalAsync(p[1]);
+                        string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
                         OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
                     }
                 }
@@ -160,7 +160,7 @@ namespace EAPDashboard.Models
         private async Task HandleTrackOutEvent(Item root)
         {
             string rid = ExtractVidValue(root, "111") ?? "UNKNOWN";
-            string res = await ProcessTrackOutAsync(rid, "1");
+            string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
             OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
         }
 

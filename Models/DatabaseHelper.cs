@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
+using System.Linq;
 
 namespace EAPDashboard.Models
 {
@@ -21,6 +22,10 @@ namespace EAPDashboard.Models
             {
                 conn.Open();
                 
+                // 1. 執行遷移邏輯
+                MigrateModbusToPlc(conn);
+                MigrateBitOffsetToTrigAck(conn);
+
                 string schema = @"
                     CREATE TABLE IF NOT EXISTS Equipment (
                         EqpId TEXT PRIMARY KEY,
@@ -34,26 +39,28 @@ namespace EAPDashboard.Models
                         IsActive INTEGER DEFAULT 1
                     );
 
-                    CREATE TABLE IF NOT EXISTS Modbus_Events (
+                    CREATE TABLE IF NOT EXISTS Plc_Events (
                         EventId INTEGER PRIMARY KEY AUTOINCREMENT,
                         EqpId TEXT,
+                        SubEqpID TEXT,
                         EventName TEXT,
-                        TriggerAddr INTEGER,
-                        AckAddr INTEGER,
-                        HandshakeType TEXT, -- 'ROLLING', 'BIT', 'HEARTBEAT'
-                        BitOffset INTEGER DEFAULT 0, -- 新增：位元偏移量 (0-15)
+                        TriggerAddr TEXT,
+                        AckAddr TEXT,
+                        HandshakeType TEXT,
+                        TrigBitOffset INTEGER DEFAULT 0,
+                        AckBitOffset INTEGER DEFAULT 0,
                         FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
                     );
 
-                    CREATE TABLE IF NOT EXISTS Modbus_DataPoints (
+                    CREATE TABLE IF NOT EXISTS Plc_DataPoints (
                         PointId INTEGER PRIMARY KEY AUTOINCREMENT,
                         EventId INTEGER,
                         DataKey TEXT,
-                        Address INTEGER,
+                        Address TEXT,
                         Length INTEGER,
-                        DataType TEXT, -- 'BIT', 'WORD', 'ASCII', 'DATETIME'
-                        AccessType TEXT DEFAULT 'READ', -- 'READ', 'WRITE'
-                        FOREIGN KEY(EventId) REFERENCES Modbus_Events(EventId)
+                        DataType TEXT,
+                        AccessType TEXT DEFAULT 'READ',
+                        FOREIGN KEY(EventId) REFERENCES Plc_Events(EventId)
                     );
 
                     CREATE TABLE IF NOT EXISTS Alarm_Mapping (
@@ -64,7 +71,6 @@ namespace EAPDashboard.Models
                         PRIMARY KEY(EqpId, RawCode)
                     );
 
-                    -- 5. 生產數據紀錄表 (雙軌儲存源)
                     CREATE TABLE IF NOT EXISTS Production_Logs (
                         LogId INTEGER PRIMARY KEY AUTOINCREMENT,
                         EqpId TEXT,
@@ -74,20 +80,236 @@ namespace EAPDashboard.Models
                         Timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
                     );
 
-                    -- 6. 子設備配置表 (用於群組線別多配方管理)
                     CREATE TABLE IF NOT EXISTS Sub_Equipment (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
                         EqpId TEXT,
                         SubEqpName TEXT,
-                        MesParamKey TEXT, -- MES 參數名稱 (如 RECIPEID_LOADER)
-                        DataKey TEXT,      -- 對應 Modbus_DataPoints 的 Key (如 RecipeID_L)
+                        MesParamKey TEXT,
+                        DataKey TEXT,
                         FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
+                    );
+
+                    CREATE TABLE IF NOT EXISTS Result_Mapping (
+                        MappingId INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EventName TEXT,
+                        MesResultCode TEXT,
+                        MappedRtnCode TEXT,
+                        Description TEXT
+                    );
+
+                    CREATE TABLE IF NOT EXISTS Local_Binding_Buffer (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CassetteID TEXT,
+                        WorkOrder TEXT,
+                        PanelList TEXT,
+                        Timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
+                    );
+
+                    CREATE TABLE IF NOT EXISTS Local_Unbinding_Buffer (
+                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        CassetteID TEXT,
+                        Timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
                     );
                 ";
 
                 using (var cmd = new SQLiteCommand(schema, conn))
                 {
                     cmd.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public static string GetMappedRtnCode(string eventName, string mesCode)
+        {
+            if (string.IsNullOrEmpty(mesCode)) return mesCode;
+            try {
+                using (var conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = "SELECT MappedRtnCode FROM Result_Mapping WHERE EventName = @evt AND MesResultCode = @mes";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@evt", eventName);
+                        cmd.Parameters.AddWithValue("@mes", mesCode);
+                        var result = cmd.ExecuteScalar();
+                        return result?.ToString() ?? mesCode;
+                    }
+                }
+            } catch { return mesCode; }
+        }
+
+        public static List<PendingBinding> GetPendingBindings()
+        {
+            var list = new List<PendingBinding>();
+            try {
+                using (var conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = "SELECT * FROM Local_Binding_Buffer";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                list.Add(new PendingBinding
+                                {
+                                    Id = Convert.ToInt32(reader["Id"]),
+                                    CassetteID = reader["CassetteID"].ToString(),
+                                    WorkOrder = reader["WorkOrder"].ToString(),
+                                    PanelList = reader["PanelList"].ToString()
+                                });
+                            }
+                        }
+                    }
+                }
+            } catch { }
+            return list;
+        }
+
+        public static void DeletePendingBinding(int id)
+        {
+            try {
+                using (var conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = "DELETE FROM Local_Binding_Buffer WHERE Id = @id";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            } catch { }
+        }
+
+        public static List<string> GetPendingUnbindings()
+        {
+            var list = new List<string>();
+            try {
+                using (var conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = "SELECT CassetteID FROM Local_Unbinding_Buffer";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read()) list.Add(reader["CassetteID"].ToString());
+                        }
+                    }
+                }
+            } catch { }
+            return list;
+        }
+
+        public static void DeletePendingUnbinding(string cid)
+        {
+            try {
+                using (var conn = GetConnection())
+                {
+                    conn.Open();
+                    string sql = "DELETE FROM Local_Unbinding_Buffer WHERE CassetteID = @cid";
+                    using (var cmd = new SQLiteCommand(sql, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@cid", cid);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            } catch { }
+        }
+
+        private static void MigrateModbusToPlc(SQLiteConnection conn)
+        {
+            bool modbusTableExists = false;
+            using (var cmd = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='Modbus_Events'", conn))
+            {
+                modbusTableExists = cmd.ExecuteScalar() != null;
+            }
+
+            if (modbusTableExists)
+            {
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        string createPlcEvents = @"
+                            CREATE TABLE IF NOT EXISTS Plc_Events (
+                                EventId INTEGER PRIMARY KEY AUTOINCREMENT,
+                                EqpId TEXT,
+                                SubEqpID TEXT,
+                                EventName TEXT,
+                                TriggerAddr TEXT,
+                                AckAddr TEXT,
+                                HandshakeType TEXT,
+                                TrigBitOffset INTEGER DEFAULT 0,
+                                AckBitOffset INTEGER DEFAULT 0,
+                                FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
+                            );";
+                        new SQLiteCommand(createPlcEvents, conn).ExecuteNonQuery();
+                        new SQLiteCommand("INSERT INTO Plc_Events (EventId, EqpId, EventName, TriggerAddr, AckAddr, HandshakeType, TrigBitOffset, AckBitOffset) SELECT EventId, EqpId, EventName, CAST(TriggerAddr AS TEXT), CAST(AckAddr AS TEXT), HandshakeType, BitOffset, BitOffset FROM Modbus_Events", conn).ExecuteNonQuery();
+
+                        string createPlcDataPoints = @"
+                            CREATE TABLE IF NOT EXISTS Plc_DataPoints (
+                                PointId INTEGER PRIMARY KEY AUTOINCREMENT,
+                                EventId INTEGER,
+                                DataKey TEXT,
+                                Address TEXT,
+                                Length INTEGER,
+                                DataType TEXT,
+                                AccessType TEXT DEFAULT 'READ',
+                                FOREIGN KEY(EventId) REFERENCES Plc_Events(EventId)
+                            );";
+                        new SQLiteCommand(createPlcDataPoints, conn).ExecuteNonQuery();
+                        new SQLiteCommand("INSERT INTO Plc_DataPoints SELECT PointId, EventId, DataKey, CAST(Address AS TEXT), Length, DataType, AccessType FROM Modbus_DataPoints", conn).ExecuteNonQuery();
+
+                        new SQLiteCommand("DROP TABLE Modbus_DataPoints", conn).ExecuteNonQuery();
+                        new SQLiteCommand("DROP TABLE Modbus_Events", conn).ExecuteNonQuery();
+
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); }
+                }
+            }
+        }
+
+        private static void MigrateBitOffsetToTrigAck(SQLiteConnection conn)
+        {
+            bool hasBitOffset = false;
+            using (var cmd = new SQLiteCommand("PRAGMA table_info(Plc_Events)", conn))
+            {
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) if (reader["name"].ToString() == "BitOffset") hasBitOffset = true;
+                }
+            }
+
+            if (hasBitOffset)
+            {
+                using (var transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        new SQLiteCommand("ALTER TABLE Plc_Events RENAME TO Plc_Events_Old", conn).ExecuteNonQuery();
+                        string createNew = @"
+                            CREATE TABLE Plc_Events (
+                                EventId INTEGER PRIMARY KEY AUTOINCREMENT,
+                                EqpId TEXT,
+                                SubEqpID TEXT,
+                                EventName TEXT,
+                                TriggerAddr TEXT,
+                                AckAddr TEXT,
+                                HandshakeType TEXT,
+                                TrigBitOffset INTEGER DEFAULT 0,
+                                AckBitOffset INTEGER DEFAULT 0,
+                                FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
+                            );";
+                        new SQLiteCommand(createNew, conn).ExecuteNonQuery();
+                        new SQLiteCommand("INSERT INTO Plc_Events (EventId, EqpId, SubEqpID, EventName, TriggerAddr, AckAddr, HandshakeType, TrigBitOffset, AckBitOffset) SELECT EventId, EqpId, NULL, EventName, TriggerAddr, AckAddr, HandshakeType, BitOffset, BitOffset FROM Plc_Events_Old", conn).ExecuteNonQuery();
+                        new SQLiteCommand("DROP TABLE Plc_Events_Old", conn).ExecuteNonQuery();
+                        transaction.Commit();
+                    }
+                    catch { transaction.Rollback(); }
                 }
             }
         }
@@ -124,13 +346,13 @@ namespace EAPDashboard.Models
             return configs;
         }
 
-        public static List<ModbusEventConfig> GetModbusConfigs(string eqpId)
+        public static List<PlcEventConfig> GetPlcConfigs(string eqpId)
         {
-            var events = new List<ModbusEventConfig>();
+            var events = new List<PlcEventConfig>();
             using (var conn = GetConnection())
             {
                 conn.Open();
-                string sqlEvt = "SELECT * FROM Modbus_Events WHERE EqpId = @eqid";
+                string sqlEvt = "SELECT * FROM Plc_Events WHERE EqpId = @eqid";
                 using (var cmdEvt = new SQLiteCommand(sqlEvt, conn))
                 {
                     cmdEvt.Parameters.AddWithValue("@eqid", eqpId);
@@ -138,14 +360,17 @@ namespace EAPDashboard.Models
                     {
                         while (reader.Read())
                         {
-                            var evt = new ModbusEventConfig
+                            var evt = new PlcEventConfig
                             {
                                 EventId = Convert.ToInt32(reader["EventId"]),
+                                EqpId = reader["EqpId"].ToString(),
+                                SubEqpID = reader["SubEqpID"]?.ToString(),
                                 EventName = reader["EventName"].ToString(),
-                                TriggerAddr = (ushort)Convert.ToInt32(reader["TriggerAddr"]),
-                                AckAddr = (ushort)Convert.ToInt32(reader["AckAddr"]),
+                                TriggerAddr = reader["TriggerAddr"].ToString(),
+                                AckAddr = reader["AckAddr"].ToString(),
                                 HandshakeType = reader["HandshakeType"].ToString(),
-                                BitOffset = Convert.ToInt32(reader["BitOffset"])
+                                TrigBitOffset = Convert.ToInt32(reader["TrigBitOffset"]),
+                                AckBitOffset = Convert.ToInt32(reader["AckBitOffset"])
                             };
                             events.Add(evt);
                         }
@@ -154,7 +379,7 @@ namespace EAPDashboard.Models
 
                 foreach (var evt in events)
                 {
-                    string sqlDp = "SELECT * FROM Modbus_DataPoints WHERE EventId = @evid";
+                    string sqlDp = "SELECT * FROM Plc_DataPoints WHERE EventId = @evid";
                     using (var cmdDp = new SQLiteCommand(sqlDp, conn))
                     {
                         cmdDp.Parameters.AddWithValue("@evid", evt.EventId);
@@ -162,10 +387,10 @@ namespace EAPDashboard.Models
                         {
                             while (reader.Read())
                             {
-                                evt.DataPoints.Add(new ModbusDataPoint
+                                evt.DataPoints.Add(new PlcDataPoint
                                 {
                                     Key = reader["DataKey"].ToString(),
-                                    Address = (ushort)Convert.ToInt32(reader["Address"]),
+                                    Address = reader["Address"].ToString(),
                                     Length = (ushort)Convert.ToInt32(reader["Length"]),
                                     DataType = reader["DataType"].ToString(),
                                     AccessType = reader["AccessType"].ToString()
@@ -179,21 +404,24 @@ namespace EAPDashboard.Models
         }
     }
 
-    public class ModbusEventConfig
+    public class PlcEventConfig
     {
         public int EventId { get; set; }
+        public string EqpId { get; set; }
+        public string SubEqpID { get; set; }
         public string EventName { get; set; }
-        public ushort TriggerAddr { get; set; }
-        public ushort AckAddr { get; set; }
+        public string TriggerAddr { get; set; }
+        public string AckAddr { get; set; }
         public string HandshakeType { get; set; }
-        public int BitOffset { get; set; }
-        public List<ModbusDataPoint> DataPoints { get; set; } = new List<ModbusDataPoint>();
+        public int TrigBitOffset { get; set; }
+        public int AckBitOffset { get; set; }
+        public List<PlcDataPoint> DataPoints { get; set; } = new List<PlcDataPoint>();
     }
 
-    public class ModbusDataPoint
+    public class PlcDataPoint
     {
         public string Key { get; set; }
-        public ushort Address { get; set; }
+        public string Address { get; set; }
         public ushort Length { get; set; }
         public string DataType { get; set; }
         public string AccessType { get; set; }
@@ -204,5 +432,13 @@ namespace EAPDashboard.Models
         public string SubEqpName { get; set; }
         public string MesParamKey { get; set; }
         public string DataKey { get; set; }
+    }
+
+    public class PendingBinding
+    {
+        public int Id { get; set; }
+        public string CassetteID { get; set; }
+        public string WorkOrder { get; set; }
+        public string PanelList { get; set; }
     }
 }

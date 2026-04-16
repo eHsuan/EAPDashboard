@@ -153,9 +153,18 @@ namespace EAPDashboard
                                 } else if (protocol == "MODBUSTCP") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
                                     else {
-                                        var modEq = new ModbusEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DbConfig = _appConfig.DbSettings };
-                                        modEq.SetEvents(DatabaseHelper.GetModbusConfigs(eqId));
+                                        var modbusDriver = new ModbusDriver();
+                                        var modEq = new PlcEquipmentBase(modbusDriver) { Id = eqId, Name = name, Protocol = protocol, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]) };
+                                        modEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
                                         _equipments.Add(modEq);
+                                    }
+                                } else if (protocol == "MC") {
+                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
+                                    else {
+                                        var mcDriver = new McDriver();
+                                        var mcEq = new PlcEquipmentBase(mcDriver) { Id = eqId, Name = name, Protocol = protocol, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]) };
+                                        mcEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
+                                        _equipments.Add(mcEq);
                                     }
                                 }
                                 if (missing.Count > 0) System.Diagnostics.Debug.WriteLine($"[DB] {eqId} missing: {string.Join(",", missing)}");

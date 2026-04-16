@@ -32,6 +32,8 @@ namespace EAPDashboard.Models
         {
             public string WorkOrder { get; set; }
             public string RecipeID { get; set; }
+            public string UserID { get; set; }
+            public string CassetteID { get; set; }
         }
         private readonly Dictionary<string, TrackInContext> _pendingTrackIn = new Dictionary<string, TrackInContext>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
@@ -114,16 +116,16 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.UserID_Verify:
                         var uv = JsonConvert.DeserializeObject<UserIDVerifyMessage>(innerJson);
-                        string res = await ProcessUserVerifyAsync(string.IsNullOrEmpty(uv.Barcode) ? uv.UserID : uv.Barcode);
+                        string res = await ProcessUserVerifyAsync(string.IsNullOrEmpty(uv.Barcode) ? uv.UserID : uv.Barcode, uv.UserID);
                         string[] p = res.Split('|');
                         await SendReply(new ReplyUserIDVerifyMessage { CMD = CommandType.ReplyUserID_Verify, UserID = p[1], RtnResult = p[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = p[2] });
                         break;
                     case CommandType.TrackInReq:
                         var ti = JsonConvert.DeserializeObject<TrackInReqMessage>(innerJson);
-                        string tir = await ProcessTrackInAsync(ti.CassetteID, ti.WorkOrder);
+                        string tir = await ProcessTrackInAsync(ti.CassetteID, ti.WorkOrder, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
-                            _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2] };
+                            _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };
                             await SendReply(new PPSelectMessage { CMD = CommandType.PP_SELECT, RecipeID = tp[2] });
                         } else {
                             await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = tir.Split('|').Last() });
@@ -135,7 +137,7 @@ namespace EAPDashboard.Models
                             _pendingTrackIn.Remove(Id);
                             if (rps.RtnResult == RtnResult.PASS) {
                                 CurrentRecipe = ctx.RecipeID;
-                                string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder);
+                                string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
                                 await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
                             } else {
                                 await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = "機台 Recipe 切換失敗" });
@@ -144,7 +146,7 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.TrackOutReq:
                         var to = JsonConvert.DeserializeObject<TrackOutReqMessage>(innerJson);
-                        string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString());
+                        string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, new List<string>());
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() });
                         break;
                     case CommandType.ALARM:

@@ -4,6 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net472</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
     <AssemblyName>EAPDashboard</AssemblyName>
     <RootNamespace>EAPDashboard</RootNamespace>
     <Authors>YH.CHIU</Authors>
@@ -25,6 +27,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="IoTClient" Version="1.0.42" />
     <PackageReference Include="log4net" Version="2.0.15" />
     <PackageReference Include="MQTTnet" Version="3.0.16" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
