@@ -174,6 +174,7 @@ namespace MESSimulator
             this.Controls.Add(this.panelTop);
             this.Name = "MainForm";
             this.Text = "MES WebService Simulator v1.0.0";
+            this.Load += new System.EventHandler(this.MainForm_Load);
             this.panelTop.ResumeLayout(false);
             this.panelTop.PerformLayout();
             this.splitContainer.Panel1.ResumeLayout(false);

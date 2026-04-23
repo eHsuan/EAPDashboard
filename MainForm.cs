@@ -97,6 +97,9 @@ namespace EAPDashboard
             LoadConfig();  
             PopulateDashboard();
             AdjustCardSize();
+
+            // 立即啟動設備通訊 (不等待 MQTT 連線)
+            StartEquipments();
         }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -205,7 +208,6 @@ namespace EAPDashboard
             if (lblBrokerStatus.InvokeRequired) { lblBrokerStatus.Invoke(new Action(() => UpdateBrokerStatus(isConnected))); return; }
             lblBrokerStatus.ForeColor = isConnected ? Color.Lime : Color.Red;
             lblBrokerStatus.Text = isConnected ? "● MQTT Broker: Connected" : "● MQTT Broker: Disconnected";
-            if (isConnected) StartEquipments();
         }
 
         private void SaveStates()

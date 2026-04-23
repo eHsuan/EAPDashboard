@@ -42,5 +42,7 @@ public enum CommandType
 	PanelInReport,
 	ReplyPanelInReport,
 	PanelOutReport,
-	ReplyPanelOutReport
+	ReplyPanelOutReport,
+	KeyParametersReport,
+	ReplyKeyParametersReport
 }

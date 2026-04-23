@@ -6,6 +6,7 @@ namespace EAPDashboard.Models
     public interface IPlcDriver : IDisposable
     {
         bool IsConnected { get; }
+        event Action<LogLevel, string> LogHandler;
         Task<bool> ConnectAsync(string ip, int port);
         void Disconnect();
 

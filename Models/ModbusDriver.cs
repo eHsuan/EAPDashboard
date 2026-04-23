@@ -15,6 +15,7 @@ namespace EAPDashboard.Models
         private int _port;
 
         public bool IsConnected => _tcpClient != null && _tcpClient.Connected;
+        public event Action<LogLevel, string> LogHandler;
 
         public async Task<bool> ConnectAsync(string ip, int port)
         {

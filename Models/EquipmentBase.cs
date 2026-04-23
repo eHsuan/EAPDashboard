@@ -1,5 +1,4 @@
 using CyntecMqttLib.Interfaces;
-using log4net;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -34,6 +33,7 @@ namespace EAPDashboard.Models
         private EquipmentState _state;
         private string _currentRecipe;
         private Dictionary<string, string> _alarmMappings = new Dictionary<string, string>();
+        private static readonly object _logLock = new object();
         
         protected string _lastOperator = "UNKNOWN";
 
@@ -322,13 +322,11 @@ namespace EAPDashboard.Models
                 // 1. 更新 EAP UI 狀態
                 if (int.TryParse(newStatus, out int sc))
                 {
-                    // 這裡可以依據不同的 PLC 代碼映射到 EquipmentState
                     if (sc == 0 || sc == 6) State = EquipmentState.Running;
                     else if (sc == 1 || sc == 10) State = EquipmentState.Alarm;
                     else State = EquipmentState.Paused;
                 }
 
-                // 2. 上報 MES
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = newStatus };
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 
@@ -351,6 +349,14 @@ namespace EAPDashboard.Models
             string eid = reportEqpId ?? this.Id;
             OnLogReceived(LogLevel.Info, $"[PanelOut] {eid} - Panel: {panelId}, Result: {result}");
             await SaveProductionDataAsync("PanelOut", "", new { PanelID = panelId, CassetteID = cassetteId, Result = result, EqpID = eid });
+            return "PASS|OK|Success";
+        }
+
+        public async Task<string> ProcessKeyParametersReportAsync(List<Protocol.Core.Messages.KeyParameter> parameters, string reportEqpId = null)
+        {
+            string eid = reportEqpId ?? this.Id;
+            OnLogReceived(LogLevel.Info, $"[KPIV/KPOV] {eid} 關鍵參數上報: 共 {parameters.Count} 筆");
+            await SaveProductionDataAsync("KeyParametersReport", "", new { EqpID = eid, ParameterList = parameters });
             return "PASS|OK|Success";
         }
 
@@ -434,6 +440,21 @@ namespace EAPDashboard.Models
         {
             var timestamp = DateTime.Now;
             LogReceived?.Invoke(timestamp, level, message);
+
+            try
+            {
+                lock (_logLock)
+                {
+                    string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", timestamp.ToString("yyyyMMdd"), this.Id ?? "System");
+                    if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
+
+                    string filePath = Path.Combine(logDir, $"{timestamp:HH}.txt");
+                    string logContent = $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}] : {message}{Environment.NewLine}";
+
+                    File.AppendAllText(filePath, logContent);
+                }
+            }
+            catch { }
         }
 
         protected virtual void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

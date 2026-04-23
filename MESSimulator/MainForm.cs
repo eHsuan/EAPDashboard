@@ -24,19 +24,23 @@ namespace MESSimulator
 
         private void BtnStart_Click(object sender, EventArgs e)
         {
+            Start();
+        }
+        private void Start()
+        {
             if (_isRunning) return;
 
             string port = txtPort.Text;
             _listener = new HttpListener();
             _listener.Prefixes.Add($"http://localhost:{port}/");
-            
+
             try
             {
                 _listener.Start();
                 _isRunning = true;
                 UpdateUI(true);
                 Log($"Server started on port {port}...");
-                
+
                 Task.Run(() => ListenLoop());
             }
             catch (Exception ex)
@@ -235,6 +239,11 @@ namespace MESSimulator
         {
             if (txtLog.InvokeRequired) { txtLog.Invoke(new Action(() => Log(message))); return; }
             txtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            Start();
         }
     }
 }

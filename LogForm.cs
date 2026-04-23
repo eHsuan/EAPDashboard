@@ -7,6 +7,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using System.Linq;
 
 namespace EAPDashboard
 {
@@ -27,6 +28,8 @@ namespace EAPDashboard
 
             // btnLiveView_Click event handler
             this.btnLiveView.Click += new System.EventHandler(this.btnLiveView_Click);
+            this.btnSearch.Click += new System.EventHandler(this.btnSearch_Click);
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
 
             // 1. 載入過去 30 分鐘的歷史日誌
             LoadHistoricalLogs(TimeSpan.FromMinutes(30));
@@ -57,26 +60,12 @@ namespace EAPDashboard
 
         private void AppendLog(DateTime timestamp, LogLevel level, string message)
         {
-            //if (!string.Equals(id, _equipment.Id, StringComparison.OrdinalIgnoreCase))
-            //    return;
-
             if (this.IsDisposed || !this.IsHandleCreated) return;
-
-            // If not in live view, don't append new logs from the event
             if (!_isLiveView) return;
 
             if (richTextBoxLogs.InvokeRequired)
             {
-                // Use BeginInvoke for a more responsive UI
                 richTextBoxLogs.BeginInvoke(new Action(() => AppendLogToRichTextBoxInternal(timestamp, level, message)));
-                //if (richTextBoxLogs.InvokeRequired)
-                //{
-                //    richTextBoxLogs.BeginInvoke(
-                //        new Action(() => AppendLog(timestamp, level, message, id))
-                //    );
-                //    return;
-                //}
-
                 return;
             }
 
@@ -85,23 +74,20 @@ namespace EAPDashboard
 
         private void btnSearch_Click(object sender, EventArgs e)
         {
-            _isLiveView = false; // Disable live view to show search results
+            _isLiveView = false;
             try
             {
                 richTextBoxLogs.Clear();
-                
                 DateTime start = dateTimePickerStart.Value;
                 DateTime end = dateTimePickerEnd.Value;
                 var filteredLogs = GetLogsInRange(start, end);
 
-                // Display filtered logs
-                richTextBoxLogs.SuspendLayout(); // Suspend layout to improve performance
+                richTextBoxLogs.SuspendLayout();
                 foreach (var log in filteredLogs)
                 {
-                    // Directly append to the RichTextBox for search results, bypassing the live view check
                     AppendLogToRichTextBoxInternal(log.Item1, log.Item2, log.Item3);
                 }
-                richTextBoxLogs.ResumeLayout(); // Resume layout
+                richTextBoxLogs.ResumeLayout();
             }
             catch (Exception ex)
             {
@@ -125,53 +111,25 @@ namespace EAPDashboard
             switch (level)
             {
                 case LogLevel.Fatal:
-                case LogLevel.Error:
-                    color = Color.Crimson;
-                    break;
-                case LogLevel.Warn:
-                    color = Color.Orange;
-                    break;
-                case LogLevel.Debug:
-                    color = Color.DarkGray;
-                    break;
+                case LogLevel.Error: color = Color.Crimson; break;
+                case LogLevel.Warn: color = Color.Orange; break;
+                case LogLevel.Debug: color = Color.DarkGray; break;
                 case LogLevel.Info:
-                default:
-                    color = Color.Gainsboro;
-                    break;
-            }
-            if (string.IsNullOrEmpty(message))
-                message = string.Empty;
-            else
-            {
-                message = message
-                    .Replace("\0", "")       // ���� Null �r��
-                    .Replace("\r", "")       // ���� CR
-                    .Replace("\t", "    ");  // Tab �����Ů�
+                default: color = Color.Gainsboro; break;
             }
 
-            // 3?? ��h���r
-            var lines = message.Split('\n');
+            string cleanMsg = string.IsNullOrEmpty(message) ? "" : message.Replace("\0", "").Replace("\r", "").Replace("\t", "    ");
+            var lines = cleanMsg.Split('\n');
+
             foreach (var line in lines)
             {
                 richTextBoxLogs.SelectionStart = richTextBoxLogs.TextLength;
                 richTextBoxLogs.SelectionLength = 0;
-
                 richTextBoxLogs.SelectionColor = color;
-                richTextBoxLogs.AppendText($"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level.ToString().ToUpper()}] {line}{Environment.NewLine}");
+                richTextBoxLogs.AppendText($"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level.ToString().ToUpper()}] : {line}{Environment.NewLine}");
                 richTextBoxLogs.SelectionColor = richTextBoxLogs.ForeColor;
             }
-
-            // 4?? �۰ʱ��ʨ쩳
             richTextBoxLogs.ScrollToCaret();
-            //richTextBoxLogs.SelectionStart = richTextBoxLogs.TextLength;
-            //richTextBoxLogs.SelectionLength = 0;
-
-            //richTextBoxLogs.SelectionColor = color;
-            //richTextBoxLogs.AppendText($"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level.ToString().ToUpper()}] {message}{Environment.NewLine}");
-            //richTextBoxLogs.SelectionColor = richTextBoxLogs.ForeColor;
-
-            //// Auto-scroll to the end
-            //richTextBoxLogs.ScrollToCaret();
         }
 
         private void btnExport_Click(object sender, EventArgs e)
@@ -180,20 +138,19 @@ namespace EAPDashboard
             {
                 DateTime start = dateTimePickerStart.Value;
                 DateTime end = dateTimePickerEnd.Value;
-
                 saveFileDialogCsv.FileName = $"{_equipment.Id}_Log_{start:yyyyMMddHHmmss}_{end:yyyyMMddHHmmss}.csv";
 
                 if (saveFileDialogCsv.ShowDialog() == DialogResult.OK)
                 {
                     var logs = GetLogsInRange(start, end);
                     var csvBuilder = new StringBuilder();
-                    csvBuilder.AppendLine("Timestamp,Level,Message"); // CSV Header
+                    csvBuilder.AppendLine("Timestamp,Level,Message");
 
                     foreach (var log in logs)
                     {
                         string timestamp = log.Item1.ToString("yyyy-MM-dd HH:mm:ss.fff");
                         string level = log.Item2.ToString();
-                        string message = $"\"{log.Item3.Replace("\"", "\"\"")}\""; // Escape quotes
+                        string message = $"\"{log.Item3.Replace("\"", "\"\"")}\"";
                         csvBuilder.AppendLine($"{timestamp},{level},{message}");
                     }
 
@@ -207,153 +164,68 @@ namespace EAPDashboard
             }
         }
 
-        //private List<Tuple<DateTime, LogLevel, string>> GetLogsInRange(DateTime start, DateTime end)
-        //{
-        //    var logs = new List<Tuple<DateTime, LogLevel, string>>();
-        //    // Updated Regex to capture the new EquipmentID field
-        //    var logPattern = new Regex(@"^\[(.*?)\]\s+\[(.*?)\]\s+\[(.*?)\]\s+(.*)$", RegexOptions.Compiled);
-        //    string equipmentTag = $"[{_equipment.Id}]";
-
-        //    // Iterate through each hour from the start time to the end time
-        //    for (DateTime currentHour = new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0); currentHour <= end; currentHour = currentHour.AddHours(1))
-        //    {
-        //        // Construct the directory for the current hour
-        //        string hourlyDirectory = Path.Combine("logs", currentHour.ToString("yyyyMMdd"));
-        //        if (!Directory.Exists(hourlyDirectory)) continue;
-
-        //        // Define the base file name for this hour
-        //        string baseFileName = $"{currentHour:HH}.txt";
-
-        //        // Get all log files for this hour, including rolled files
-        //        // This will return files like "14.txt", "14.txt.1", "14.txt.2", etc.
-        //        string[] hourFiles = Directory.GetFiles(hourlyDirectory, $"{baseFileName}*");
-
-        //        // Sort files to ensure correct chronological order (e.g., 14.txt, 14.txt.1, 14.txt.2)
-        //        Array.Sort(hourFiles, (f1, f2) => {
-        //            string name1 = Path.GetFileName(f1);
-        //            string name2 = Path.GetFileName(f2);
-
-        //            if (name1 == baseFileName) return -1; // Base file (without suffix) comes first
-        //            if (name2 == baseFileName) return 1;  // Base file (without suffix) comes first
-
-        //            // For rolled files, sort numerically by suffix (e.g., .1 before .2)
-        //            int suffix1 = 0;
-        //            int suffix2 = 0;
-        //            // Extract numeric suffix after the last dot
-        //            if (name1.LastIndexOf('.') > name1.IndexOf('.')) 
-        //                int.TryParse(name1.Substring(name1.LastIndexOf('.') + 1), out suffix1);
-        //            if (name2.LastIndexOf('.') > name2.IndexOf('.')) 
-        //                int.TryParse(name2.Substring(name2.LastIndexOf('.') + 1), out suffix2);
-
-        //            return suffix1.CompareTo(suffix2);
-        //        });
-
-        //        foreach (string logFile in hourFiles)
-        //        {
-        //            string[] lines = File.ReadAllLines(logFile, Encoding.UTF8);
-        //            foreach (string line in lines)
-        //            {
-        //                // Quick check to see if the line contains the equipment ID tag before using regex
-        //                if (!line.Contains(equipmentTag)) continue;
-
-        //                Match match = logPattern.Match(line);
-        //                if (!match.Success) continue;
-
-        //                // Group 3 is the new EquipmentID
-        //                string timestampStr = match.Groups[1].Value;
-        //                string levelStr = match.Groups[2].Value.Trim();
-        //                string eqIdStr = match.Groups[3].Value.Trim();
-        //                string message = match.Groups[4].Value;
-
-        //                // Final check to ensure it's the correct equipment
-        //                if (eqIdStr != _equipment.Id) continue;
-
-        //                if (DateTime.TryParseExact(timestampStr, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime timestamp))
-        //                {
-        //                    if (timestamp >= start && timestamp <= end)
-        //                    {
-        //                        if (Enum.TryParse(levelStr, true, out LogLevel level))
-        //                        {
-        //                            logs.Add(new Tuple<DateTime, LogLevel, string>(timestamp, level, message));
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-        //    return logs;
-        //}
         private List<Tuple<DateTime, LogLevel, string>> GetLogsInRange(DateTime start, DateTime end)
         {
             var logs = new List<Tuple<DateTime, LogLevel, string>>();
-            var logPattern = new Regex(@"^\[(.*?)\]\s+\[(.*?)\]\s+\[(.*?)\]\s+(.*)$", RegexOptions.Compiled);
-            string equipmentTag = $"[{_equipment.Id}]";
+            var logLineRegex = new Regex(@"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] \[(.*?)\] : (.*)$", RegexOptions.Compiled);
 
-            // �M���C�Ӥp��
-            for (DateTime currentHour = new DateTime(start.Year, start.Month, start.Day, start.Hour, 0, 0);
-                 currentHour <= end;
-                 currentHour = currentHour.AddHours(1))
+            // 遍歷範圍內的每一天
+            for (DateTime date = start.Date; date <= end.Date; date = date.AddDays(1))
             {
-                string hourlyDirectory = Path.Combine("logs", currentHour.ToString("yyyyMMdd"));
-                if (!Directory.Exists(hourlyDirectory)) continue;
+                string dayDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", date.ToString("yyyyMMdd"), _equipment.Id);
+                if (!Directory.Exists(dayDir)) continue;
 
-                string baseFileName = $"{currentHour:HH}.txt";
-                string[] hourFiles = Directory.GetFiles(hourlyDirectory, $"{baseFileName}*");
-                Array.Sort(hourFiles);
+                // 獲取該目錄下所有小時的 .txt 檔案
+                var files = Directory.GetFiles(dayDir, "*.txt").OrderBy(f => f).ToList();
 
-                foreach (var logFile in hourFiles)
+                foreach (var file in files)
                 {
-                    string[] lines;
-                    try
-                    {
-                        lines = File.ReadAllLines(logFile, Encoding.UTF8);
-                    }
-                    catch { continue; }
+                    string fileName = Path.GetFileNameWithoutExtension(file);
+                    if (!int.TryParse(fileName, out int hour)) continue;
 
-                    string currentMessage = null;
+                    // 檢查檔案代表的小時是否在搜尋範圍內
+                    DateTime fileHour = date.AddHours(hour);
+                    if (fileHour.AddHours(1) < start || fileHour > end) continue;
+
+                    string[] lines;
+                    try { lines = File.ReadAllLines(file, Encoding.UTF8); } catch { continue; }
+
                     DateTime currentTimestamp = DateTime.MinValue;
                     LogLevel currentLevel = LogLevel.Info;
-                    string currentEqId = null;
+                    StringBuilder currentMessage = new StringBuilder();
 
                     foreach (var line in lines)
                     {
-                        var match = logPattern.Match(line);
+                        var match = logLineRegex.Match(line);
                         if (match.Success)
                         {
-                            // �s log �}�l�A����W�@�� log �[�J���G
-                            if (currentMessage != null &&
-                                currentEqId == _equipment.Id &&
-                                currentTimestamp >= start && currentTimestamp <= end)
+                            // 儲存前一筆 Log
+                            if (currentTimestamp != DateTime.MinValue && currentTimestamp >= start && currentTimestamp <= end)
                             {
-                                logs.Add(new Tuple<DateTime, LogLevel, string>(currentTimestamp, currentLevel, currentMessage));
+                                logs.Add(new Tuple<DateTime, LogLevel, string>(currentTimestamp, currentLevel, currentMessage.ToString().TrimEnd()));
                             }
 
-                            // ��l�Ʒs�� log
-                            currentTimestamp = DateTime.ParseExact(match.Groups[1].Value, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture);
-                            currentLevel = Enum.TryParse(match.Groups[2].Value.Trim(), true, out LogLevel lvl) ? lvl : LogLevel.Info;
-                            currentEqId = match.Groups[3].Value.Trim();
-                            currentMessage = match.Groups[4].Value;
-                        }
-                        else
-                        {
-                            // ������]�h�� JSON �Ψ�L�^�� ���[�� currentMessage
-                            if (currentMessage != null)
+                            // 初始化新 Log
+                            if (DateTime.TryParseExact(match.Groups[1].Value, "yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture, DateTimeStyles.None, out currentTimestamp))
                             {
-                                currentMessage += Environment.NewLine + line;
+                                Enum.TryParse(match.Groups[2].Value.Trim(), true, out currentLevel);
+                                currentMessage = new StringBuilder(match.Groups[3].Value);
                             }
+                        }
+                        else if (currentTimestamp != DateTime.MinValue)
+                        {
+                            // 多行訊息處理
+                            currentMessage.AppendLine().Append(line);
                         }
                     }
 
-                    // ��̫�@�� log �[�J���G
-                    if (currentMessage != null &&
-                        currentEqId == _equipment.Id &&
-                        currentTimestamp >= start && currentTimestamp <= end)
+                    // 加入最後一筆
+                    if (currentTimestamp != DateTime.MinValue && currentTimestamp >= start && currentTimestamp <= end)
                     {
-                        logs.Add(new Tuple<DateTime, LogLevel, string>(currentTimestamp, currentLevel, currentMessage));
+                        logs.Add(new Tuple<DateTime, LogLevel, string>(currentTimestamp, currentLevel, currentMessage.ToString().TrimEnd()));
                     }
                 }
             }
-
             return logs;
         }
     }
