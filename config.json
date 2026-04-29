@@ -8,8 +8,8 @@
     "ActiveEnvironment": "Test"
   },
   "DbSettings": {
-    "ConnectionString": "Server=cloud-sql-server;Database=EAP_DB;User Id=eap_user;Password=your_password;",
-    "BindingTable": "CassetteWorkOrderBinding",
+    "ConnectionString": "Server=twtpesqlqa2;Database=DIAEAP;User Id=DIAEAP;Password=D@08!aEAp;",
+    "BindingTable": "EAP_CassetteBind",
     "CassetteColumn": "CassetteID",
     "WoColumn": "WorkOrder"
   }

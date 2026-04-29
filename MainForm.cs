@@ -123,18 +123,26 @@ namespace EAPDashboard
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";
                     Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
                 }
+                bool isSim = !(_appConfig.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
+
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {
-                        if (config.Protocol == "MQTT") _equipments.Add(new MqttEquipment { Id = config.Id, Name = config.Name, Topic = config.Topic, DbConfig = _appConfig.DbSettings });
-                        else if (config.Protocol == "SECS") _equipments.Add(new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings });
+                        EquipmentBase eq = null;
+                        if (config.Protocol == "MQTT") eq = new MqttEquipment { Id = config.Id, Name = config.Name, Topic = config.Topic, DbConfig = _appConfig.DbSettings };
+                        else if (config.Protocol == "SECS") eq = new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings };
+                        
+                        if (eq != null) {
+                            eq.IsSimulator = isSim;
+                            _equipments.Add(eq);
+                        }
                     }
                 }
-                LoadSQLiteEquipments();
+                LoadSQLiteEquipments(isSim);
                 foreach (var eq in _equipments) eq.LoadAlarmMappings();
             } catch (Exception ex) { MessageBox.Show("Load Error: " + ex.Message); }
         }
 
-        private void LoadSQLiteEquipments()
+        private void LoadSQLiteEquipments(bool isSim)
         {
             try {
                 using (var conn = DatabaseHelper.GetConnection()) {
@@ -146,29 +154,42 @@ namespace EAPDashboard
                                 string name = reader["Name"].ToString();
                                 string protocol = reader["Protocol"].ToString().ToUpper();
                                 List<string> missing = new List<string>();
+                                EquipmentBase eq = null;
                                 if (protocol == "MQTT") {
                                     string topic = reader["Topic"].ToString();
                                     if (string.IsNullOrEmpty(topic)) missing.Add("Topic");
-                                    else _equipments.Add(new MqttEquipment { Id = eqId, Name = name, Topic = topic, DbConfig = _appConfig.DbSettings });
+                                    else eq = new MqttEquipment { Id = eqId, Name = name, Topic = topic, DbConfig = _appConfig.DbSettings };
                                 } else if (protocol == "SECS") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
-                                    else _equipments.Add(new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings });
+                                    else eq = new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings };
                                 } else if (protocol == "MODBUSTCP") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
                                     else {
                                         var modbusDriver = new ModbusDriver();
-                                        var modEq = new PlcEquipmentBase(modbusDriver) { Id = eqId, Name = name, Protocol = protocol, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]) };
+                                        var modEq = new PlcEquipmentBase(modbusDriver) { 
+                                            Id = eqId, Name = name, Protocol = protocol, 
+                                            Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]),
+                                            DbConfig = _appConfig.DbSettings 
+                                        };
                                         modEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
-                                        _equipments.Add(modEq);
+                                        eq = modEq;
                                     }
                                 } else if (protocol == "MC") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
                                     else {
                                         var mcDriver = new McDriver();
-                                        var mcEq = new PlcEquipmentBase(mcDriver) { Id = eqId, Name = name, Protocol = protocol, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]) };
+                                        var mcEq = new PlcEquipmentBase(mcDriver) { 
+                                            Id = eqId, Name = name, Protocol = protocol, 
+                                            Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]),
+                                            DbConfig = _appConfig.DbSettings 
+                                        };
                                         mcEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
-                                        _equipments.Add(mcEq);
+                                        eq = mcEq;
                                     }
+                                }
+                                if (eq != null) {
+                                    eq.IsSimulator = isSim;
+                                    _equipments.Add(eq);
                                 }
                                 if (missing.Count > 0) System.Diagnostics.Debug.WriteLine($"[DB] {eqId} missing: {string.Join(",", missing)}");
                             }
@@ -191,7 +212,13 @@ namespace EAPDashboard
         private async void InitMqtt()
         {
             try {
-                _bus = new MqttBus(host: _appConfig.MqttBrokerHost ?? "127.0.0.1", port: _appConfig.MqttBrokerPort > 0 ? _appConfig.MqttBrokerPort : 1883, clientId: $"EAP_{Dns.GetHostName()}");
+                // EAP uses a fixed ClientID and CleanSession = false to ensure no message loss
+                _bus = new MqttBus(
+                    host: _appConfig.MqttBrokerHost ?? "127.0.0.1", 
+                    port: _appConfig.MqttBrokerPort > 0 ? _appConfig.MqttBrokerPort : 1883, 
+                    clientId: $"EAP_{Dns.GetHostName()}",
+                    cleanSession: false
+                );
                 _bus.Connected += () => UpdateBrokerStatus(true);
                 _bus.Disconnected += () => UpdateBrokerStatus(false);
                 await _bus.ConnectAsync();

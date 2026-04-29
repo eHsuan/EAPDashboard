@@ -19,6 +19,9 @@ namespace EAPDashboard.Models
 {
     public class MqttEquipment : EquipmentBase
     {
+        private static readonly HashSet<string> _processedMessageIds = new HashSet<string>();
+        private static readonly object _msgIdLock = new object();
+
         private CancellationTokenSource _linkedCts; 
         private System.Timers.Timer _heartbeatTimer;
         private DateTime _lastResponseTime = DateTime.MinValue;
@@ -92,18 +95,45 @@ namespace EAPDashboard.Models
             _lastResponseTime = DateTime.Now;
 
             string innerJson = json;
+            string messageId = null;
             try {
                 var envelope = JObject.Parse(json);
+                messageId = envelope["MessageId"]?.ToString();
                 if (envelope["Payload"] != null) innerJson = envelope["Payload"].ToString();
             } catch { }
 
-            if (Connection != ConnectionStatus.Connected) Connection = ConnectionStatus.Connected;
+            // Idempotency Filter
+            if (!string.IsNullOrEmpty(messageId))
+            {
+                lock (_msgIdLock)
+                {
+                    if (_processedMessageIds.Contains(messageId))
+                    {
+                        OnLogReceived(LogLevel.Debug, $"[MQTT] Ignored duplicate message: {messageId}");
+                        return;
+                    }
+                    _processedMessageIds.Add(messageId);
+                    if (_processedMessageIds.Count > 1000)
+                    {
+                        var first = _processedMessageIds.First();
+                        _processedMessageIds.Remove(first);
+                    }
+                }
+            }
+
+            if (Connection != ConnectionStatus.Connected)
+            {
+                Connection = ConnectionStatus.Connected;
+                OnLogReceived(LogLevel.Info, $"[MQTT] Connection restored for {Id}.");
+            }
 
             try {
-                var obj = JsonConvert.DeserializeObject(innerJson);
-                OnLogReceived(LogLevel.Info, $"[RECV] {JsonConvert.SerializeObject(obj, _logSettings)}");
-
                 BaseMessage msg = MessageFactory.Create(innerJson);
+                if (msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
+                {
+                    OnLogReceived(LogLevel.Info, $"[RECV] {JsonConvert.SerializeObject(msg, _logSettings)}");
+                }
+
                 switch (msg.CMD)
                 {
                     case CommandType.AreYouThere: await SendReply(new IamHereMessage { CMD = CommandType.IamHere }); break;
@@ -112,7 +142,7 @@ namespace EAPDashboard.Models
                         var rs = (ReplyStatusReqMessage)msg;
                         if (int.TryParse(rs.CurrentStatus, out int sc) && StatusMap.TryGetValue(sc, out var st)) State = st;
                         if (!string.IsNullOrEmpty(rs.RecipeID)) CurrentRecipe = rs.RecipeID;
-                        OnLogReceived(LogLevel.Info, $"收到狀態查詢回覆: {Id}, 狀態: {rs.CurrentStatus}, Recipe: {rs.RecipeID ?? "N/A"}");
+                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}, Recipe: {rs.RecipeID ?? "N/A"}");
                         break;
                     case CommandType.UserID_Verify:
                         var uv = JsonConvert.DeserializeObject<UserIDVerifyMessage>(innerJson);
@@ -140,7 +170,7 @@ namespace EAPDashboard.Models
                                 string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
                                 await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
                             } else {
-                                await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = "機台 Recipe 切換失敗" });
+                                await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = "Recipe Change Failed on Machine" });
                             }
                         }
                         break;
@@ -182,7 +212,7 @@ namespace EAPDashboard.Models
                         await SendReply(new ReplyPanelOutReportMessage { CMD = CommandType.ReplyPanelOutReport, RtnResult = RtnResult.PASS });
                         break;
                 }
-            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"解析 Report 失敗: {ex.Message}"); }
+            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Parse Report Failed: {ex.Message}"); }
         }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) {
@@ -203,7 +233,11 @@ namespace EAPDashboard.Models
         private void CheckHeartbeat() {
             _ = SendAreYouThere();
             if (_lastResponseTime != DateTime.MinValue && (DateTime.Now - _lastResponseTime).TotalSeconds > _heartbeatInterval + 5) {
-                if (Connection != ConnectionStatus.Disconnected) Connection = ConnectionStatus.Disconnected;
+                if (Connection != ConnectionStatus.Disconnected) 
+                {
+                    Connection = ConnectionStatus.Disconnected;
+                    OnLogReceived(LogLevel.Warn, $"[MQTT] Connection lost for {Id} (Heartbeat timeout).");
+                }
             }
         }
 
@@ -214,7 +248,10 @@ namespace EAPDashboard.Models
         private async Task SendReply<T>(T replyMsg) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;
             await SendCommand(replyMsg);
-            OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(replyMsg, _logSettings)}");
+            if (replyMsg.CMD != CommandType.IamHere)
+            {
+                OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(replyMsg, _logSettings)}");
+            }
         }
 
         private async Task SendCommand(object cmd) {

@@ -1,0 +1,27 @@
+-- ==============================================================================
+-- 1. 綁定主檔 (EAP_CassetteBind)
+-- 用途: 記錄當下「有綁定工單」的 Cassette。
+-- ==============================================================================
+CREATE TABLE EAP_CassetteBind (
+    CassetteID VARCHAR(20) NOT NULL PRIMARY KEY, -- 載具條碼 (主鍵)
+    WorkOrder VARCHAR(20) NOT NULL,              -- 綁定的工單號碼
+    BindTime DATETIME NOT NULL DEFAULT GETDATE() -- 綁定建立時間
+);
+
+-- ==============================================================================
+-- 2. 綁定明細檔 (EAP_PanelBind)
+-- 用途: 記錄卡匣內目前裝載的 Panel 清單 (數量可為 0~N 片)
+-- ==============================================================================
+CREATE TABLE EAP_PanelBind (
+    PanelID VARCHAR(20) NOT NULL PRIMARY KEY,    -- 載板條碼 (主鍵)
+    CassetteID VARCHAR(20) NOT NULL,             -- 所屬載具 (外鍵)
+    SlotNo INT NULL,                             -- 槽位排序 (選填，建議保留以利 TrackOut 排序)
+    BindTime DATETIME NOT NULL DEFAULT GETDATE(),-- 綁定建立時間
+    
+    -- 【聯級刪除機制】當 EAP_CassetteBind 的資料被刪除時，自動刪除此表關聯的 Panel
+    CONSTRAINT FK_PanelBind_Cassette FOREIGN KEY (CassetteID) 
+    REFERENCES EAP_CassetteBind(CassetteID) ON DELETE CASCADE
+);
+
+-- 建立索引加速 EAP 查詢單一 Cassette 內的所有 Panel
+CREATE NONCLUSTERED INDEX IX_EAP_PanelBind_Cassette ON EAP_PanelBind(CassetteID, SlotNo);

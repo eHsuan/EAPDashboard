@@ -83,7 +83,7 @@ namespace EAPDashboard.Models
             // 讀取 Word 陣列後轉為 ASCII
             var data = await ReadAsync(address, length);
             byte[] bytes = data.SelectMany(BitConverter.GetBytes).ToArray();
-            return Encoding.ASCII.GetString(bytes).TrimEnd('\0', ' ');
+            return Encoding.ASCII.GetString(bytes).Replace("\0", "").Trim();
         }
 
         public async Task WriteAsciiAsync(string address, string text, ushort length)

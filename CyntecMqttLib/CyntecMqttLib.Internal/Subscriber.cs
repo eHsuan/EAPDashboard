@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CyntecMqttLib.Services;
 using MQTTnet;
 using MQTTnet.Client;
+using MQTTnet.Protocol;
 
 namespace CyntecMqttLib.Internal;
 
@@ -35,7 +36,10 @@ internal class Subscriber
 			}
 			list.Add(handler);
 		}
-		await MqttClientExtensions.SubscribeAsync(_conn.Client, topic);
+		await _conn.Client.SubscribeAsync(new TopicFilterBuilder()
+            .WithTopic(topic)
+            .WithAtLeastOnceQoS()
+            .Build());
 	}
 
 	private void EnsureHandlerRegistered()

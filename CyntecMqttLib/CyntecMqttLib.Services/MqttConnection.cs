@@ -23,11 +23,15 @@ internal class MqttConnection : IDisposable
 	public event Action Connected;
 	public event Action Disconnected;
 
-	public MqttConnection(string host, int port, string clientId, string username, string password)
+	public MqttConnection(string host, int port, string clientId, string username, string password, bool cleanSession = true)
 	{
 		MqttFactory factory = new MqttFactory();
 		_client = factory.CreateMqttClient();
-		_options = new MqttClientOptionsBuilder().WithTcpServer(host, (int?)port).WithClientId(clientId ?? Guid.NewGuid().ToString()).WithCredentials(username, password)
+		_options = new MqttClientOptionsBuilder()
+            .WithTcpServer(host, (int?)port)
+            .WithClientId(clientId ?? Guid.NewGuid().ToString())
+            .WithCredentials(username, password)
+            .WithCleanSession(cleanSession)
 			.Build();
 		
 		_client.UseDisconnectedHandler(async e =>

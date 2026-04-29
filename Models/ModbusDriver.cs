@@ -57,7 +57,7 @@ namespace EAPDashboard.Models
         {
             var res = await ReadAsync(address, length);
             var bytes = res.SelectMany(BitConverter.GetBytes).ToArray();
-            return Encoding.ASCII.GetString(bytes).TrimEnd('\0', ' ');
+            return Encoding.ASCII.GetString(bytes).Replace("\0", "").Trim();
         }
 
         public async Task WriteAsciiAsync(string address, string text, ushort length)

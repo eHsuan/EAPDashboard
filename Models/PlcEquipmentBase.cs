@@ -25,7 +25,7 @@ namespace EAPDashboard.Models
         public PlcEquipmentBase(IPlcDriver driver)
         {
             _driver = driver;
-            // 橋接驅動層日誌至業務邏輯層
+            // Bridge driver logs to business layer
             _driver.LogHandler += (lvl, msg) => OnLogReceived(lvl, msg);
         }
 
@@ -39,10 +39,10 @@ namespace EAPDashboard.Models
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var ct = _linkedCts.Token;
             _lastHeartbeatTime = DateTime.Now;
-            // 逾時門檻設定為心跳間隔的 2 倍，至少 20 秒
+            // Timeout threshold set to 2x heartbeat interval, at least 20s
             _heartbeatTimeoutSeconds = Math.Max(20, heartbeatIntervalSeconds * 2);
 
-            // 啟動緩衝處理器
+            // Start buffer processors
             _ = Task.Run(() => StartStatusBufferProcessor(ct), ct);
             _ = Task.Run(() => StartBindingRetryProcessor(ct), ct);
 
@@ -52,11 +52,11 @@ namespace EAPDashboard.Models
                 {
                     try
                     {
-                        // Watchdog: 檢查心跳是否逾時 (包含 Connecting 階段)
-                        if ((Connection == ConnectionStatus.Connected) && 
+                        // Watchdog: Check if heartbeat timed out (includes Connecting stage)
+                        if ((Connection == ConnectionStatus.Connected || Connection == ConnectionStatus.Connecting) && 
                             (DateTime.Now - _lastHeartbeatTime).TotalSeconds > _heartbeatTimeoutSeconds)
                         {
-                            OnLogReceived(LogLevel.Warn, $"PLC 心跳偵測逾時 (超過 {_heartbeatTimeoutSeconds} 秒未翻轉)，強制斷線重連");
+                            OnLogReceived(LogLevel.Warn, $"PLC Heartbeat Timeout (>{_heartbeatTimeoutSeconds}s), Forcing Reconnection");
                             Connection = ConnectionStatus.Disconnected;
                             _driver.Disconnect();
                         }
@@ -68,7 +68,7 @@ namespace EAPDashboard.Models
                             if (ok)
                             {
                                 Connection = ConnectionStatus.Connecting;
-                                OnLogReceived(LogLevel.Info, "PLC 實體連線成功，等待心跳翻轉...");
+                                OnLogReceived(LogLevel.Info, "PLC Physical Link Established, Waiting for Heartbeat...");
                                 _isFirstPoll = true;
                                 _lastHeartbeatTime = DateTime.Now;
                             }
@@ -83,11 +83,11 @@ namespace EAPDashboard.Models
                     }
                     catch (Exception ex)
                     {
-                        OnLogReceived(LogLevel.Error, $"輪詢異常: {ex.Message}");
+                        OnLogReceived(LogLevel.Error, $"Polling Error: {ex.Message}");
                         Connection = ConnectionStatus.Disconnected;
                     }
 
-                    // 動態調整輪詢間隔：Connecting 時採用 3 秒以避開取樣混疊，Connected 時恢復 1 秒確保即時性
+                    // Dynamic polling delay: 3s for Connecting to avoid aliasing, 1s for Connected for responsiveness
                     int pollingDelay = (Connection == ConnectionStatus.Connecting) ? 3000 : 1000;
                     await Task.Delay(pollingDelay, ct);
                 }
@@ -104,7 +104,7 @@ namespace EAPDashboard.Models
                 {
                     bool isTriggered = false;
 
-                    // 1. 獨立處理 HEARTBEAT 邏輯
+                    // 1. Independent HEARTBEAT logic
                     if (evt.EventName.ToUpper() == "HEARTBEAT" || evt.HandshakeType == "HEARTBEAT")
                     {
                         ushort curRaw = await _driver.ReadWordAsync(evt.TriggerAddr);
@@ -116,15 +116,15 @@ namespace EAPDashboard.Models
                             if (Connection == ConnectionStatus.Connecting)
                             {
                                 Connection = ConnectionStatus.Connected;
-                                OnLogReceived(LogLevel.Info, "偵測到心跳翻轉，PLC 進入連線狀態 (Connected)");
+                                OnLogReceived(LogLevel.Info, "Heartbeat Flip Detected, PLC Online (Connected)");
                             }
                         }
                         _lastValues[evt.EventId] = curRaw;
-                        // 心跳事件僅用於維持連線狀態，不觸發後續業務流程
+                        // Heartbeat events are for connection status only
                         continue;
                     }
 
-                    // 2. 業務邏輯處理 (ROLLING / BIT)
+                    // 2. Business logic (ROLLING / BIT)
                     if (evt.HandshakeType == "ROLLING")
                     {
                         ushort curRaw = await _driver.ReadWordAsync(evt.TriggerAddr);
@@ -147,7 +147,7 @@ namespace EAPDashboard.Models
 
                     if (isTriggered && !_isFirstPoll)
                     {
-                        OnLogReceived(LogLevel.Info, $"偵測到事件觸發: {evt.EventName} (SubEqp: {evt.SubEqpID ?? "N/A"})");
+                        OnLogReceived(LogLevel.Info, $"Event Triggered: {evt.EventName} (SubEqp: {evt.SubEqpID ?? "N/A"})");
                         await HandlePlcEvent(evt);
                         
                         if (evt.HandshakeType == "ROLLING")
@@ -162,7 +162,7 @@ namespace EAPDashboard.Models
                 }
                 catch (Exception ex)
                 {
-                    OnLogReceived(LogLevel.Warn, $"事件 {evt.EventName} 處理失敗: {ex.Message}");
+                    OnLogReceived(LogLevel.Warn, $"Event {evt.EventName} Process Failed: {ex.Message}");
                 }
             }
             _isFirstPoll = false;
@@ -195,17 +195,57 @@ namespace EAPDashboard.Models
                         string[] p = res.Split('|');
                         string wo = p[1];
                         string inputParams = p[5];
+                        OnLogReceived(LogLevel.Info, $"[TRACK_IN] DB/MES WorkOrder: {wo}");
+
+                        // Write WorkOrder back to PLC
+                        var woDp = evt.DataPoints.FirstOrDefault(x => x.Key == "WorkOrder" && x.AccessType == "WRITE");
+                        if (woDp != null) 
+                        {
+                            OnLogReceived(LogLevel.Info, $"[TRACK_IN] Write WorkOrder: {wo} -> Addr: {woDp.Address}");
+                            await _driver.WriteAsciiAsync(woDp.Address, wo, woDp.Length);
+                        }
 
                         var subConfigs = DatabaseHelper.GetSubEqpConfigs(Id);
                         if (subConfigs.Count > 0)
                         {
+                            var rand = new Random();
                             foreach (var sub in subConfigs)
                             {
-                                string subRecipe = GetMesParamValue(inputParams, sub.RecipeParamKey);
-                                if (!string.IsNullOrEmpty(subRecipe))
+                                if (this.IsSimulator)
                                 {
-                                    var dp = evt.DataPoints.FirstOrDefault(x => x.Key == sub.RecipeDataKey && x.AccessType == "WRITE");
-                                    if (dp != null) await _driver.WriteAsciiAsync(dp.Address, subRecipe, dp.Length);
+                                    // Simulator Mode: Generate random UINT (1-65535) for each key in RecipeDataKey
+                                    if (!string.IsNullOrEmpty(sub.RecipeDataKey))
+                                    {
+                                        var keys = sub.RecipeDataKey.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+                                        foreach (var k in keys)
+                                        {
+                                            string trimmedKey = k.Trim();
+                                            ushort randomVal = (ushort)rand.Next(1, 65536);
+                                            var dp = evt.DataPoints.FirstOrDefault(x => x.Key == trimmedKey && x.AccessType == "WRITE");
+                                            if (dp != null)
+                                            {
+                                                OnLogReceived(LogLevel.Info, $"[Simulator] Generated Random Recipe for {trimmedKey}: {randomVal} -> Addr: {dp.Address}");
+                                                if (dp.DataType == "ASCII")
+                                                    await _driver.WriteAsciiAsync(dp.Address, randomVal.ToString(), dp.Length);
+                                                else
+                                                    await _driver.WriteWordAsync(dp.Address, randomVal);
+                                            }
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    // Production Mode: Get from MES input parameters
+                                    string subRecipe = GetMesParamValue(inputParams, sub.RecipeParamKey);
+                                    if (!string.IsNullOrEmpty(subRecipe))
+                                    {
+                                        var dp = evt.DataPoints.FirstOrDefault(x => x.Key == sub.RecipeDataKey && x.AccessType == "WRITE");
+                                        if (dp != null)
+                                        {
+                                            OnLogReceived(LogLevel.Info, $"[TRACK_IN] Sub-Recipe [{sub.RecipeDataKey}]: {subRecipe} -> Addr: {dp.Address}");
+                                            await _driver.WriteAsciiAsync(dp.Address, subRecipe, dp.Length);
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -219,7 +259,7 @@ namespace EAPDashboard.Models
                         bool isPpSuccess = true;
                         if (ppConfig != null)
                         {
-                            OnLogReceived(LogLevel.Info, $"[TRACK_IN] 觸發 PLC 配方切換指令 ({ppConfig.TriggerAddr}.{ppConfig.TrigBitOffset})");
+                            OnLogReceived(LogLevel.Info, $"[TRACK_IN] Triggering PLC Recipe Switch ({ppConfig.TriggerAddr}.{ppConfig.TrigBitOffset})");
                             await _driver.WriteBitAsync(ppConfig.TriggerAddr, true, ppConfig.TrigBitOffset);
                             bool isAcked = await WaitForPlcAckAsync(ppConfig.AckAddr, ppConfig.AckBitOffset, timeoutSec: 15);
                             var resDp = ppConfig.DataPoints.FirstOrDefault(x => x.Key == "Result");
@@ -231,18 +271,20 @@ namespace EAPDashboard.Models
 
                         if (isPpSuccess)
                         {
-                            OnLogReceived(LogLevel.Info, "[TRACK_IN] PLC 配方切換成功 (或無須交握)，執行報工...");
-                            string finalRes = await ProcessTrackInFinalAsync(wo, tiUserId, reportEqpId);
+                            OnLogReceived(LogLevel.Info, "[TRACK_IN] PLC Recipe Switch Success, Proceeding to Report...");
+                            string tiCassetteId = getVal("CassetteID", "");
+                            string finalRes = await ProcessTrackInFinalAsync(wo, tiUserId, tiCassetteId, reportEqpId);
                             string[] frp = finalRes.Split('|');
                             bool isPass = frp[0] == "PASS";
                             
                             string mappedCode = DatabaseHelper.GetMappedRtnCode("TRACK_IN", frp[1]);
-                            OnLogReceived(isPass ? LogLevel.Info : LogLevel.Warn, $"[TRACK_IN] 報工結果: {frp[1]} - {frp[2]} (寫回 PLC: {mappedCode})");
+                            OnLogReceived(isPass ? LogLevel.Info : LogLevel.Warn, $"[TRACK_IN] Report Result: {frp[1]} - {frp[2]} (Write to PLC: {mappedCode})");
                             
                             string panelListStr = p.Length > 6 ? p[6] : "";
                             if (!string.IsNullOrEmpty(panelListStr))
                             {
                                 string[] panels = panelListStr.Split(',');
+                                OnLogReceived(LogLevel.Info, $"[TRACK_IN] Writing Panel List to PLC: {string.Join(", ", panels.Take(10))}");
                                 for (int i = 1; i <= 10; i++)
                                 {
                                     var panelDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList{i}" && x.AccessType == "WRITE");
@@ -256,9 +298,14 @@ namespace EAPDashboard.Models
 
                             var tiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                             var tiCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-                            if (tiResultDp != null) await _driver.WriteWordAsync(tiResultDp.Address, (ushort)(isPass ? 1 : 2));
+                            if (tiResultDp != null) 
+                            {
+                                OnLogReceived(LogLevel.Info, $"[TRACK_IN] Write RtnResult: {(ushort)(isPass ? 1 : 2)} -> Addr: {tiResultDp.Address}");
+                                await _driver.WriteWordAsync(tiResultDp.Address, (ushort)(isPass ? 1 : 2));
+                            }
                             if (tiCodeDp != null) 
                             {
+                                OnLogReceived(LogLevel.Info, $"[TRACK_IN] Write RtnCode: {mappedCode} -> Addr: {tiCodeDp.Address}");
                                 if (ushort.TryParse(mappedCode, out ushort tiCodeVal)) await _driver.WriteWordAsync(tiCodeDp.Address, tiCodeVal);
                                 else await _driver.WriteAsciiAsync(tiCodeDp.Address, mappedCode, tiCodeDp.Length);
                             }
@@ -266,19 +313,19 @@ namespace EAPDashboard.Models
                         }
                         else
                         {
-                            OnLogReceived(LogLevel.Warn, "[TRACK_IN] PLC 配方切換失敗，終止流程");
+                            OnLogReceived(LogLevel.Warn, "[TRACK_IN] PLC Recipe Switch Failed, Terminating Flow");
                             var tiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                             var tiCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
                             if (tiResultDp != null) await _driver.WriteWordAsync(tiResultDp.Address, 2);
                             if (tiCodeDp != null) await _driver.WriteAsciiAsync(tiCodeDp.Address, "PP_FAIL", tiCodeDp.Length);
-                            res = "FAIL|PP_FAIL|配方切換失敗";
+                            res = "FAIL|PP_FAIL|Recipe Switch Failed";
                         }
                     }
                     else
                     {
                         string[] p = res.Split('|');
                         string mappedCode = DatabaseHelper.GetMappedRtnCode("TRACK_IN", p[1]);
-                        OnLogReceived(LogLevel.Warn, $"[TRACK_IN] 驗證失敗: {p[1]} - {p[2]} (寫回 PLC: {mappedCode})");
+                        OnLogReceived(LogLevel.Warn, $"[TRACK_IN] Verification Failed: {p[1]} - {p[2]} (Write to PLC: {mappedCode})");
                         
                         var tiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                         var tiCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
@@ -305,12 +352,12 @@ namespace EAPDashboard.Models
 
                     int toQty = int.TryParse(toQtyStr, out int q) ? q : 0;
                     if (toPanels.Count != toQty) {
-                        OnLogReceived(LogLevel.Warn, $"[TRACK_OUT] 數量不符: PLC Qty={toQty}, 實際 Panel 數={toPanels.Count}");
+                        OnLogReceived(LogLevel.Warn, $"[TRACK_OUT] Qty Mismatch: PLC Qty={toQty}, Actual Panels={toPanels.Count}");
                         var toResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                         var toMsgDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
                         if (toResDp != null) await _driver.WriteWordAsync(toResDp.Address, 2);
                         if (toMsgDp != null) await _driver.WriteAsciiAsync(toMsgDp.Address, "QTY_MISMATCH", toMsgDp.Length);
-                        res = "FAIL|QTY_MISMATCH|數量不符";
+                        res = "FAIL|QTY_MISMATCH|Quantity Mismatch";
                     }
                     else {
                         string toRes = await ProcessTrackOutAsync(toWorkOrder, toQtyStr, toUserId, toCassetteId, toPanels, reportEqpId);
@@ -319,7 +366,7 @@ namespace EAPDashboard.Models
                         string toMesCode = top[1];
                         
                         string toMappedCode = DatabaseHelper.GetMappedRtnCode("TRACK_OUT", toMesCode);
-                        OnLogReceived(isToPass ? LogLevel.Info : LogLevel.Warn, $"[TRACK_OUT] MES 回覆: {toMesCode} - {top[2]} (寫回 PLC: {toMappedCode})");
+                        OnLogReceived(isToPass ? LogLevel.Info : LogLevel.Warn, $"[TRACK_OUT] MES Reply: {toMesCode} - {top[2]} (Write to PLC: {toMappedCode})");
 
                         var toResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                         var toCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
@@ -371,7 +418,7 @@ namespace EAPDashboard.Models
                     string[] alParts = alRes.Split('|');
                     bool isAlPass = alParts[0] == "PASS";
                     string alMappedCode = DatabaseHelper.GetMappedRtnCode("ALARM", alParts[1]);
-                    OnLogReceived(isAlPass ? LogLevel.Info : LogLevel.Warn, $"[ALARM] MES 回覆: {alParts[1]} - {alParts[2]} (寫回 PLC: {alMappedCode})");
+                    OnLogReceived(isAlPass ? LogLevel.Info : LogLevel.Warn, $"[ALARM] MES Reply: {alParts[1]} - {alParts[2]} (Write to PLC: {alMappedCode})");
 
                     var alResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                     var alCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
@@ -389,7 +436,7 @@ namespace EAPDashboard.Models
                     string[] stParts = stRes.Split('|');
                     bool isStPass = stParts[0] == "PASS";
                     string stMappedCode = DatabaseHelper.GetMappedRtnCode("STATUS", stParts[1]);
-                    OnLogReceived(isStPass ? LogLevel.Info : LogLevel.Warn, $"[STATUS] MES 回覆: {stParts[1]} - {stParts[2]} (寫回 PLC: {stMappedCode})");
+                    OnLogReceived(isStPass ? LogLevel.Info : LogLevel.Warn, $"[STATUS] MES Reply: {stParts[1]} - {stParts[2]} (Write to PLC: {stMappedCode})");
 
                     var stResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                     var stCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
@@ -408,7 +455,7 @@ namespace EAPDashboard.Models
                     bool isUvPass = uvParts[0] == "PASS";
                     string mappedRtnCode = DatabaseHelper.GetMappedRtnCode("USER_VERIFY", uvParts[1]);
                     string mesUserId = uvParts.Length > 3 ? uvParts[3] : "";
-                    OnLogReceived(isUvPass ? LogLevel.Info : LogLevel.Warn, $"[USER_VERIFY] MES 回覆: {uvParts[1]} - {uvParts[2]} (UserID: {mesUserId}, 寫回 PLC: {mappedRtnCode})");
+                    OnLogReceived(isUvPass ? LogLevel.Info : LogLevel.Warn, $"[USER_VERIFY] MES Reply: {uvParts[1]} - {uvParts[2]} (UserID: {mesUserId}, Write to PLC: {mappedRtnCode})");
 
                     var uvResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                     var uvCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");

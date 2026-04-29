@@ -1,0 +1,4 @@
+Hostname:twtpesqlqa2
+DB Name:DIAEAP
+Account:DIAEAP
+Password:D@08!aEAp

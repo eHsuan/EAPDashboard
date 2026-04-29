@@ -40,6 +40,7 @@ namespace EAPDashboard.Models
         public string Id { get; set; }
         public string Name { get; set; }
         public string Protocol { get; set; }
+        public bool IsSimulator { get; set; }
         public DbSettings DbConfig { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -67,7 +68,7 @@ namespace EAPDashboard.Models
                     }
                 }
             }
-            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"載入 Alarm Mapping 失敗: {ex.Message}"); }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Load Alarm Mapping Failed: {ex.Message}"); }
         }
 
         protected string TransformAlarmCode(string rawCode)
@@ -76,21 +77,21 @@ namespace EAPDashboard.Models
             return _alarmMappings.TryGetValue(rawCode, out string mapped) ? mapped : rawCode;
         }
 
-        // --- 核心業務邏輯 ---
+        // --- Core Business Logic ---
 
         public async Task<string> ProcessUserVerifyAsync(string barcode, string userId, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                OnLogReceived(LogLevel.Info, $"[業務] {eid} 執行人員驗證: Barcode={barcode}, UserID={userId}");
+                OnLogReceived(LogLevel.Info, $"[Business] {eid} User Verify: Barcode={barcode}, UserID={userId}");
                 var req = new UserVerifyRequest { EqpNo = eid, User2DBarCode = barcode, UserID = userId };
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<UserVerifyRequest, UserVerifyReply>(req));
                 
                 string resPrefix = (reply.Result == "success") ? "PASS" : "FAIL";
                 return $"{resPrefix}|{reply.ResultCode}|{reply.Message}|{reply.UserID}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|驗證失敗: {ex.Message}"; }
+            catch (Exception ex) { return $"ERROR|UNKNOWN|Verify Failed: {ex.Message}"; }
         }
 
         public async Task<string> ProcessTrackInAsync(string cassetteId, string workOrder, string userId, string reportEqpId = null)
@@ -101,11 +102,11 @@ namespace EAPDashboard.Models
                 string wo = workOrder;
                 if (string.IsNullOrEmpty(wo) && !string.IsNullOrEmpty(cassetteId))
                 {
-                    OnLogReceived(LogLevel.Info, $"[業務] {eid} 查詢載具 {cassetteId} 綁定工單...");
+                    OnLogReceived(LogLevel.Info, $"[Business] {eid} Querying WO for Cassette {cassetteId}");
                     wo = QueryWorkOrderFromDb(cassetteId);
                 }
 
-                if (string.IsNullOrEmpty(wo)) return "FAIL|W001|載具未綁定工單|";
+                if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|";
 
                 var panelList = QueryPanelListFromDb(cassetteId);
                 string panelStr = string.Join(",", panelList);
@@ -114,12 +115,12 @@ namespace EAPDashboard.Models
                 var qryReply = await Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
                 
                 if (qryReply.Result != "success") 
-                    return $"FAIL|{qryReply.ResultCode}|MES WOQRY 失敗: {qryReply.Message}|{panelStr}";
+                    return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|{panelStr}";
 
                 string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
                 return $"PP-SELECT|{wo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelStr}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|進站流程異常: {ex.Message}|"; }
+            catch (Exception ex) { return $"ERROR|UNKNOWN|TrackIn Error: {ex.Message}|"; }
         }
 
         protected List<string> QueryPanelListFromDb(string cassetteId)
@@ -131,7 +132,8 @@ namespace EAPDashboard.Models
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
                 {
                     conn.Open();
-                    string sql = $"SELECT PanelID FROM {DbConfig.BindingTable} WHERE {DbConfig.CassetteColumn} = @cid ORDER BY SlotNo ASC";
+                    // Query from Detail table: EAP_PanelBind
+                    string sql = "SELECT PanelID FROM EAP_PanelBind WHERE CassetteID = @cid ORDER BY SlotNo ASC";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@cid", cassetteId);
@@ -142,7 +144,7 @@ namespace EAPDashboard.Models
                     }
                 }
             }
-            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"查詢雲端 PanelList 失敗: {ex.Message}"); }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Query Cloud PanelList Failed: {ex.Message}"); }
             return list;
         }
 
@@ -176,7 +178,7 @@ namespace EAPDashboard.Models
 
                 return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|報工失敗: {ex.Message}"; }
+            catch (Exception ex) { return $"ERROR|UNKNOWN|Report Failed: {ex.Message}"; }
         }
 
         public async Task<string> ProcessTrackOutAsync(string workOrder, string qty, string userId, string cassetteId, List<string> panels, string reportEqpId = null)
@@ -199,7 +201,7 @@ namespace EAPDashboard.Models
 
                 return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|出站失敗: {ex.Message}"; }
+            catch (Exception ex) { return $"ERROR|UNKNOWN|TrackOut Failed: {ex.Message}"; }
         }
 
         protected async Task<bool> UpdateBindingInDbAsync(string cassetteId, string workOrder, List<string> panels)
@@ -214,24 +216,39 @@ namespace EAPDashboard.Models
                     {
                         try
                         {
-                            string delSql = $"DELETE FROM {DbConfig.BindingTable} WHERE {DbConfig.CassetteColumn} = @cid";
+                            // 1. Delete from Master (EAP_CassetteBind) - Cascade will handle Detail deletion
+                            string delSql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
                             using (var cmdDel = new System.Data.SqlClient.SqlCommand(delSql, conn, tx))
                             {
                                 cmdDel.Parameters.AddWithValue("@cid", cassetteId);
                                 await cmdDel.ExecuteNonQueryAsync();
                             }
 
-                            foreach (var pid in panels.Where(p => !string.IsNullOrEmpty(p)))
+                            // 2. Insert into Master (EAP_CassetteBind)
+                            string insMasterSql = "INSERT INTO EAP_CassetteBind (CassetteID, WorkOrder, BindTime) VALUES (@cid, @wo, GETDATE())";
+                            using (var cmdInsM = new System.Data.SqlClient.SqlCommand(insMasterSql, conn, tx))
                             {
-                                string insSql = $"INSERT INTO {DbConfig.BindingTable} ({DbConfig.CassetteColumn}, {DbConfig.WoColumn}, PanelID) VALUES (@cid, @wo, @pid)";
-                                using (var cmdIns = new System.Data.SqlClient.SqlCommand(insSql, conn, tx))
+                                cmdInsM.Parameters.AddWithValue("@cid", cassetteId);
+                                cmdInsM.Parameters.AddWithValue("@wo", workOrder);
+                                await cmdInsM.ExecuteNonQueryAsync();
+                            }
+
+                            // 3. Insert into Detail (EAP_PanelBind)
+                            for (int i = 0; i < panels.Count; i++)
+                            {
+                                string pid = panels[i];
+                                if (string.IsNullOrEmpty(pid)) continue;
+
+                                string insDetailSql = "INSERT INTO EAP_PanelBind (PanelID, CassetteID, SlotNo, BindTime) VALUES (@pid, @cid, @slot, GETDATE())";
+                                using (var cmdInsD = new System.Data.SqlClient.SqlCommand(insDetailSql, conn, tx))
                                 {
-                                    cmdIns.Parameters.AddWithValue("@cid", cassetteId);
-                                    cmdIns.Parameters.AddWithValue("@wo", workOrder);
-                                    cmdIns.Parameters.AddWithValue("@pid", pid);
-                                    await cmdIns.ExecuteNonQueryAsync();
+                                    cmdInsD.Parameters.AddWithValue("@pid", pid);
+                                    cmdInsD.Parameters.AddWithValue("@cid", cassetteId);
+                                    cmdInsD.Parameters.AddWithValue("@slot", i + 1); // SlotNo starts from 1
+                                    await cmdInsD.ExecuteNonQueryAsync();
                                 }
                             }
+
                             tx.Commit();
                             return true;
                         }
@@ -250,7 +267,8 @@ namespace EAPDashboard.Models
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
                 {
                     await conn.OpenAsync();
-                    string sql = $"DELETE FROM {DbConfig.BindingTable} WHERE {DbConfig.CassetteColumn} = @cid";
+                    // Just delete from Master, Cascade handles Detail
+                    string sql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
                     {
                         cmd.Parameters.AddWithValue("@cid", cassetteId);
@@ -317,9 +335,9 @@ namespace EAPDashboard.Models
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                OnLogReceived(LogLevel.Info, $"[STATUS] {eid} 狀態變更: {oldStatus} -> {newStatus}");
+                OnLogReceived(LogLevel.Info, $"[STATUS] {eid} Status Changed: {oldStatus} -> {newStatus}");
 
-                // 1. 更新 EAP UI 狀態
+                // 1. Update EAP UI State
                 if (int.TryParse(newStatus, out int sc))
                 {
                     if (sc == 0 || sc == 6) State = EquipmentState.Running;
@@ -333,7 +351,7 @@ namespace EAPDashboard.Models
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|狀態更新失敗: {ex.Message}"; }
+            catch (Exception ex) { return $"ERROR|UNKNOWN|Status Update Failed: {ex.Message}"; }
         }
 
         public async Task<string> ProcessPanelInAsync(string panelId, string cassetteId, string reportEqpId = null)
@@ -355,7 +373,7 @@ namespace EAPDashboard.Models
         public async Task<string> ProcessKeyParametersReportAsync(List<Protocol.Core.Messages.KeyParameter> parameters, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, $"[KPIV/KPOV] {eid} 關鍵參數上報: 共 {parameters.Count} 筆");
+            OnLogReceived(LogLevel.Info, $"[KPIV/KPOV] {eid} KPI Report: {parameters.Count} records");
             await SaveProductionDataAsync("KeyParametersReport", "", new { EqpID = eid, ParameterList = parameters });
             return "PASS|OK|Success";
         }
@@ -366,7 +384,7 @@ namespace EAPDashboard.Models
             {
                 string eid = reportEqpId ?? this.Id;
                 string mc = TransformAlarmCode(alarmCode);
-                OnLogReceived(LogLevel.Warn, $"[ALARM] {eid} 報警上報: Code={alarmCode} (Mapped={mc}), Set={isSet}");
+                OnLogReceived(LogLevel.Warn, $"[ALARM] {eid} Alarm Report: Code={alarmCode} (Mapped={mc}), Set={isSet}");
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = isSet ? "1" : "2", ErrorCode = mc };
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
@@ -376,7 +394,7 @@ namespace EAPDashboard.Models
             }
             catch (Exception ex) 
             { 
-                OnLogReceived(LogLevel.Error, $"報警上報異常: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"Alarm Report Exception: {ex.Message}");
                 return $"ERROR|UNKNOWN|{ex.Message}";
             }
         }
@@ -412,7 +430,8 @@ namespace EAPDashboard.Models
             try {
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString)) {
                     conn.Open();
-                    string sql = $"SELECT TOP 1 {DbConfig.WoColumn} FROM {DbConfig.BindingTable} WHERE {DbConfig.CassetteColumn} = @cid";
+                    // Query from Master table: EAP_CassetteBind
+                    string sql = "SELECT TOP 1 WorkOrder FROM EAP_CassetteBind WHERE CassetteID = @cid";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn)) {
                         cmd.Parameters.AddWithValue("@cid", cassetteId);
                         return cmd.ExecuteScalar()?.ToString();

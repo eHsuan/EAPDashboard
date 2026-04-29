@@ -32,9 +32,9 @@ public class MqttBus : IDisposable
 		remove { _connection.Disconnected -= value; }
 	}
 
-	public MqttBus(string host, int port = 1883, string clientId = null, string username = null, string password = null)
+	public MqttBus(string host, int port = 1883, string clientId = null, string username = null, string password = null, bool cleanSession = true)
 	{
-		_connection = new MqttConnection(host, port, clientId, username, password);
+		_connection = new MqttConnection(host, port, clientId, username, password, cleanSession);
 		_publisher = new Publisher(_connection);
 		_subscriber = new Subscriber(_connection);
 	}
