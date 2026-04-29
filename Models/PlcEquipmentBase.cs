@@ -19,6 +19,8 @@ namespace EAPDashboard.Models
         protected CancellationTokenSource _linkedCts;
         private bool _isFirstPoll = true;
         private readonly Dictionary<int, ushort> _lastValues = new Dictionary<int, ushort>();
+        private DateTime _lastHeartbeatTime = DateTime.Now;
+        private int _heartbeatTimeoutSeconds = 20;
 
         public PlcEquipmentBase(IPlcDriver driver)
         {
@@ -36,6 +38,9 @@ namespace EAPDashboard.Models
         {
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var ct = _linkedCts.Token;
+            _lastHeartbeatTime = DateTime.Now;
+            // 逾時門檻設定為心跳間隔的 2 倍，至少 20 秒
+            _heartbeatTimeoutSeconds = Math.Max(20, heartbeatIntervalSeconds * 2);
 
             // 啟動緩衝處理器
             _ = Task.Run(() => StartStatusBufferProcessor(ct), ct);
@@ -47,15 +52,25 @@ namespace EAPDashboard.Models
                 {
                     try
                     {
+                        // Watchdog: 檢查心跳是否逾時 (包含 Connecting 階段)
+                        if ((Connection == ConnectionStatus.Connected) && 
+                            (DateTime.Now - _lastHeartbeatTime).TotalSeconds > _heartbeatTimeoutSeconds)
+                        {
+                            OnLogReceived(LogLevel.Warn, $"PLC 心跳偵測逾時 (超過 {_heartbeatTimeoutSeconds} 秒未翻轉)，強制斷線重連");
+                            Connection = ConnectionStatus.Disconnected;
+                            _driver.Disconnect();
+                        }
+
                         if (!_driver.IsConnected)
                         {
                             Connection = ConnectionStatus.Disconnected;
                             bool ok = await _driver.ConnectAsync(Ip, Port);
                             if (ok)
                             {
-                                Connection = ConnectionStatus.Connected;
-                                OnLogReceived(LogLevel.Info, "PLC 已連線");
+                                Connection = ConnectionStatus.Connecting;
+                                OnLogReceived(LogLevel.Info, "PLC 實體連線成功，等待心跳翻轉...");
                                 _isFirstPoll = true;
+                                _lastHeartbeatTime = DateTime.Now;
                             }
                             else
                             {
@@ -71,7 +86,10 @@ namespace EAPDashboard.Models
                         OnLogReceived(LogLevel.Error, $"輪詢異常: {ex.Message}");
                         Connection = ConnectionStatus.Disconnected;
                     }
-                    await Task.Delay(1000, ct);
+
+                    // 動態調整輪詢間隔：Connecting 時採用 3 秒以避開取樣混疊，Connected 時恢復 1 秒確保即時性
+                    int pollingDelay = (Connection == ConnectionStatus.Connecting) ? 3000 : 1000;
+                    await Task.Delay(pollingDelay, ct);
                 }
             }, ct);
         }
@@ -86,6 +104,27 @@ namespace EAPDashboard.Models
                 {
                     bool isTriggered = false;
 
+                    // 1. 獨立處理 HEARTBEAT 邏輯
+                    if (evt.EventName.ToUpper() == "HEARTBEAT" || evt.HandshakeType == "HEARTBEAT")
+                    {
+                        ushort curRaw = await _driver.ReadWordAsync(evt.TriggerAddr);
+                        _lastValues.TryGetValue(evt.EventId, out ushort lastValue);
+
+                        if (curRaw != lastValue)
+                        {
+                            _lastHeartbeatTime = DateTime.Now;
+                            if (Connection == ConnectionStatus.Connecting)
+                            {
+                                Connection = ConnectionStatus.Connected;
+                                OnLogReceived(LogLevel.Info, "偵測到心跳翻轉，PLC 進入連線狀態 (Connected)");
+                            }
+                        }
+                        _lastValues[evt.EventId] = curRaw;
+                        // 心跳事件僅用於維持連線狀態，不觸發後續業務流程
+                        continue;
+                    }
+
+                    // 2. 業務邏輯處理 (ROLLING / BIT)
                     if (evt.HandshakeType == "ROLLING")
                     {
                         ushort curRaw = await _driver.ReadWordAsync(evt.TriggerAddr);
@@ -368,16 +407,20 @@ namespace EAPDashboard.Models
                     string[] uvParts = uvRes.Split('|');
                     bool isUvPass = uvParts[0] == "PASS";
                     string mappedRtnCode = DatabaseHelper.GetMappedRtnCode("USER_VERIFY", uvParts[1]);
-                    OnLogReceived(isUvPass ? LogLevel.Info : LogLevel.Warn, $"[USER_VERIFY] MES 回覆: {uvParts[1]} - {uvParts[2]} (寫回 PLC: {mappedRtnCode})");
+                    string mesUserId = uvParts.Length > 3 ? uvParts[3] : "";
+                    OnLogReceived(isUvPass ? LogLevel.Info : LogLevel.Warn, $"[USER_VERIFY] MES 回覆: {uvParts[1]} - {uvParts[2]} (UserID: {mesUserId}, 寫回 PLC: {mappedRtnCode})");
 
                     var uvResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                     var uvCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
+                    var uvUserDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnUserID" && x.AccessType == "WRITE");
+
                     if (uvResultDp != null) await _driver.WriteWordAsync(uvResultDp.Address, (ushort)(isUvPass ? 1 : 2));
                     if (uvCodeDp != null) 
                     {
                         if (ushort.TryParse(mappedRtnCode, out ushort uvCodeVal)) await _driver.WriteWordAsync(uvCodeDp.Address, uvCodeVal);
                         else await _driver.WriteAsciiAsync(uvCodeDp.Address, mappedRtnCode, uvCodeDp.Length);
                     }
+                    if (uvUserDp != null) await _driver.WriteAsciiAsync(uvUserDp.Address, mesUserId, 3);
                     res = uvRes;
                     break;
 

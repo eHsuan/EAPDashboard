@@ -150,7 +150,15 @@ namespace MESSimulator
                 switch (txn)
                 {
                     case "UserVerify":
-                        reply["UserID"] = "SIM_USER_001";
+                        string barcode = req["User2DBarCode"]?.ToString() ?? "";
+                        string extractedId = req["UserID"]?.ToString() ?? "SIM_USER_001";
+                        if (barcode.StartsWith("{{{{"))
+                        {
+                            var parts = barcode.Substring(4).Split('{');
+                            if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
+                                extractedId = parts[0];
+                        }
+                        reply["UserID"] = extractedId;
                         reply["UserName"] = "模擬測試員";
                         reply["Result"] = "success";
                         break;

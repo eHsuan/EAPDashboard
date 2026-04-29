@@ -88,7 +88,7 @@ namespace EAPDashboard.Models
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<UserVerifyRequest, UserVerifyReply>(req));
                 
                 string resPrefix = (reply.Result == "success") ? "PASS" : "FAIL";
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
+                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}|{reply.UserID}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|驗證失敗: {ex.Message}"; }
         }

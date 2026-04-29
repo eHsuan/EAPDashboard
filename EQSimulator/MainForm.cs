@@ -31,6 +31,13 @@ namespace EQSimulator
             InitializeStatusCombo();
         }
 
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            // 啟動後自動觸發連線邏輯
+            BtnConnect_Click(null, null);
+        }
+
         private void InitializeStatusCombo()
         {
             var statuses = new[] {
