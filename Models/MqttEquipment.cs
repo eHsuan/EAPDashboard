@@ -160,21 +160,21 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
-                        // 1. å–å¾—å·¥å–®
+                        // 1. ¨ú±o¤u³æ
                         string wo = QueryWorkOrderFromDb(ti.CassetteID) ?? ti.WorkOrder;
-                        // 2. å‘ MES è«‹æ±‚
+                        // 2. ¦V MES ½Ð¨D
                         string tir = await ProcessTrackInAsync(ti.CassetteID, wo, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
                             _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };
                             
-                            // 3. åˆ¤å®šé…æ–¹æå– Key (æ ¹æ“šå­æ©Ÿé…ç½®)
+                            // 3. §P©w°t¤è´£¨ú Key (®Ú¾Ú¤l¾÷°t¸m)
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
                                 finalRecipe = new Random().Next(1000, 9999).ToString();
                                 OnLogReceived(LogLevel.Info, $"[SIM] MES Simulator detected. Random Recipe: {finalRecipe}");
                             } else {
-                                // å˜—è©¦å‹•æ…‹å°‹æ‰¾è©²å­æ©Ÿçš„é…ç½® (æ­¤è™•å‡è¨­ MQTT è¨­å‚™ä¹Ÿæ˜¯å­æ©Ÿæž¶æ§‹çš„ä¸€éƒ¨åˆ†)
+                                // ¹Á¸Õ°ÊºA´M§ä¸Ó¤l¾÷ªº°t¸m (¦¹³B°²³] MQTT ³]³Æ¤]¬O¤l¾÷¬[ºcªº¤@³¡¤À)
                                 var evtConfig = DatabaseHelper.GetPlcConfigs(this.Id).FirstOrDefault(x => x.CmdType == CommandType.TrackInReq);
                                 finalRecipe = GetMesParamValue(tp[5], evtConfig?.RecipeParamKey) ?? tp[2];
                             }

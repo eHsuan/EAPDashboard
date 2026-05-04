@@ -133,7 +133,8 @@ namespace EAPDashboard
                                 Id = config.Id, 
                                 Name = config.Name, 
                                 Topic = config.Topic, 
-                                DbConfig = _appConfig.DbSettings 
+                                DbConfig = _appConfig.DbSettings,
+                                IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
                             };
                         }
                         else if (config.Protocol == "SECS") eq = new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings };
@@ -188,7 +189,8 @@ namespace EAPDashboard
                                         var mcEq = new PlcEquipmentBase(mcDriver) { 
                                             Id = eqId, Name = name, Protocol = protocol, 
                                             Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]),
-                                            DbConfig = _appConfig.DbSettings 
+                                            DbConfig = _appConfig.DbSettings,
+                                            IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test" ? true : false,
                                         };
                                         mcEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
                                         eq = mcEq;

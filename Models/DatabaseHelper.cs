@@ -80,6 +80,16 @@ namespace EAPDashboard.Models
                         FOREIGN KEY(EventId) REFERENCES Plc_Events(EventId)
                     );
 
+                    -- 新增：多配方配置表
+                    CREATE TABLE IF NOT EXISTS Plc_Recipe_Configs (
+                        ConfigId INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EqpId TEXT,
+                        RecipeParamKey TEXT,
+                        RecipeDataKey TEXT,
+                        Description TEXT,
+                        FOREIGN KEY(EqpId) REFERENCES Equipment(EqpId)
+                    );
+
                     CREATE TABLE IF NOT EXISTS Result_Mapping (
                         MappingId INTEGER PRIMARY KEY AUTOINCREMENT,
                         EventName TEXT,
@@ -227,6 +237,28 @@ namespace EAPDashboard.Models
             } catch { return mesCode; }
         }
 
+        public static List<PlcRecipeConfig> GetRecipeConfigs(string eqpId)
+        {
+            var list = new List<PlcRecipeConfig>();
+            try {
+                using (var conn = GetConnection()) {
+                    conn.Open();
+                    string sql = "SELECT * FROM Plc_Recipe_Configs WHERE EqpId = @eqid";
+                    using (var cmd = new SQLiteCommand(sql, conn)) {
+                        cmd.Parameters.AddWithValue("@eqid", eqpId);
+                        using (var reader = cmd.ExecuteReader())
+                            while (reader.Read()) list.Add(new PlcRecipeConfig {
+                                EqpId = reader["EqpId"].ToString(),
+                                RecipeParamKey = reader["RecipeParamKey"].ToString(),
+                                RecipeDataKey = reader["RecipeDataKey"].ToString(),
+                                Description = reader["Description"]?.ToString()
+                            });
+                    }
+                }
+            } catch { }
+            return list;
+        }
+
         public static List<PlcEventConfig> GetPlcConfigs(string eqpId)
         {
             var events = new List<PlcEventConfig>();
@@ -234,7 +266,7 @@ namespace EAPDashboard.Models
             {
                 conn.Open();
                 string sqlEvt = @"
-                    SELECT E.*, M.MesReportId, M.SubEqpName, M.EqpId AS MasterEqpId, M.RecipeParamKey, M.RecipeDataKey
+                    SELECT E.*, M.MesReportId, M.SubEqpName, M.EqpId AS MasterEqpId
                     FROM Plc_Events E
                     INNER JOIN Sub_Eqp_Master M ON E.SubEqpMasterId = M.SubEqpMasterId
                     WHERE M.EqpId = @eqid";
@@ -258,12 +290,9 @@ namespace EAPDashboard.Models
                                     HandshakeType = reader["HandshakeType"].ToString(),
                                     TrigBitOffset = Convert.ToInt32(reader["TrigBitOffset"]),
                                     AckBitOffset = Convert.ToInt32(reader["AckBitOffset"]),
-                                    Description = reader["Description"]?.ToString(),
-                                    RecipeParamKey = reader["RecipeParamKey"]?.ToString(),
-                                    RecipeDataKey = reader["RecipeDataKey"]?.ToString()
+                                    Description = reader["Description"]?.ToString()
                                 };
 
-                                // 關鍵：補回映射邏輯並增加容錯匹配
                                 string name = evt.EventName.ToUpper();
                                 if (name.Contains("USER_VERIFY") || name.Contains("PANEL_IN") || name.Contains("PANEL_OUT"))
                                     evt.CmdType = Protocol.Core.Enums.CommandType.EventReport;
@@ -278,7 +307,7 @@ namespace EAPDashboard.Models
                                 else if (name.Contains("TRACK_OUT") || name.Contains("TRACKOUT"))
                                     evt.CmdType = Protocol.Core.Enums.CommandType.TrackOutReq;
                                 else
-                                    evt.CmdType = Protocol.Core.Enums.CommandType.EventReport; // 安全預設值，避免預設為 0 (ALARM)
+                                    evt.CmdType = Protocol.Core.Enums.CommandType.EventReport;
 
                                 events.Add(evt);
                         }
@@ -374,11 +403,11 @@ namespace EAPDashboard.Models
     }
 
     public class SubEqpConfig { public string SubEqpName { get; set; } public string MesReportId { get; set; } public string RecipeParamKey { get; set; } public string RecipeDataKey { get; set; } }
+    public class PlcRecipeConfig { public string EqpId { get; set; } public string RecipeParamKey { get; set; } public string RecipeDataKey { get; set; } public string Description { get; set; } }
     public class PlcEventConfig { 
         public int EventId { get; set; } public string EqpId { get; set; } public string SubEqpID { get; set; } public string SubEqpName { get; set; } public string EventName { get; set; } 
         public Protocol.Core.Enums.CommandType CmdType { get; set; } public string TriggerAddr { get; set; } public string AckAddr { get; set; } public string HandshakeType { get; set; } 
         public int TrigBitOffset { get; set; } public int AckBitOffset { get; set; } public string Description { get; set; } 
-        public string RecipeParamKey { get; set; } public string RecipeDataKey { get; set; }
         public List<PlcDataPoint> DataPoints { get; set; } = new List<PlcDataPoint>(); 
     }
     public class PlcDataPoint { public string Key { get; set; } public string Address { get; set; } public ushort Length { get; set; } public string DataType { get; set; } public string AccessType { get; set; } public string Description { get; set; } public string Value { get; set; } }

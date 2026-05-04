@@ -15,10 +15,12 @@ namespace EAPDashboard.Models
     {
         protected readonly IPlcDriver _driver;
         protected List<PlcEventConfig> _events = new List<PlcEventConfig>();
+        protected List<PlcRecipeConfig> _recipeConfigs = new List<PlcRecipeConfig>();
         private CancellationTokenSource _linkedCts;
         private DateTime _lastPlcHeartbeatTime = DateTime.MinValue;
         private bool _lastHeartbeatValue = false;
-        private MqttBus _bus; // 保存 MQTT bus 用於發送指令
+        private MqttBus _bus;
+        private static readonly Random _rnd = new Random(); // 類別層級確保隨機性
 
         public string Ip { get; set; }
         public int Port { get; set; }
@@ -36,6 +38,8 @@ namespace EAPDashboard.Models
             _bus = bus;
             Connection = ConnectionStatus.Disconnected; 
             LoadAlarmMappings();
+            _recipeConfigs = DatabaseHelper.GetRecipeConfigs(this.Id);
+            OnLogReceived(LogLevel.Info, $"[PLC] Loaded {_recipeConfigs.Count} recipe mapping(s) for {Id}");
             
             _ = Task.Run(() => ConnectionLoop(_linkedCts.Token));
             _ = Task.Run(() => EventPollingLoop(_linkedCts.Token));
@@ -183,60 +187,89 @@ namespace EAPDashboard.Models
                         if (uvUserDp != null) await _driver.WriteAsciiAsync(uvUserDp.Address, mesUserId, 3);
                         res = uvRes;
                     }
-                    else if (name == "PANEL_IN") res = await ProcessPanelInAsync(getVal("PanelID", ""), "TODO_CASSETTE", reportEqpId);
-                    else if (name == "PANEL_OUT") res = await ProcessPanelOutAsync(getVal("PanelID", ""), "TODO_CASSETTE", "PASS", reportEqpId);
+                    else if (name == "PANEL_IN")
+                    {
+                        string pCid = getVal("CassetteID", "UNKNOWN");
+                        res = await ProcessPanelInAsync(getVal("PanelID", ""), pCid, reportEqpId);
+                    }
+                    else if (name == "PANEL_OUT")
+                    {
+                        string pCid = getVal("CassetteID", "UNKNOWN");
+                        res = await ProcessPanelOutAsync(getVal("PanelID", ""), pCid, "PASS", reportEqpId);
+                    }
                     break;
 
                 case CommandType.TrackInReq:
                     string cid = getVal("CassetteID", "");
                     string uid = getVal("UserID", "");
-                    // 1. 工單檢索
-                    string wo = QueryWorkOrderFromDb(cid) ?? "";
-                    // 2. 向 MES 請求 (即便 WO 為空也要呼叫以符合模擬器隨機邏輯)
-                    string tir = await ProcessTrackInAsync(cid, wo, uid, reportEqpId);
+                    string wo = QueryWorkOrderFromDb(cid);
                     
-                    if (tir.StartsWith("PP-SELECT"))
+                    if (string.IsNullOrEmpty(wo))
                     {
-                        string[] tp = tir.Split('|');
-                        string finalRecipe = "";
-
-                        // 3. 判定是否為模擬器
-                        if (this.IsMesSimulator) {
-                            finalRecipe = new Random().Next(1000, 9999).ToString();
-                            OnLogReceived(LogLevel.Info, $"[SIM] MES Simulator detected. Random Recipe: {finalRecipe}");
-                        } else {
-                            finalRecipe = GetMesParamValue(tp[5], evt.RecipeParamKey) ?? tp[2];
-                        }
-
-                        // 4. 準備數據：寫入 PLC 記憶體
-                        var rcpDp = evt.DataPoints.FirstOrDefault(x => x.Key == evt.RecipeDataKey && x.AccessType == "WRITE");
-                        if (rcpDp != null) await _driver.WriteAsciiAsync(rcpDp.Address, finalRecipe, rcpDp.Length);
-
-                        var resDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                        if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 1); 
-
-                        // 5. 觸發動作：RemoteCMD PP-SELECT
-                        await SendRemoteCommandAsync(RemoteCommandType.PP_SELECT, finalRecipe);
-
-                        // 6. 等待 PLC 切換完成握手
-                        if (await WaitForPlcAckAsync(evt.TriggerAddr, evt.TrigBitOffset, 20))
+                        res = "FAIL|W001|WorkOrder not found in SQL";
+                        resultCode = 101; 
+                    }
+                    else
+                    {
+                        string tir = await ProcessTrackInAsync(cid, wo, uid, reportEqpId);
+                        if (tir.StartsWith("PP-SELECT"))
                         {
-                            string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
-                            if (fin.StartsWith("PASS"))
+                            string[] tp = tir.Split('|');
+                            string firstRecipeId = "";
+
+                            foreach (var rConfig in _recipeConfigs)
                             {
-                                string[] fp = fin.Split('|');
-                                List<string> panels = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(fp[3]);
-                                for (int i = 0; i < 10; i++)
-                                {
-                                    var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "WRITE");
-                                    if (pDp != null) await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
+                                string recipeId = "";
+                                if (this.IsMesSimulator) {
+                                    recipeId = _rnd.Next(1000, 9999).ToString();
+                                    OnLogReceived(LogLevel.Info, $"[SIMULATOR] Random RecipeID generated: {recipeId} for {rConfig.Description}");
+                                } else {
+                                    recipeId = GetMesParamValue(tp[5], rConfig.RecipeParamKey) ?? "UNKNOWN";
                                 }
-                                if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 3); 
+
+                                if (string.IsNullOrEmpty(firstRecipeId)) firstRecipeId = recipeId;
+
+                                var rcpDp = evt.DataPoints.FirstOrDefault(x => x.Key == rConfig.RecipeDataKey && x.AccessType == "WRITE");
+                                if (rcpDp != null) await _driver.WriteAsciiAsync(rcpDp.Address, recipeId, rcpDp.Length);
                             }
-                            res = fin;
+
+                            var resDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
+                            if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 1); 
+
+                            await SendRemoteCommandAsync(RemoteCommandType.PP_SELECT, firstRecipeId);
+
+                            if (await WaitForPlcAckAsync(evt.TriggerAddr, evt.TrigBitOffset, 20))
+                            {
+                                string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
+                                if (fin.StartsWith("PASS"))
+                                {
+                                    string[] fp = fin.Split('|');
+                                    List<string> panels = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(fp[3]);
+                                    for (int i = 0; i < 10; i++)
+                                    {
+                                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "WRITE");
+                                        if (pDp != null) await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
+                                    }
+                                    if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 3);
+                                    resultCode = 0;
+                                }
+                                else { resultCode = 202; }
+                                res = fin;
+                            }
+                            else { res = "FAIL|T001|PLC Handshake Timeout"; resultCode = 102; }
+                        }
+                        else
+                        {
+                            res = tir;
+                            resultCode = 201;
                         }
                     }
-                    else res = tir;
+
+                    if (res.StartsWith("FAIL") || res.StartsWith("ERROR"))
+                    {
+                        var failResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
+                        if (failResDp != null) await _driver.WriteWordAsync(failResDp.Address, 2); 
+                    }
                     break;
 
                 case CommandType.TrackOutReq:
@@ -245,6 +278,9 @@ namespace EAPDashboard.Models
                     string toUid = getVal("UserID", "");
                     string toWo = QueryWorkOrderFromDb(toCid) ?? "";
                     res = await ProcessTrackOutAsync(toWo, toQty, toUid, toCid, new List<string>(), reportEqpId);
+                    if (res.StartsWith("PASS")) resultCode = 0; else resultCode = 301;
+                    var toResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
+                    if (toResDp != null) await _driver.WriteWordAsync(toResDp.Address, (ushort)(res.StartsWith("PASS") ? 1 : 2));
                     break;
 
                 case CommandType.ProcessDataReport:
@@ -262,15 +298,10 @@ namespace EAPDashboard.Models
                             }
                         }
                         string kpiRes = await ProcessKeyParametersReportAsync(paramList, reportEqpId);
-                        string[] kpiParts = kpiRes.Split('|');
-                        var kpiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                        var kpiCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-                        if (kpiResultDp != null) await _driver.WriteWordAsync(kpiResultDp.Address, (ushort)(kpiParts[0] == "PASS" ? 1 : 2));
-                        if (kpiCodeDp != null) {
-                            if (ushort.TryParse(kpiParts[1], out ushort kpiCodeVal)) await _driver.WriteWordAsync(kpiCodeDp.Address, kpiCodeVal);
-                            else await _driver.WriteAsciiAsync(kpiCodeDp.Address, kpiParts[1], kpiCodeDp.Length);
-                        }
                         res = kpiRes;
+                        if (res.StartsWith("PASS")) resultCode = 0; else resultCode = 401;
+                        var kpiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
+                        if (kpiResultDp != null) await _driver.WriteWordAsync(kpiResultDp.Address, (ushort)(res.StartsWith("PASS") ? 1 : 2));
                     } catch { }
                     break;
 
@@ -281,9 +312,10 @@ namespace EAPDashboard.Models
                     break;
             }
 
-            var msgDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-            if (msgDp != null && !string.IsNullOrEmpty(res)) await _driver.WriteWordAsync(msgDp.Address, (ushort)resultCode);
-            OnLogReceived(LogLevel.Info, $"[PLC_EVENT] {Id} Result: {res}");
+            var codeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
+            if (codeDp != null) await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
+            
+            OnLogReceived(LogLevel.Info, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
         }
 
         private async Task SendRemoteCommandAsync(RemoteCommandType type, string recipeId)
@@ -298,18 +330,9 @@ namespace EAPDashboard.Models
             switch (rawValue) 
             { 
                 case "1": return EquipmentState.Alarm;
-                case "2":
-                case "4":
-                case "5":
-                case "7":
-                case "8":
-                case "9":
-                case "12":
-                case "3": return EquipmentState.Idle;
-                case "0":
-                case "6": return EquipmentState.Running;
-                case "11":
-                case "10": return EquipmentState.Down; 
+                case "2": case "4": case "5": case "7": case "8": case "9": case "12": case "3": return EquipmentState.Idle;
+                case "0": case "6": return EquipmentState.Running;
+                case "11": case "10": return EquipmentState.Down; 
                 default: return EquipmentState.Paused; 
             }
         }
