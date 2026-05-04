@@ -5,14 +5,14 @@
     <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>14.0</LangVersion>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
   </PropertyGroup>
   <PropertyGroup />
   <ItemGroup />
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <Reference Include="Newtonsoft.Json" />
     <Reference Include="System.Core" />
   </ItemGroup>
 </Project>

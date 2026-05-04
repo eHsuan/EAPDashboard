@@ -42,6 +42,7 @@ namespace EAPDashboard.Models
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
 
         public string Topic { get; set; }
+        public SecsDictionary EqpDictionary { get; set; }
 
         public MqttEquipment()
         {
@@ -64,16 +65,39 @@ namespace EAPDashboard.Models
            { 9, EquipmentState.Paused }, { 12, EquipmentState.Paused }
         };
 
+        private void LoadDictionary()
+        {
+            string cleanId = Id?.Trim();
+            if (string.IsNullOrEmpty(cleanId))
+            {
+                OnLogReceived(LogLevel.Warn, "[MQTT] Cannot load dictionary: EqpId is NULL.");
+                EqpDictionary = new SecsDictionary();
+                return;
+            }
+
+            string dictPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Dictionaries", $"{cleanId}.json");
+            if (System.IO.File.Exists(dictPath))
+            {
+                EqpDictionary = SecsDictionary.Load(dictPath);
+                OnLogReceived(LogLevel.Info, $"[MQTT] Dictionary loaded for {cleanId} from {dictPath}");
+            }
+            else
+            {
+                EqpDictionary = new SecsDictionary();
+                OnLogReceived(LogLevel.Warn, $"[MQTT] Dictionary NOT FOUND for {cleanId}. Expected: {dictPath}");
+            }
+        }
+
         public override void Start(CancellationToken externalCancellationToken, MqttBus bus, int heartbeatIntervalSeconds)
         {
-            Stop();
-            _bus = bus;
-            _heartbeatInterval = heartbeatIntervalSeconds;
-            _commandTopic = $"{Topic.TrimEnd('/')}/Command";
-            _reportTopic = $"{Topic.TrimEnd('/')}/Report";
-
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
             LoadAlarmMappings();
+            LoadDictionary();
+
+            _bus = bus;
+            _heartbeatInterval = heartbeatIntervalSeconds;
+            _commandTopic = $"{Topic?.TrimEnd('/')}/Command";
+            _reportTopic = $"{Topic?.TrimEnd('/')}/Report";
 
             OnLogReceived(LogLevel.Info, $"[START] MQTT module started for {Id}.");
 
@@ -94,40 +118,31 @@ namespace EAPDashboard.Models
             if (string.IsNullOrEmpty(json)) return;
             _lastResponseTime = DateTime.Now;
 
-            string innerJson = json;
-            string messageId = null;
             try {
-                var envelope = JObject.Parse(json);
-                messageId = envelope["MessageId"]?.ToString();
-                if (envelope["Payload"] != null) innerJson = envelope["Payload"].ToString();
-            } catch { }
+                var envelope = JsonConvert.DeserializeObject<CyntecMqttLib.Contracts.MessageEnvelope>(json);
+                if (envelope == null) return;
 
-            // Idempotency Filter
-            if (!string.IsNullOrEmpty(messageId))
-            {
-                lock (_msgIdLock)
+                string messageId = envelope.MessageId;
+                string innerJson = envelope.Payload?.ToString();
+                if (string.IsNullOrEmpty(innerJson)) return;
+
+                // Idempotency Filter
+                if (!string.IsNullOrEmpty(messageId))
                 {
-                    if (_processedMessageIds.Contains(messageId))
+                    lock (_msgIdLock)
                     {
-                        OnLogReceived(LogLevel.Debug, $"[MQTT] Ignored duplicate message: {messageId}");
-                        return;
-                    }
-                    _processedMessageIds.Add(messageId);
-                    if (_processedMessageIds.Count > 1000)
-                    {
-                        var first = _processedMessageIds.First();
-                        _processedMessageIds.Remove(first);
+                        if (_processedMessageIds.Contains(messageId)) return;
+                        _processedMessageIds.Add(messageId);
+                        if (_processedMessageIds.Count > 1000) _processedMessageIds.Remove(_processedMessageIds.First());
                     }
                 }
-            }
 
-            if (Connection != ConnectionStatus.Connected)
-            {
-                Connection = ConnectionStatus.Connected;
-                OnLogReceived(LogLevel.Info, $"[MQTT] Connection restored for {Id}.");
-            }
+                if (Connection != ConnectionStatus.Connected)
+                {
+                    Connection = ConnectionStatus.Connected;
+                    OnLogReceived(LogLevel.Info, $"[MQTT] Connection restored for {Id}.");
+                }
 
-            try {
                 BaseMessage msg = MessageFactory.Create(innerJson);
                 if (msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
                 {
@@ -140,42 +155,56 @@ namespace EAPDashboard.Models
                     case CommandType.IamHere: break;
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
-                        if (int.TryParse(rs.CurrentStatus, out int sc) && StatusMap.TryGetValue(sc, out var st)) State = st;
-                        if (!string.IsNullOrEmpty(rs.RecipeID)) CurrentRecipe = rs.RecipeID;
-                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}, Recipe: {rs.RecipeID ?? "N/A"}");
-                        break;
-                    case CommandType.UserID_Verify:
-                        var uv = JsonConvert.DeserializeObject<UserIDVerifyMessage>(innerJson);
-                        string res = await ProcessUserVerifyAsync(string.IsNullOrEmpty(uv.Barcode) ? uv.UserID : uv.Barcode, uv.UserID);
-                        string[] p = res.Split('|');
-                        await SendReply(new ReplyUserIDVerifyMessage { CMD = CommandType.ReplyUserID_Verify, UserID = p[1], RtnResult = p[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = p[2] });
+                        if (StatusMap.TryGetValue(rs.CurrentStatus, out var st)) State = st;
+                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}");
                         break;
                     case CommandType.TrackInReq:
-                        var ti = JsonConvert.DeserializeObject<TrackInReqMessage>(innerJson);
-                        string tir = await ProcessTrackInAsync(ti.CassetteID, ti.WorkOrder, ti.UserID);
+                        var ti = (TrackInReqMessage)msg;
+                        // 1. 取得工單
+                        string wo = QueryWorkOrderFromDb(ti.CassetteID) ?? ti.WorkOrder;
+                        // 2. 向 MES 請求
+                        string tir = await ProcessTrackInAsync(ti.CassetteID, wo, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
                             _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };
-                            await SendReply(new PPSelectMessage { CMD = CommandType.PP_SELECT, RecipeID = tp[2] });
+                            
+                            // 3. 判定配方提取 Key (根據子機配置)
+                            string finalRecipe = "";
+                            if (this.IsMesSimulator) {
+                                finalRecipe = new Random().Next(1000, 9999).ToString();
+                                OnLogReceived(LogLevel.Info, $"[SIM] MES Simulator detected. Random Recipe: {finalRecipe}");
+                            } else {
+                                // 嘗試動態尋找該子機的配置 (此處假設 MQTT 設備也是子機架構的一部分)
+                                var evtConfig = DatabaseHelper.GetPlcConfigs(this.Id).FirstOrDefault(x => x.CmdType == CommandType.TrackInReq);
+                                finalRecipe = GetMesParamValue(tp[5], evtConfig?.RecipeParamKey) ?? tp[2];
+                            }
+
+                            await SendCommand(new RemoteCMDMessage { 
+                                CMD = CommandType.RemoteCMD, 
+                                RemoteCMDType = RemoteCommandType.PP_SELECT, 
+                                RecipeID = finalRecipe 
+                            });
                         } else {
                             await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = tir.Split('|').Last() });
                         }
                         break;
-                    case CommandType.ReplyPP_SELECT:
-                        var rps = JsonConvert.DeserializeObject<ReplyPPSelectMessage>(innerJson);
-                        if (_pendingTrackIn.TryGetValue(Id, out var ctx)) {
-                            _pendingTrackIn.Remove(Id);
-                            if (rps.RtnResult == RtnResult.PASS) {
-                                CurrentRecipe = ctx.RecipeID;
-                                string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
-                                await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
-                            } else {
-                                await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = "Recipe Change Failed on Machine" });
+                    case CommandType.ReplyRemoteCMD:
+                        var rrm = (ReplyRemoteCMDMessage)msg;
+                        if (rrm.RemoteCMDType == RemoteCommandType.PP_SELECT) {
+                            if (_pendingTrackIn.TryGetValue(Id, out var ctx)) {
+                                _pendingTrackIn.Remove(Id);
+                                if (rrm.RtnResult == RtnResult.PASS) {
+                                    CurrentRecipe = ctx.RecipeID;
+                                    string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
+                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
+                                } else {
+                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = $"Recipe Change Failed: {rrm.RtnMsg}" });
+                                }
                             }
                         }
                         break;
                     case CommandType.TrackOutReq:
-                        var to = JsonConvert.DeserializeObject<TrackOutReqMessage>(innerJson);
+                        var to = (TrackOutReqMessage)msg;
                         string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, new List<string>());
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() });
                         break;
@@ -192,27 +221,60 @@ namespace EAPDashboard.Models
                         await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS });
                         break;
                     case CommandType.ProcessDataReport:
-                        var pdr = JsonConvert.DeserializeObject<ProcessDataReportMessage>(innerJson);
+                        var pdr = (ProcessDataReportMessage)msg;
                         await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr);
                         await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS });
                         break;
-                    case CommandType.BatchProcessDataReport:
-                        var bpdr = JsonConvert.DeserializeObject<BatchProcessDataReportMessage>(innerJson);
-                        await SaveProductionDataAsync("BatchDataReport", "", bpdr);
-                        await SendReply(new ReplyBatchProcessDataReportMessage { CMD = CommandType.ReplyBatchProcessDataReport, RtnResult = RtnResult.PASS });
-                        break;
-                    case CommandType.PanelInReport:
-                        var pIn = JsonConvert.DeserializeObject<PanelInReportMessage>(innerJson);
-                        await SaveProductionDataAsync("PanelIn", "", pIn);
-                        await SendReply(new ReplyPanelInReportMessage { CMD = CommandType.ReplyPanelInReport, RtnResult = RtnResult.PASS });
-                        break;
-                    case CommandType.PanelOutReport:
-                        var pOut = JsonConvert.DeserializeObject<PanelOutReportMessage>(innerJson);
-                        await SaveProductionDataAsync("PanelOut", "", pOut);
-                        await SendReply(new ReplyPanelOutReportMessage { CMD = CommandType.ReplyPanelOutReport, RtnResult = RtnResult.PASS });
+                    case CommandType.EventReport:
+                        var evm = (EventReportMessage)msg;
+                        await HandleEventReport(evm, innerJson);
                         break;
                 }
             } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Parse Report Failed: {ex.Message}"); }
+        }
+
+        private async Task HandleEventReport(EventReportMessage evm, string rawJson)
+        {
+            string eventId = evm.EventID;
+            string logicalEvent = EqpDictionary?.GetEventName(eventId) ?? eventId;
+            logicalEvent = logicalEvent.ToUpper();
+
+            OnLogReceived(LogLevel.Info, $"[EVENT] {Id} EventID: {eventId} (Mapped: {logicalEvent})");
+
+            string getValByLogicalName(string logicalName) 
+            {
+                if (evm.Data == null) return null;
+                return evm.Data.FirstOrDefault(x => (EqpDictionary?.GetVariableName(x.Parameter) ?? x.Parameter).Equals(logicalName, StringComparison.OrdinalIgnoreCase))?.Value;
+            }
+
+            switch (logicalEvent)
+            {
+                case "USER_VERIFY":
+                    string uid = getValByLogicalName("UserID");
+                    string bcd = getValByLogicalName("Barcode") ?? uid;
+                    string uvRes = await ProcessUserVerifyAsync(bcd, uid);
+                    string[] uvp = uvRes.Split('|');
+                    await SendReply(new ReplyEventReportMessage { 
+                        CMD = CommandType.ReplyEventReport, 
+                        RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
+                        RtnMsg = uvp[2] 
+                    });
+                    break;
+
+                case "PANEL_IN":
+                    await SaveProductionDataAsync("PanelIn", "", evm);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    break;
+
+                case "PANEL_OUT":
+                    await SaveProductionDataAsync("PanelOut", "", evm);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    break;
+
+                default:
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    break;
+            }
         }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) {
@@ -224,9 +286,9 @@ namespace EAPDashboard.Models
             while (!ct.IsCancellationRequested) {
                 if (!_statusBuffer.IsEmpty && _statusBuffer.TryPeek(out var req)) {
                     try { await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req)); _statusBuffer.TryDequeue(out _); }
-                    catch { await Task.Delay(30000, ct); }
+                    catch { await Task.Delay(5000, ct); }
                 }
-                await Task.Delay(5000, ct);
+                await Task.Delay(1000, ct);
             }
         }
 
@@ -256,7 +318,7 @@ namespace EAPDashboard.Models
 
         private async Task SendCommand(object cmd) {
             if (_bus == null || !_bus.IsConnected) return;
-            await _bus.PublishAsync(_commandTopic, JsonConvert.SerializeObject(cmd, _logSettings));
+            await _bus.PublishAsync(_commandTopic, cmd);
         }
 
         public override void Stop() { _heartbeatTimer?.Stop(); _heartbeatTimer?.Dispose(); _linkedCts?.Cancel(); }

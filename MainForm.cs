@@ -128,7 +128,14 @@ namespace EAPDashboard
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {
                         EquipmentBase eq = null;
-                        if (config.Protocol == "MQTT") eq = new MqttEquipment { Id = config.Id, Name = config.Name, Topic = config.Topic, DbConfig = _appConfig.DbSettings };
+                        if (config.Protocol == "MQTT") {
+                            eq = new MqttEquipment { 
+                                Id = config.Id, 
+                                Name = config.Name, 
+                                Topic = config.Topic, 
+                                DbConfig = _appConfig.DbSettings 
+                            };
+                        }
                         else if (config.Protocol == "SECS") eq = new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings };
                         
                         if (eq != null) {

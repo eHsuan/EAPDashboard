@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Protocol.Core.Base;
 using Protocol.Core.Enums;
 
@@ -18,6 +17,4 @@ public class ReplyTrackInReqMessage : ReplyBase
 	public string ToolingID { get; set; }
 
 	public string PanelID { get; set; }
-
-	public List<string> PanelList { get; set; }
 }

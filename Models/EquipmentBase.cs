@@ -41,6 +41,7 @@ namespace EAPDashboard.Models
         public string Name { get; set; }
         public string Protocol { get; set; }
         public bool IsSimulator { get; set; }
+        public bool IsMesSimulator { get; set; } // 新增：判定 MES 是否為模擬器
         public DbSettings DbConfig { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -132,7 +133,6 @@ namespace EAPDashboard.Models
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
                 {
                     conn.Open();
-                    // Query from Detail table: EAP_PanelBind
                     string sql = "SELECT PanelID FROM EAP_PanelBind WHERE CassetteID = @cid ORDER BY SlotNo ASC";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
                     {
@@ -150,11 +150,12 @@ namespace EAPDashboard.Models
 
         protected string GetMesParamValue(string inputParamListDt, string paramName)
         {
-            if (string.IsNullOrEmpty(inputParamListDt)) return null;
+            if (string.IsNullOrEmpty(inputParamListDt) || string.IsNullOrEmpty(paramName)) return null;
             try
             {
                 var list = JsonConvert.DeserializeObject<List<JObject>>(inputParamListDt);
-                var paramObj = list.FirstOrDefault(x => x["ParamName"]?.ToString() == paramName || x["ParamCode"]?.ToString() == paramName);
+                var paramObj = list.FirstOrDefault(x => x["ParamName"]?.ToString().Equals(paramName, StringComparison.OrdinalIgnoreCase) == true 
+                                                    || x["ParamCode"]?.ToString().Equals(paramName, StringComparison.OrdinalIgnoreCase) == true);
                 return paramObj?["DefaultValue"]?.ToString();
             }
             catch { return null; }
@@ -216,7 +217,6 @@ namespace EAPDashboard.Models
                     {
                         try
                         {
-                            // 1. Delete from Master (EAP_CassetteBind) - Cascade will handle Detail deletion
                             string delSql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
                             using (var cmdDel = new System.Data.SqlClient.SqlCommand(delSql, conn, tx))
                             {
@@ -224,7 +224,6 @@ namespace EAPDashboard.Models
                                 await cmdDel.ExecuteNonQueryAsync();
                             }
 
-                            // 2. Insert into Master (EAP_CassetteBind)
                             string insMasterSql = "INSERT INTO EAP_CassetteBind (CassetteID, WorkOrder, BindTime) VALUES (@cid, @wo, GETDATE())";
                             using (var cmdInsM = new System.Data.SqlClient.SqlCommand(insMasterSql, conn, tx))
                             {
@@ -233,7 +232,6 @@ namespace EAPDashboard.Models
                                 await cmdInsM.ExecuteNonQueryAsync();
                             }
 
-                            // 3. Insert into Detail (EAP_PanelBind)
                             for (int i = 0; i < panels.Count; i++)
                             {
                                 string pid = panels[i];
@@ -244,7 +242,7 @@ namespace EAPDashboard.Models
                                 {
                                     cmdInsD.Parameters.AddWithValue("@pid", pid);
                                     cmdInsD.Parameters.AddWithValue("@cid", cassetteId);
-                                    cmdInsD.Parameters.AddWithValue("@slot", i + 1); // SlotNo starts from 1
+                                    cmdInsD.Parameters.AddWithValue("@slot", i + 1);
                                     await cmdInsD.ExecuteNonQueryAsync();
                                 }
                             }
@@ -267,7 +265,6 @@ namespace EAPDashboard.Models
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
                 {
                     await conn.OpenAsync();
-                    // Just delete from Master, Cascade handles Detail
                     string sql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
                     {
@@ -337,7 +334,6 @@ namespace EAPDashboard.Models
                 string eid = reportEqpId ?? this.Id;
                 OnLogReceived(LogLevel.Info, $"[STATUS] {eid} Status Changed: {oldStatus} -> {newStatus}");
 
-                // 1. Update EAP UI State
                 if (int.TryParse(newStatus, out int sc))
                 {
                     if (sc == 0 || sc == 6) State = EquipmentState.Running;
@@ -370,11 +366,11 @@ namespace EAPDashboard.Models
             return "PASS|OK|Success";
         }
 
-        public async Task<string> ProcessKeyParametersReportAsync(List<Protocol.Core.Messages.KeyParameter> parameters, string reportEqpId = null)
+        public async Task<string> ProcessKeyParametersReportAsync(List<Protocol.Core.Messages.ParameterResultItem> parameters, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
             OnLogReceived(LogLevel.Info, $"[KPIV/KPOV] {eid} KPI Report: {parameters.Count} records");
-            await SaveProductionDataAsync("KeyParametersReport", "", new { EqpID = eid, ParameterList = parameters });
+            await SaveProductionDataAsync("KeyParametersReport", "", new { EqpID = eid, ProcessData = parameters });
             return "PASS|OK|Success";
         }
 
@@ -430,7 +426,6 @@ namespace EAPDashboard.Models
             try {
                 using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString)) {
                     conn.Open();
-                    // Query from Master table: EAP_CassetteBind
                     string sql = "SELECT TOP 1 WorkOrder FROM EAP_CassetteBind WHERE CassetteID = @cid";
                     using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn)) {
                         cmd.Parameters.AddWithValue("@cid", cassetteId);
@@ -459,37 +454,20 @@ namespace EAPDashboard.Models
         {
             var timestamp = DateTime.Now;
             LogReceived?.Invoke(timestamp, level, message);
-
-            try
-            {
-                lock (_logLock)
-                {
+            try {
+                lock (_logLock) {
                     string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", timestamp.ToString("yyyyMMdd"), this.Id ?? "System");
                     if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
-
                     string filePath = Path.Combine(logDir, $"{timestamp:HH}.txt");
-                    string logContent = $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}] : {message}{Environment.NewLine}";
-
-                    File.AppendAllText(filePath, logContent);
+                    File.AppendAllText(filePath, $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}] : {message}{Environment.NewLine}");
                 }
-            }
-            catch { }
+            } catch { }
         }
 
         protected virtual void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         public abstract void Start(CancellationToken cancellationToken, MqttBus _bus, int heartbeatIntervalSeconds);
         public abstract Task SendTimeCalibration();
         public virtual void Stop() { }
-
-        public static Color GetColorForState(EquipmentState state) {
-            switch (state) {
-                case EquipmentState.Running: return Color.LimeGreen;
-                case EquipmentState.Alarm:
-                case EquipmentState.Down: return Color.Crimson;
-                case EquipmentState.Paused:
-                case EquipmentState.Idle: return Color.Gold;
-                default: return Color.Black;
-            }
-        }
+        public static Color GetColorForState(EquipmentState state) { switch (state) { case EquipmentState.Running: return Color.LimeGreen; case EquipmentState.Alarm: case EquipmentState.Down: return Color.Crimson; case EquipmentState.Paused: case EquipmentState.Idle: return Color.Gold; default: return Color.Black; } }
     }
 }

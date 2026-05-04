@@ -1,22 +1,17 @@
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-
 namespace Protocol.Core.Enums;
 
-[JsonConverter(typeof(StringEnumConverter))]
 public enum CommandType
 {
 	ALARM,
+	ReplyALARM,
 	SelectParameter,
 	ReplySelectParameter,
 	EditParameter,
 	ReplyEditParameter,
-	PP_SELECT,
-	ReplyPP_SELECT,
-	START,
-	ReplySTART,
+	RemoteCMD,
+	ReplyRemoteCMD,
 	InitTraceData,
-	ReplyTraceDataMessage,
+	ReplyInitTraceData,
 	ProcessDataReport,
 	ReplyProcessDataReport,
 	StatusReq,
@@ -33,16 +28,8 @@ public enum CommandType
 	ReplyTrackOutReq,
 	TerminalDisplay,
 	ReplyTerminalDisplay,
-	UserID_Verify,
-	ReplyUserID_Verify,
-	BatchProcessDataReport,
-	ReplyBatchProcessDataReport,
-	STOP,
-	ReplySTOP,
-	PanelInReport,
-	ReplyPanelInReport,
-	PanelOutReport,
-	ReplyPanelOutReport,
-	KeyParametersReport,
-	ReplyKeyParametersReport
+	EventReport,
+	ReplyEventReport,
+	RtnTraceData,
+	ReplyRtnTraceData
 }

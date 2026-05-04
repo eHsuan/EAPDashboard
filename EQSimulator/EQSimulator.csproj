@@ -22,7 +22,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CyntecMqttLib\CyntecMqttLib.csproj" />
-    <ProjectReference Include="..\Protocol.Core\Protocol.Core.csproj" />
+    <Reference Include="Protocol.Core">
+      <HintPath>..\dll\Protocol.Core\Protocol.Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

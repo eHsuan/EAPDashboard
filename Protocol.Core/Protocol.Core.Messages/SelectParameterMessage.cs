@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json;
 using Protocol.Core.Base;
 using Protocol.Core.Enums;
 
@@ -7,5 +8,6 @@ namespace Protocol.Core.Messages;
 [CommandMapping(CommandType.SelectParameter)]
 public class SelectParameterMessage : BaseMessage
 {
-	public List<string> Parameters { get; set; }
+	[JsonProperty("Data")]
+	public List<SelectParameterItem> Data { get; set; }
 }

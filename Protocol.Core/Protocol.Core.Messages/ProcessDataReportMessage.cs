@@ -21,5 +21,5 @@ public class ProcessDataReportMessage : BaseMessage
 
 	public double ProcessTime { get; set; }
 
-	public List<ParameterValue> ProcessData { get; set; }
+	public List<ParameterResultItem> ProcessData { get; set; }
 }

@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Linq;
 using CyntecMqttLib.Interfaces;
 using CyntecMqttLib.Services;
 using Protocol.Core.Base;
@@ -18,6 +19,7 @@ namespace EQSimulator
         private MqttBus _bus;
         private string _eqId = "TS0003";
         private string _baseTopic = "TN2/Floor2/Yellow/TS0003/";
+        private EqpDictionary _dictionary = new EqpDictionary();
 
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
@@ -34,7 +36,6 @@ namespace EQSimulator
         protected override void OnShown(EventArgs e)
         {
             base.OnShown(e);
-            // 啟動後自動觸發連線邏輯
             BtnConnect_Click(null, null);
         }
 
@@ -62,15 +63,11 @@ namespace EQSimulator
         {
             if (_bus != null && _bus.IsConnected)
             {
-                try 
-                {
-                    await _bus.DisconnectAsync();
-                    _bus.Dispose();
-                } catch { }
+                try { await _bus.DisconnectAsync(); _bus.Dispose(); } catch { }
                 _bus = null;
                 _btnConnect.Text = "Connect";
                 _grpActions.Enabled = false;
-                Log("Disconnected from Broker and resources released.");
+                Log("Disconnected from Broker.");
                 return;
             }
 
@@ -78,6 +75,8 @@ namespace EQSimulator
 
             _eqId = _txtEqId.Text;
             _baseTopic = _txtTopic.Text.TrimEnd('/') + "/";
+            _dictionary = EqpDictionary.Load(_eqId);
+            Log($"Dictionary loaded for {_eqId}");
             
             try
             {
@@ -90,23 +89,24 @@ namespace EQSimulator
                 
                 _btnConnect.Text = "Disconnect";
                 _grpActions.Enabled = true;
-                Log($"Connected as {clientId}! Listening on: {cmdTopic}");
+                Log($"Connected as {clientId}!");
             }
-            catch (Exception ex) 
-            { 
-                Log($"[ERR] Connection failed: {ex.Message}");
-                MessageBox.Show(ex.Message); 
-            }
+            catch (Exception ex) { Log($"[ERR] Connection failed: {ex.Message}"); }
         }
 
         private void BtnUser_Click(object sender, EventArgs e)
         {
-            SendMessage(new UserIDVerifyMessage 
+            var evm = new EventReportMessage 
             { 
-                CMD = CommandType.UserID_Verify, 
-                UserID = _txtUserId.Text,
-                Barcode = _txtBarcode.Text
-            });
+                CMD = CommandType.EventReport, 
+                EventID = _dictionary.GetCeid("USER_VERIFY"),
+                Data = new List<EventItem> 
+                { 
+                    new EventItem { Parameter = _dictionary.GetVid("UserID"), Value = _txtUserId.Text },
+                    new EventItem { Parameter = _dictionary.GetVid("Barcode"), Value = _txtBarcode.Text }
+                }
+            };
+            SendMessage(evm);
         }
 
         private void BtnTrackIn_Click(object sender, EventArgs e)
@@ -118,15 +118,14 @@ namespace EQSimulator
                 MaterialID = _txtMaterialId.Text, 
                 CassetteID = _txtCassetteId.Text,
                 ToolingID = _txtToolingId.Text,
-                UserID = _txtUserId.Text
+                UserID = _txtUserId.Text,
+                Qty = 1
             });
         }
 
         private void BtnTrackOut_Click(object sender, EventArgs e)
         {
-            int qty = 0;
-            int.TryParse(_txtQty.Text, out qty);
-
+            int qty = 0; int.TryParse(_txtQty.Text, out qty);
             SendMessage(new TrackOutReqMessage 
             { 
                 CMD = CommandType.TrackOutReq, 
@@ -135,24 +134,20 @@ namespace EQSimulator
                 Qty = qty, 
                 UserID = _txtUserId.Text,
                 CassetteID = _txtCassetteId.Text,
-                ToolingID = _txtToolingId.Text
+                ToolingID = _txtToolingId.Text,
+                Result = "PASS"
             });
         }
 
         private void BtnAlarm_Click(object sender, EventArgs e)
         {
-            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmCode = "E004", AlarmMsg = "Emergency Stop Pressed" });
+            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
         }
 
         private void BtnReportStatus_Click(object sender, EventArgs e)
         {
-            int status = (int)_cmbStatus.SelectedValue;
-            SendMessage(new StatusChangeReportMessage 
-            { 
-                CMD = CommandType.StatusChangeReport, 
-                NewStatus = status,
-                OldStatus = 0 
-            });
+            int status = Convert.ToInt32(_cmbStatus.SelectedValue);
+            SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = status, OldStatus = 0 });
         }
 
         private void HandleIncomingCommand(string json)
@@ -160,19 +155,14 @@ namespace EQSimulator
             if (this.IsDisposed) return;
             this.Invoke((MethodInvoker)delegate {
                 try {
-                    string innerJson = json;
-                    try 
-                    {
-                        var envelope = JsonConvert.DeserializeObject<Newtonsoft.Json.Linq.JObject>(json);
-                        if (envelope != null && envelope["Payload"] != null)
-                        {
-                            innerJson = envelope["Payload"].ToString();
-                        }
-                    }
-                    catch { }
+                    var envelope = JsonConvert.DeserializeObject<CyntecMqttLib.Contracts.MessageEnvelope>(json);
+                    if (envelope == null) return;
+                    
+                    string innerJson = envelope.Payload?.ToString();
+                    if (string.IsNullOrEmpty(innerJson)) return;
 
                     var msg = MessageFactory.Create(innerJson);
-                    Log($"[RECV]\n{json}");
+                    Log($"[RECV] {msg.CMD}");
                     
                     switch (msg.CMD) {
                         case CommandType.AreYouThere:
@@ -181,34 +171,34 @@ namespace EQSimulator
                         
                         case CommandType.ReplyTrackInReq:
                             var rti = (ReplyTrackInReqMessage)msg;
-                            if (rti.RtnResult == RtnResult.PASS) {
-                                Log($"-> TrackIn PASS! Panels: {(rti.PanelList != null ? string.Join(",", rti.PanelList) : "None")}");
-                            } else {
-                                Log($"-> TrackIn FAIL: {rti.RtnMsg}");
+                            Log($"-> TrackIn Result: {rti.RtnResult}, Msg: {rti.RtnMsg}");
+                            break;
+
+                        case CommandType.RemoteCMD:
+                            var rcmd = (RemoteCMDMessage)msg;
+                            if (rcmd.RemoteCMDType == RemoteCommandType.PP_SELECT) {
+                                Log($"-> RemoteCMD: PP_SELECT. Recipe: {rcmd.RecipeID}. Switching...");
+                                Task.Delay(2000).ContinueWith(_ => {
+                                    SendMessage(new ReplyRemoteCMDMessage { 
+                                        CMD = CommandType.ReplyRemoteCMD, 
+                                        RemoteCMDType = RemoteCommandType.PP_SELECT,
+                                        RtnResult = RtnResult.PASS 
+                                    });
+                                    Log($"-> Recipe {rcmd.RecipeID} Change SUCCESS.");
+                                });
                             }
                             break;
 
-                        case CommandType.PP_SELECT:
-                            var pp = (PPSelectMessage)msg;
-                            Log($"-> Recipe Change Requested: {pp.RecipeID}. Switching...");
-                            Task.Delay(2000).ContinueWith(_ => {
-                                SendMessage(new ReplyPPSelectMessage { CMD = CommandType.ReplyPP_SELECT, RtnResult = RtnResult.PASS });
-                                Log($"-> Recipe {pp.RecipeID} Changed SUCCESS.");
-                            });
-                            break;
-
-                        case CommandType.TimeCalibrate:
-                            var tc = (TimeCalibrateMessage)msg;
-                            Log($"-> Time Sync Received: {tc.Date}. Clock Updated.");
-                            SendMessage(new ReplyTimeCalibrateMessage { CMD = CommandType.ReplyTimeCalibrate, RtnResult = RtnResult.PASS });
-                            break;
-
                         case CommandType.StatusReq:
-                            Log("-> Status Request Received. Reporting current state...");
                             SendMessage(new ReplyStatusReqMessage { 
                                 CMD = CommandType.ReplyStatusReq, 
-                                CurrentStatus = ((int)_cmbStatus.SelectedValue).ToString() 
+                                CurrentStatus = Convert.ToInt32(_cmbStatus.SelectedValue)
                             });
+                            break;
+
+                        case CommandType.ReplyEventReport:
+                            var revm = (ReplyEventReportMessage)msg;
+                            Log($"-> Event Reply Result: {revm.RtnResult}, Msg: {revm.RtnMsg}");
                             break;
                     }
                 } catch (Exception ex) { Log($"[ERR] Parse failed: {ex.Message}"); }
@@ -218,18 +208,11 @@ namespace EQSimulator
         private void SendMessage(BaseMessage msg)
         {
             if (_bus == null || !_bus.IsConnected) return;
-            
             msg.Machine = _txtEqId.Text;
             msg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
-            
-            string payloadJson = JsonConvert.SerializeObject(msg, _jsonSettings);
-            var envelope = CyntecMqttLib.Contracts.MessageEnvelope.Create(payloadJson);
-            string finalJson = JsonConvert.SerializeObject(envelope, _jsonSettings);
-
             string reportTopic = _txtTopic.Text.TrimEnd('/') + "/Report";
-            
-            _bus.PublishAsync(reportTopic, finalJson);
-            Log($"[SEND] to {reportTopic}: {finalJson}");
+            _bus.PublishAsync(reportTopic, msg);
+            Log($"[SEND] {msg.CMD}");
         }
 
         private void Log(string text)
