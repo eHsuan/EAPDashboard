@@ -88,7 +88,7 @@ namespace EAPDashboard.Models
             }
         }
 
-        public override void Start(CancellationToken externalCancellationToken, MqttBus bus, int heartbeatIntervalSeconds)
+        public override void Start(CancellationToken externalCancellationToken, MqttBus bus = null, int heartbeatIntervalSeconds = 30)
         {
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
             LoadAlarmMappings();
@@ -160,21 +160,21 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
-                        // 1. ¨ú±o¤u³æ
+                        // 1. ï¿½ï¿½ï¿½oï¿½uï¿½ï¿½
                         string wo = QueryWorkOrderFromDb(ti.CassetteID) ?? ti.WorkOrder;
-                        // 2. ¦V MES ½Ð¨D
+                        // 2. ï¿½V MES ï¿½Ð¨D
                         string tir = await ProcessTrackInAsync(ti.CassetteID, wo, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
                             _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };
                             
-                            // 3. §P©w°t¤è´£¨ú Key (®Ú¾Ú¤l¾÷°t¸m)
+                            // 3. ï¿½Pï¿½wï¿½tï¿½è´£ï¿½ï¿½ Key (ï¿½Ú¾Ú¤lï¿½ï¿½ï¿½tï¿½m)
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
                                 finalRecipe = new Random().Next(1000, 9999).ToString();
                                 OnLogReceived(LogLevel.Info, $"[SIM] MES Simulator detected. Random Recipe: {finalRecipe}");
                             } else {
-                                // ¹Á¸Õ°ÊºA´M§ä¸Ó¤l¾÷ªº°t¸m (¦¹³B°²³] MQTT ³]³Æ¤]¬O¤l¾÷¬[ºcªº¤@³¡¤À)
+                                // ï¿½ï¿½ï¿½Õ°ÊºAï¿½Mï¿½ï¿½Ó¤lï¿½ï¿½ï¿½ï¿½ï¿½tï¿½m (ï¿½ï¿½ï¿½Bï¿½ï¿½ï¿½] MQTT ï¿½]ï¿½Æ¤]ï¿½Oï¿½lï¿½ï¿½ï¿½[ï¿½cï¿½ï¿½ï¿½@ï¿½ï¿½ï¿½ï¿½)
                                 var evtConfig = DatabaseHelper.GetPlcConfigs(this.Id).FirstOrDefault(x => x.CmdType == CommandType.TrackInReq);
                                 finalRecipe = GetMesParamValue(tp[5], evtConfig?.RecipeParamKey) ?? tp[2];
                             }

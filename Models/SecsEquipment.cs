@@ -42,7 +42,7 @@ namespace EAPDashboard.Models
             Connection = ConnectionStatus.Disconnected;
         }
 
-        public override void Start(CancellationToken externalCancellationToken, MqttBus _bus, int heartbeatIntervalSeconds)
+        public override void Start(CancellationToken externalCancellationToken, MqttBus bus = null, int heartbeatIntervalSeconds = 30)
         {
             try {
                 OnLogReceived(LogLevel.Info, $"[START] SECS module initialized for {Id}.");

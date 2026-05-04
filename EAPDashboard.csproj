@@ -17,9 +17,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Core_Backup\**;dll\Protocol.Core\CS\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Core_Backup\**;dll\Protocol.Core\CS\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Core_Backup\**;dll\Protocol.Core\CS\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <Compile Remove="dll\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <EmbeddedResource Remove="dll\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <None Remove="dll\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -37,6 +40,7 @@
 
   <ItemGroup>
     <ProjectReference Include="CyntecMqttLib\CyntecMqttLib.csproj" />
+    <ProjectReference Include="Protocol.Drivers.Mitsubishi\Protocol.Drivers.Mitsubishi.csproj" />
     <Reference Include="Protocol.Core">
       <HintPath>dll\Protocol.Core\Protocol.Core.dll</HintPath>
     </Reference>

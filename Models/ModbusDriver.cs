@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Modbus.Device;
+using Protocol.Drivers.Mitsubishi;
 
 namespace EAPDashboard.Models
 {
@@ -15,7 +16,6 @@ namespace EAPDashboard.Models
         private int _port;
 
         public bool IsConnected => _tcpClient != null && _tcpClient.Connected;
-        public event Action<LogLevel, string> LogHandler;
 
         public async Task<bool> ConnectAsync(string ip, int port)
         {

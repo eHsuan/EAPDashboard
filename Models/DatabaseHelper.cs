@@ -266,7 +266,7 @@ namespace EAPDashboard.Models
             {
                 conn.Open();
                 string sqlEvt = @"
-                    SELECT E.*, M.MesReportId, M.SubEqpName, M.EqpId AS MasterEqpId
+                    SELECT E.*, M.MesReportId, M.SubEqpName, M.RecipeParamKey, M.EqpId AS MasterEqpId
                     FROM Plc_Events E
                     INNER JOIN Sub_Eqp_Master M ON E.SubEqpMasterId = M.SubEqpMasterId
                     WHERE M.EqpId = @eqid";
@@ -285,6 +285,7 @@ namespace EAPDashboard.Models
                                     SubEqpID = reader["MesReportId"].ToString(),
                                     SubEqpName = reader["SubEqpName"].ToString(),
                                     EventName = reader["EventName"].ToString(),
+                                    RecipeParamKey = reader["RecipeParamKey"]?.ToString(),
                                     TriggerAddr = reader["TriggerAddr"].ToString(),
                                     AckAddr = reader["AckAddr"].ToString(),
                                     HandshakeType = reader["HandshakeType"].ToString(),
@@ -406,6 +407,7 @@ namespace EAPDashboard.Models
     public class PlcRecipeConfig { public string EqpId { get; set; } public string RecipeParamKey { get; set; } public string RecipeDataKey { get; set; } public string Description { get; set; } }
     public class PlcEventConfig { 
         public int EventId { get; set; } public string EqpId { get; set; } public string SubEqpID { get; set; } public string SubEqpName { get; set; } public string EventName { get; set; } 
+        public string RecipeParamKey { get; set; }
         public Protocol.Core.Enums.CommandType CmdType { get; set; } public string TriggerAddr { get; set; } public string AckAddr { get; set; } public string HandshakeType { get; set; } 
         public int TrigBitOffset { get; set; } public int AckBitOffset { get; set; } public string Description { get; set; } 
         public List<PlcDataPoint> DataPoints { get; set; } = new List<PlcDataPoint>(); 

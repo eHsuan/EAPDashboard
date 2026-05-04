@@ -1,12 +1,11 @@
 using System;
 using System.Threading.Tasks;
 
-namespace EAPDashboard.Models
+namespace Protocol.Drivers.Mitsubishi
 {
     public interface IPlcDriver : IDisposable
     {
         bool IsConnected { get; }
-        event Action<LogLevel, string> LogHandler;
         Task<bool> ConnectAsync(string ip, int port);
         void Disconnect();
 

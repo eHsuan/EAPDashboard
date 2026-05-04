@@ -5,13 +5,12 @@ using System.Threading.Tasks;
 using IoTClient.Clients.PLC;
 using IoTClient.Enums;
 
-namespace EAPDashboard.Models
+namespace Protocol.Drivers.Mitsubishi
 {
     public class McDriver : IPlcDriver
     {
         private MitsubishiClient _client;
         public bool IsConnected => _client?.Connected ?? false;
-        public event Action<LogLevel, string> LogHandler;
 
         private string NormalizeAddress(string address)
         {
@@ -35,7 +34,6 @@ namespace EAPDashboard.Models
             string addr = NormalizeAddress(address);
             ushort[] data = new ushort[length];
 
-            // 根據範例，循環讀取每個 Word 以確保型別與偏移正確
             for (int i = 0; i < length; i++)
             {
                 string currentAddr = addr;
@@ -80,7 +78,6 @@ namespace EAPDashboard.Models
 
         public async Task<string> ReadAsciiAsync(string address, ushort length)
         {
-            // 讀取 Word 陣列後轉為 ASCII
             var data = await ReadAsync(address, length);
             byte[] bytes = data.SelectMany(BitConverter.GetBytes).ToArray();
             return Encoding.ASCII.GetString(bytes).Replace("\0", "").Trim();
@@ -103,7 +100,6 @@ namespace EAPDashboard.Models
             string addr = NormalizeAddress(address);
             if (addr.StartsWith("M") && bitOffset == 0)
             {
-                // 呼叫強型別 ReadBoolean
                 var res = _client.ReadBoolean(addr);
                 if (res.IsSucceed) return await Task.FromResult(res.Value);
                 throw new Exception($"[MC_READ_BIT_ERROR] Addr: {addr}, Error: {res.Err}");
@@ -131,7 +127,6 @@ namespace EAPDashboard.Models
         public async Task<ushort> ReadWordAsync(string address)
         {
             string addr = NormalizeAddress(address);
-            // 呼叫強型別 ReadInt16
             var res = _client.ReadInt16(addr);
             if (res.IsSucceed) return await Task.FromResult((ushort)res.Value);
             

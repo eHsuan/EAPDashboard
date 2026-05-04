@@ -8,6 +8,7 @@ using Protocol.MES.Factory;
 using Protocol.MES.Messages;
 using Protocol.Core.Enums;
 using Protocol.Core.Messages;
+using Protocol.Drivers.Mitsubishi;
 
 namespace EAPDashboard.Models
 {
@@ -19,7 +20,6 @@ namespace EAPDashboard.Models
         private CancellationTokenSource _linkedCts;
         private DateTime _lastPlcHeartbeatTime = DateTime.MinValue;
         private bool _lastHeartbeatValue = false;
-        private MqttBus _bus;
         private static readonly Random _rnd = new Random(); // 類別層級確保隨機性
 
         public string Ip { get; set; }
@@ -32,10 +32,9 @@ namespace EAPDashboard.Models
 
         public void SetEvents(List<PlcEventConfig> events) => _events = events;
 
-        public override void Start(CancellationToken externalCancellationToken, MqttBus bus, int heartbeatIntervalSeconds)
+        public override void Start(CancellationToken externalCancellationToken, MqttBus bus = null, int heartbeatIntervalSeconds = 30)
         {
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-            _bus = bus;
             Connection = ConnectionStatus.Disconnected; 
             LoadAlarmMappings();
             _recipeConfigs = DatabaseHelper.GetRecipeConfigs(this.Id);
@@ -236,8 +235,6 @@ namespace EAPDashboard.Models
                             var resDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                             if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 1); 
 
-                            await SendRemoteCommandAsync(RemoteCommandType.PP_SELECT, firstRecipeId);
-
                             if (await WaitForPlcAckAsync(evt.TriggerAddr, evt.TrigBitOffset, 20))
                             {
                                 string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
@@ -316,13 +313,6 @@ namespace EAPDashboard.Models
             if (codeDp != null) await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
             
             OnLogReceived(LogLevel.Info, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
-        }
-
-        private async Task SendRemoteCommandAsync(RemoteCommandType type, string recipeId)
-        {
-            if (_bus == null || !_bus.IsConnected) return;
-            var cmd = new RemoteCMDMessage { CMD = CommandType.RemoteCMD, RemoteCMDType = type, RecipeID = recipeId, Machine = Id, Date = DateTime.Now.ToString("yyyyMMddHHmmss") };
-            await _bus.PublishAsync($"{this.Id}/Command", cmd);
         }
 
         private EquipmentState MapPlcStatusToSystemState(string rawValue)
