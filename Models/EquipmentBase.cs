@@ -110,7 +110,7 @@ namespace EAPDashboard.Models
                 if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|";
 
                 var panelList = QueryPanelListFromDb(cassetteId);
-                string panelStr = string.Join(",", panelList);
+                string panelStr = Newtonsoft.Json.JsonConvert.SerializeObject(panelList);
 
                 var qryReq = new WOQRYRequest { WONO = wo, EqpNo = eid, UserID = userId };
                 var qryReply = await Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));

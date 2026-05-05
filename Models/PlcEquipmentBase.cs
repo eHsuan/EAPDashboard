@@ -133,8 +133,14 @@ namespace EAPDashboard.Models
                                 if (!string.IsNullOrEmpty(evt.AckAddr))
                                 {
                                     await _driver.WriteBitAsync(evt.AckAddr, true, evt.AckBitOffset);
-                                    if (await WaitForPlcAckAsync(evt.TriggerAddr, evt.TrigBitOffset, 10)) 
+                                    // 等待 PLC 看到 Ack 後將 Trigger OFF
+                                    if (await WaitForPlcOffAsync(evt.TriggerAddr, evt.TrigBitOffset, 10)) 
                                     {
+                                        await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
+                                    }
+                                    else
+                                    {
+                                        OnLogReceived(LogLevel.Error, $"[PLC] Handshake Error: PLC Trigger {evt.TriggerAddr} remained ON too long. Forcing Ack OFF.");
                                         await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
                                     }
                                 }
@@ -229,24 +235,48 @@ namespace EAPDashboard.Models
                                 if (string.IsNullOrEmpty(firstRecipeId)) firstRecipeId = recipeId;
 
                                 var rcpDp = evt.DataPoints.FirstOrDefault(x => x.Key == rConfig.RecipeDataKey && x.AccessType == "WRITE");
-                                if (rcpDp != null) await _driver.WriteAsciiAsync(rcpDp.Address, recipeId, rcpDp.Length);
+                                if (rcpDp != null)
+                                {
+                                    if (ushort.TryParse(recipeId, out ushort rVal)) await _driver.WriteWordAsync(rcpDp.Address, rVal);
+                                    else OnLogReceived(LogLevel.Warn, $"[PLC] RecipeID '{recipeId}' is not numeric, skipping WriteWord for {rcpDp.Address}");
+                                }
                             }
 
                             var resDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
                             if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 1); 
 
-                            if (await WaitForPlcAckAsync(evt.TriggerAddr, evt.TrigBitOffset, 20))
+                            // --- PP-SELECT Handshake Start (EAP is Trigger, EQ is Ack) ---
+                            var ppEvt = _events.FirstOrDefault(e => e.EventName.ToUpper() == "PP-SELECT" || e.EventName.ToUpper() == "PP_SELECT");
+                            var handshakeTarget = ppEvt ?? evt; 
+
+                            if (ppEvt == null) OnLogReceived(LogLevel.Warn, $"[PLC] {Id} Independent PP-SELECT config not found, falling back to TrackIn bits (Roles swapped).");
+
+                            // EAP ON Trigger (通知機台執行命令)
+                            if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, true, handshakeTarget.TrigBitOffset);
+
+                            // 等待機台 ON Ack (等待命令執行完成)
+                            if (await WaitForPlcAckAsync(handshakeTarget.AckAddr, handshakeTarget.AckBitOffset, 20))
                             {
+                                // EAP OFF Trigger (完成交握)
+                                if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, false, handshakeTarget.TrigBitOffset);
+                                
                                 string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
                                 if (fin.StartsWith("PASS"))
                                 {
                                     string[] fp = fin.Split('|');
-                                    List<string> panels = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(fp[3]);
+                                    List<string> panels = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(tp[6]);
                                     for (int i = 0; i < 10; i++)
                                     {
                                         var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "WRITE");
                                         if (pDp != null) await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
                                     }
+
+                                    var woDp = evt.DataPoints.FirstOrDefault(x => x.Key == "WorkOrder" && x.AccessType == "WRITE");
+                                    if (woDp != null) await _driver.WriteAsciiAsync(woDp.Address, tp[1], woDp.Length);
+
+                                    var rtnCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
+                                    if (rtnCodeDp != null) await _driver.WriteWordAsync(rtnCodeDp.Address, 0);
+
                                     if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 3);
                                     resultCode = 0;
                                 }
@@ -363,6 +393,16 @@ namespace EAPDashboard.Models
             while ((DateTime.Now - start).TotalSeconds < timeoutSec)
             { 
                 if (await _driver.ReadBitAsync(address, bitOffset)) return true; 
+                await Task.Delay(500); 
+            } 
+            return false; 
+        }
+        protected async Task<bool> WaitForPlcOffAsync(string address, int bitOffset, int timeoutSec) 
+        {
+            DateTime start = DateTime.Now; 
+            while ((DateTime.Now - start).TotalSeconds < timeoutSec)
+            { 
+                if (!(await _driver.ReadBitAsync(address, bitOffset))) return true; 
                 await Task.Delay(500); 
             } 
             return false; 
