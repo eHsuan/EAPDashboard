@@ -328,9 +328,45 @@ namespace EAPDashboard.Models
         }
 
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
-        private void HandleEqpStatusCall(EQPSTATUSRequest req) { Task.Run(() => { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); } catch { _statusBuffer.Enqueue(req); } }); }
-        private async Task StartStatusBufferProcessor(CancellationToken ct) { while (!ct.IsCancellationRequested) { if (_statusBuffer.TryPeek(out var req)) { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); _statusBuffer.TryDequeue(out _); } catch { await Task.Delay(5000, ct); continue; } } await Task.Delay(1000, ct); } }
-        protected async Task<bool> WaitForPlcAckAsync(string address, int bitOffset, int timeoutSec) { DateTime start = DateTime.Now; while ((DateTime.Now - start).TotalSeconds < timeoutSec) { if (!await _driver.ReadBitAsync(address, bitOffset)) return true; await Task.Delay(500); } return false; }
+        private void HandleEqpStatusCall(EQPSTATUSRequest req) 
+        { 
+            Task.Run(() => { 
+                try 
+                {
+                    MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); 
+                } 
+                catch 
+                { 
+                    _statusBuffer.Enqueue(req); 
+                } 
+            });}
+        private async Task StartStatusBufferProcessor(CancellationToken ct) 
+        { 
+            while (!ct.IsCancellationRequested) 
+            { 
+                if (_statusBuffer.TryPeek(out var req))
+                { 
+                    try 
+                    { 
+                        MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); _statusBuffer.TryDequeue(out _); 
+                    } 
+                    catch 
+                    { 
+                        await Task.Delay(5000, ct); continue; 
+                    } 
+                } await Task.Delay(1000, ct); 
+            } 
+        }
+        protected async Task<bool> WaitForPlcAckAsync(string address, int bitOffset, int timeoutSec) 
+        {
+            DateTime start = DateTime.Now; 
+            while ((DateTime.Now - start).TotalSeconds < timeoutSec)
+            { 
+                if (!await _driver.ReadBitAsync(address, bitOffset)) return true; 
+                await Task.Delay(500); 
+            } 
+            return false; 
+        }
         public override async Task SendTimeCalibration() => await Task.CompletedTask;
         public override void Stop() { _linkedCts?.Cancel(); _driver.Disconnect(); }
     }
