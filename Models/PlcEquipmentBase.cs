@@ -362,7 +362,7 @@ namespace EAPDashboard.Models
             DateTime start = DateTime.Now; 
             while ((DateTime.Now - start).TotalSeconds < timeoutSec)
             { 
-                if (!await _driver.ReadBitAsync(address, bitOffset)) return true; 
+                if (await _driver.ReadBitAsync(address, bitOffset)) return true; 
                 await Task.Delay(500); 
             } 
             return false; 
