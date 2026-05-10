@@ -121,7 +121,7 @@ namespace EAPDashboard.Models
                             bool isTrig = await _driver.ReadBitAsync(evt.TriggerAddr, evt.TrigBitOffset);
                             if (isTrig)
                             {
-                                OnLogReceived(LogLevel.Debug, $"[PLC] {Id} Event detected: {evt.EventName} (CMD: {evt.CmdType})");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Event detected: {evt.EventName} (CMD: {evt.CmdType})");
                                 foreach (var dp in evt.DataPoints.Where(x => x.AccessType == "READ"))
                                 {
                                     if (dp.DataType == "ASCII") dp.Value = await _driver.ReadAsciiAsync(dp.Address, dp.Length);
@@ -140,12 +140,12 @@ namespace EAPDashboard.Models
                                     }
                                     else
                                     {
-                                        OnLogReceived(LogLevel.Error, $"[PLC] Handshake Error: PLC Trigger {evt.TriggerAddr} remained ON too long. Forcing Ack OFF.");
+                                        OnLogReceived(LogLevel.Error, evt.EventName, $"[PLC] Handshake Error: PLC Trigger {evt.TriggerAddr} remained ON too long. Forcing Ack OFF.");
                                         await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
                                     }
                                 }
                             }
-                        } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Polling Error ({evt.EventName}): {ex.Message}"); }
+                        } catch (Exception ex) { OnLogReceived(LogLevel.Error, evt.EventName, $"Polling Error ({evt.EventName}): {ex.Message}"); }
                     }
                 }
                 await Task.Delay(1000, ct);
@@ -159,7 +159,7 @@ namespace EAPDashboard.Models
             string res = "";
             int resultCode = 0;
 
-            OnLogReceived(LogLevel.Info, $"[PLC_EVENT] {Id} Processing: {evt.EventName} via CMD: {evt.CmdType}");
+            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC_EVENT] {Id} Processing: {evt.EventName} via CMD: {evt.CmdType}");
 
             switch (evt.CmdType)
             {
@@ -227,7 +227,7 @@ namespace EAPDashboard.Models
                                 string recipeId = "";
                                 if (this.IsMesSimulator) {
                                     recipeId = _rnd.Next(1000, 9999).ToString();
-                                    OnLogReceived(LogLevel.Info, $"[SIMULATOR] Random RecipeID generated: {recipeId} for {rConfig.Description}");
+                                    OnLogReceived(LogLevel.Info, evt.EventName, $"[SIMULATOR] Random RecipeID generated: {recipeId} for {rConfig.Description}");
                                 } else {
                                     recipeId = GetMesParamValue(tp[5], rConfig.RecipeParamKey) ?? "UNKNOWN";
                                 }
@@ -237,30 +237,53 @@ namespace EAPDashboard.Models
                                 var rcpDp = evt.DataPoints.FirstOrDefault(x => x.Key == rConfig.RecipeDataKey && x.AccessType == "WRITE");
                                 if (rcpDp != null)
                                 {
-                                    if (ushort.TryParse(recipeId, out ushort rVal)) await _driver.WriteWordAsync(rcpDp.Address, rVal);
-                                    else OnLogReceived(LogLevel.Warn, $"[PLC] RecipeID '{recipeId}' is not numeric, skipping WriteWord for {rcpDp.Address}");
+                                    if (ushort.TryParse(recipeId, out ushort rVal))
+                                    {
+                                        await _driver.WriteWordAsync(rcpDp.Address, rVal);
+                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write Recipe {rConfig.Description} Value {recipeId} to {rcpDp.Address}.");
+                                    }
+                                    else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] RecipeID '{recipeId}' is not numeric, skipping WriteWord for {rcpDp.Address}");
+                                }
+                                else
+                                {
+                                    OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} Recipe {rConfig.Description} PLC Datapoint Not Found.");
                                 }
                             }
 
                             var resDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                            if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 1); 
+                            if (resDp != null)
+                            {
+                                await _driver.WriteWordAsync(resDp.Address, 1);
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult 1 (PP-SELECT Start) to {resDp.Address}.");
+                            }
+                            else
+                            {
+                                OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found.");
+                            }
 
                             // --- PP-SELECT Handshake Start (EAP is Trigger, EQ is Ack) ---
                             var ppEvt = _events.FirstOrDefault(e => e.EventName.ToUpper() == "PP-SELECT" || e.EventName.ToUpper() == "PP_SELECT");
                             var handshakeTarget = ppEvt ?? evt; 
 
-                            if (ppEvt == null) OnLogReceived(LogLevel.Warn, $"[PLC] {Id} Independent PP-SELECT config not found, falling back to TrackIn bits (Roles swapped).");
+                            if (ppEvt == null) OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} Independent PP-SELECT config not found, falling back to TrackIn bits (Roles swapped).");
 
                             // EAP ON Trigger (通知機台執行命令)
-                            if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, true, handshakeTarget.TrigBitOffset);
-                            OnLogReceived(LogLevel.Info, $"[PLC] {Id} Turn On PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
+                            if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr))
+                            {
+                                await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, true, handshakeTarget.TrigBitOffset);
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Turn On PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
+                            }
 
                             // 等待機台 ON Ack (等待命令執行完成)
                             if (await WaitForPlcAckAsync(handshakeTarget.AckAddr, handshakeTarget.AckBitOffset, 20))
                             {
-                                OnLogReceived(LogLevel.Info, $"[PLC] {Id} Receive PP-SELECT Ack Bit {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Receive PP-SELECT Ack Bit {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
                                 // EAP OFF Trigger (完成交握)
-                                if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, false, handshakeTarget.TrigBitOffset);
+                                if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr))
+                                {
+                                    await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, false, handshakeTarget.TrigBitOffset);
+                                    OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Turn Off PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
+                                }
                                 
                                 string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
                                 if (fin.StartsWith("PASS"))
@@ -269,15 +292,16 @@ namespace EAPDashboard.Models
                                     List<string> panels = Newtonsoft.Json.JsonConvert.DeserializeObject<List<string>>(tp[6]);
                                     for (int i = 0; i < 10; i++)
                                     {
-                                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "WRITE");
+                                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList{i + 1}" && x.AccessType == "WRITE");
                                         if (pDp != null)
                                         {
-                                            await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
-                                            OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write PanelID {panels[i]} to {pDp.Address}.");
+                                            string pVal = i < panels.Count ? panels[i] : "";
+                                            await _driver.WriteAsciiAsync(pDp.Address, pVal, pDp.Length);
+                                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write PanelID {pVal} to {pDp.Address}.");
                                         }
                                         else
                                         {
-                                            OnLogReceived(LogLevel.Warn, $"[PLC] {Id} PanelList_{i + 1} PLC Datapoint Not Found.");
+                                            OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} PanelList{i + 1} PLC Datapoint Not Found.");
                                         }
                                             
                                     }
@@ -286,26 +310,30 @@ namespace EAPDashboard.Models
                                     if (woDp != null)
                                     {
                                         await _driver.WriteAsciiAsync(woDp.Address, tp[1], woDp.Length);
-                                        OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write WorkOrder {tp[1]} to {woDp.Address}.");
+                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write WorkOrder {tp[1]} to {woDp.Address}.");
                                     }
                                     else
                                     {
-                                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} WorkOrder PLC Datapoint Not Found.");
+                                        OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} WorkOrder PLC Datapoint Not Found.");
                                     }
 
                                     var rtnCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
                                     if (rtnCodeDp != null)
                                     {
                                         await _driver.WriteWordAsync(rtnCodeDp.Address, 0);
-                                        OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write RtnCode 0 to {rtnCodeDp.Address}.");
+                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode 0 to {rtnCodeDp.Address}.");
                                     }
                                     else
                                     {
-                                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
+                                        OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
                                     }
 
 
-                                    if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 3);
+                                    if (resDp != null)
+                                    {
+                                        await _driver.WriteWordAsync(resDp.Address, 3);
+                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult 3 (Final PASS) to {resDp.Address}.");
+                                    }
                                     resultCode = 0;
                                 }
                                 else { resultCode = 202; }
@@ -315,7 +343,7 @@ namespace EAPDashboard.Models
                             { 
                                 res = "FAIL|T001|PLC Handshake Timeout"; 
                                 resultCode = 102;
-                                OnLogReceived(LogLevel.Info, $"[PLC] {Id} PP-SELECT Ack Timeout {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
+                                OnLogReceived(LogLevel.Error, evt.EventName, $"[PLC] {Id} PP-SELECT Ack Timeout {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
                             }
                         }
                         else
@@ -336,11 +364,57 @@ namespace EAPDashboard.Models
                     string toCid = getVal("CassetteID", "");
                     string toQty = getVal("Qty", "0");
                     string toUid = getVal("UserID", "");
-                    string toWo = QueryWorkOrderFromDb(toCid) ?? "";
-                    res = await ProcessTrackOutAsync(toWo, toQty, toUid, toCid, new List<string>(), reportEqpId);
-                    if (res.StartsWith("PASS")) resultCode = 0; else resultCode = 301;
+                    
+                    // 1. 讀取 EQ 報上來的 WorkOrder
+                    string toWo = "";
+                    var toWoDp = evt.DataPoints.FirstOrDefault(x => x.Key == "WorkOrder" && x.AccessType == "READ");
+                    if (toWoDp != null)
+                    {
+                        toWo = await _driver.ReadAsciiAsync(toWoDp.Address, toWoDp.Length);
+                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Read WorkOrder {toWo} from {toWoDp.Address}.");
+                    }
+                    else
+                    {
+                        OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} WorkOrder PLC Datapoint Not Found (READ).");
+                        // Fallback to DB if PLC DP not defined
+                        toWo = QueryWorkOrderFromDb(toCid) ?? "";
+                    }
+
+                    // 2. 讀取 EQ 報上來的 PanelList 1~10
+                    List<string> toPanels = new List<string>();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "READ");
+                        if (pDp != null)
+                        {
+                            string pId = await _driver.ReadAsciiAsync(pDp.Address, pDp.Length);
+                            if (!string.IsNullOrEmpty(pId)) toPanels.Add(pId);
+                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Read PanelID {pId} from {pDp.Address}.");
+                        }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} PanelList_{i + 1} PLC Datapoint Not Found (READ).");
+                        }
+                    }
+
+                    // 3. 執行過站與資料庫綁定
+                    res = await ProcessTrackOutAsync(toWo, toQty, toUid, toCid, toPanels, reportEqpId);
+                    
+                    if (res.StartsWith("PASS")) resultCode = 0; 
+                    else resultCode = 301;
+
+                    // 4. 回寫 RtnResult
                     var toResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                    if (toResDp != null) await _driver.WriteWordAsync(toResDp.Address, (ushort)(res.StartsWith("PASS") ? 1 : 2));
+                    if (toResDp != null) 
+                    {
+                        ushort rVal = (ushort)(res.StartsWith("PASS") ? 1 : 2);
+                        await _driver.WriteWordAsync(toResDp.Address, rVal);
+                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {toResDp.Address}.");
+                    }
+                    else
+                    {
+                        OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found (WRITE).");
+                    }
                     break;
 
                 case CommandType.ProcessDataReport:
@@ -375,7 +449,7 @@ namespace EAPDashboard.Models
             var codeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
             if (codeDp != null) await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
             
-            OnLogReceived(LogLevel.Info, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
+            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
         }
 
         private EquipmentState MapPlcStatusToSystemState(string rawValue)

@@ -451,8 +451,9 @@ namespace EAPDashboard.Models
         public EquipmentState State { get => _state; set { if (_state != value) { _state = value; OnPropertyChanged(nameof(State)); } } }
         public string CurrentRecipe { get => _currentRecipe; set { if (_currentRecipe != value) { _currentRecipe = value; OnPropertyChanged(nameof(CurrentRecipe)); } } }
 
-        protected virtual void OnLogReceived(string message) => OnLogReceived(LogLevel.Info, message);
-        protected virtual void OnLogReceived(LogLevel level, string message)
+        protected virtual void OnLogReceived(string message) => OnLogReceived(LogLevel.Info, null, message);
+        protected virtual void OnLogReceived(LogLevel level, string message) => OnLogReceived(level, null, message);
+        protected virtual void OnLogReceived(LogLevel level, string eventName, string message)
         {
             var timestamp = DateTime.Now;
             LogReceived?.Invoke(timestamp, level, message);
@@ -461,7 +462,8 @@ namespace EAPDashboard.Models
                     string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", timestamp.ToString("yyyyMMdd"), this.Id ?? "System");
                     if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
                     string filePath = Path.Combine(logDir, $"{timestamp:HH}.txt");
-                    File.AppendAllText(filePath, $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}] : {message}{Environment.NewLine}");
+                    string evtPart = string.IsNullOrEmpty(eventName) ? "" : $" [{eventName}]";
+                    File.AppendAllText(filePath, $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}]{evtPart} : {message}{Environment.NewLine}");
                 }
             } catch { }
         }
