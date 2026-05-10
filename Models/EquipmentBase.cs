@@ -355,16 +355,16 @@ namespace EAPDashboard.Models
         public async Task<string> ProcessPanelInAsync(string panelId, string cassetteId, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, $"[PanelIn] {eid} - Panel: {panelId}, Cassette: {cassetteId}");
-            await SaveProductionDataAsync("PanelIn", "", new { PanelID = panelId, CassetteID = cassetteId, EqpID = eid });
+            OnLogReceived(LogLevel.Info, "Panel_In", $"[PLC] {eid} - Panel: {panelId}, Cassette: {cassetteId}");
+            await SaveProductionDataAsync("Panel_In", "", new { PanelID = panelId, CassetteID = cassetteId, EqpID = eid });
             return "PASS|OK|Success";
         }
 
         public async Task<string> ProcessPanelOutAsync(string panelId, string cassetteId, string result, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, $"[PanelOut] {eid} - Panel: {panelId}, Result: {result}");
-            await SaveProductionDataAsync("PanelOut", "", new { PanelID = panelId, CassetteID = cassetteId, Result = result, EqpID = eid });
+            OnLogReceived(LogLevel.Info, "Panel_Out", $"[PLC] {eid} - Panel: {panelId}, Result: {result}");
+            await SaveProductionDataAsync("Panel_Out", "", new { PanelID = panelId, CassetteID = cassetteId, Result = result, EqpID = eid });
             return "PASS|OK|Success";
         }
 

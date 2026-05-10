@@ -180,16 +180,38 @@ namespace EAPDashboard.Models
                         string mesUserId = uvParts.Length > 3 ? uvParts[3] : "";
 
                         var uvResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                        var uvCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-                        var uvUserDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnUserID" && x.AccessType == "WRITE");
+                        if (uvResultDp != null) 
+                        {
+                            ushort rVal = (ushort)(isUvPass ? 1 : 2);
+                            await _driver.WriteWordAsync(uvResultDp.Address, rVal);
+                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {uvResultDp.Address}.");
+                        }
+                        else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found.");
 
-                        if (uvResultDp != null) await _driver.WriteWordAsync(uvResultDp.Address, (ushort)(isUvPass ? 1 : 2));
+                        var uvCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
                         if (uvCodeDp != null) 
                         {
-                            if (ushort.TryParse(mappedRtnCode, out ushort uvCodeVal)) await _driver.WriteWordAsync(uvCodeDp.Address, uvCodeVal);
-                            else await _driver.WriteAsciiAsync(uvCodeDp.Address, mappedRtnCode, uvCodeDp.Length);
+                            if (ushort.TryParse(mappedRtnCode, out ushort uvCodeVal)) 
+                            {
+                                await _driver.WriteWordAsync(uvCodeDp.Address, uvCodeVal);
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode {uvCodeVal} to {uvCodeDp.Address}.");
+                            }
+                            else 
+                            {
+                                await _driver.WriteAsciiAsync(uvCodeDp.Address, mappedRtnCode, uvCodeDp.Length);
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode {mappedRtnCode} to {uvCodeDp.Address}.");
+                            }
                         }
-                        if (uvUserDp != null) await _driver.WriteAsciiAsync(uvUserDp.Address, mesUserId, 3);
+                        else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
+
+                        var uvUserDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnUserID" && x.AccessType == "WRITE");
+                        if (uvUserDp != null) 
+                        {
+                            await _driver.WriteAsciiAsync(uvUserDp.Address, mesUserId, 3);
+                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnUserID {mesUserId} to {uvUserDp.Address}.");
+                        }
+                        else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnUserID PLC Datapoint Not Found.");
+                        
                         res = uvRes;
                     }
                     else if (name == "PANEL_IN")
@@ -420,23 +442,37 @@ namespace EAPDashboard.Models
                 case CommandType.ProcessDataReport:
                     try {
                         var kpiStartDp = evt.DataPoints.FirstOrDefault(x => x.Key == "KPI_Start" && x.AccessType == "READ");
-                        if (kpiStartDp == null) break;
-                        ushort[] rawKpiData = await _driver.ReadAsync(kpiStartDp.Address, 60);
-                        var mappings = DatabaseHelper.GetKpiMappings(this.Id);
-                        var paramList = new List<ParameterResultItem>();
-                        for (int i = 0; i < 20; i++) {
-                            var map = mappings.FirstOrDefault(m => m.ParaIndex == i + 1 && m.IsEnabled);
-                            if (map != null) {
-                                double val = (short)rawKpiData[i * 3] / Math.Pow(10, map.DecimalPlaces);
-                                paramList.Add(new ParameterResultItem { Parameter = map.ParameterName, Value = val });
+                        if (kpiStartDp != null) 
+                        {
+                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Reading KPI Data starting from {kpiStartDp.Address}.");
+                            ushort[] rawKpiData = await _driver.ReadAsync(kpiStartDp.Address, 60);
+                            var mappings = DatabaseHelper.GetKpiMappings(this.Id);
+                            var paramList = new List<ParameterResultItem>();
+                            for (int i = 0; i < 20; i++) {
+                                var map = mappings.FirstOrDefault(m => m.ParaIndex == i + 1 && m.IsEnabled);
+                                if (map != null) {
+                                    double val = (short)rawKpiData[i * 3] / Math.Pow(10, map.DecimalPlaces);
+                                    paramList.Add(new ParameterResultItem { Parameter = map.ParameterName, Value = val });
+                                }
                             }
+                            string kpiRes = await ProcessKeyParametersReportAsync(paramList, reportEqpId);
+                            res = kpiRes;
+                            if (res.StartsWith("PASS")) resultCode = 0; else resultCode = 401;
+
+                            var kpiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
+                            if (kpiResultDp != null) 
+                            {
+                                ushort rVal = (ushort)(res.StartsWith("PASS") ? 1 : 2);
+                                await _driver.WriteWordAsync(kpiResultDp.Address, rVal);
+                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {kpiResultDp.Address}.");
+                            }
+                            else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found.");
                         }
-                        string kpiRes = await ProcessKeyParametersReportAsync(paramList, reportEqpId);
-                        res = kpiRes;
-                        if (res.StartsWith("PASS")) resultCode = 0; else resultCode = 401;
-                        var kpiResultDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                        if (kpiResultDp != null) await _driver.WriteWordAsync(kpiResultDp.Address, (ushort)(res.StartsWith("PASS") ? 1 : 2));
-                    } catch { }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} KPI_Start PLC Datapoint Not Found.");
+                        }
+                    } catch (Exception ex) { OnLogReceived(LogLevel.Error, evt.EventName, $"KPI Processing Error: {ex.Message}"); }
                     break;
 
                 case CommandType.StatusChangeReport:
@@ -447,7 +483,12 @@ namespace EAPDashboard.Models
             }
 
             var codeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-            if (codeDp != null) await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
+            if (codeDp != null) 
+            {
+                await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
+                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write Final RtnCode {resultCode} to {codeDp.Address}.");
+            }
+            else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
             
             OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
         }
