@@ -38,7 +38,7 @@ namespace EAPDashboard.Models
             Connection = ConnectionStatus.Disconnected; 
             LoadAlarmMappings();
             _recipeConfigs = DatabaseHelper.GetRecipeConfigs(this.Id);
-            OnLogReceived(LogLevel.Info, $"[PLC] Loaded {_recipeConfigs.Count} recipe mapping(s) for {Id}");
+            OnLogReceived(LogLevel.Debug, $"[PLC] Loaded {_recipeConfigs.Count} recipe mapping(s) for {Id}");
             
             _ = Task.Run(() => ConnectionLoop(_linkedCts.Token));
             _ = Task.Run(() => EventPollingLoop(_linkedCts.Token));
@@ -59,7 +59,7 @@ namespace EAPDashboard.Models
                     {
                         _lastPlcHeartbeatTime = DateTime.Now;
                         Connection = ConnectionStatus.Connected;
-                        OnLogReceived(LogLevel.Info, $"[PLC] {Id} Connected to {Ip}:{Port}");
+                        OnLogReceived(LogLevel.Debug, $"[PLC] {Id} Connected to {Ip}:{Port}");
                     }
                     else
                     {
@@ -159,7 +159,7 @@ namespace EAPDashboard.Models
             string res = "";
             int resultCode = 0;
 
-            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC_EVENT] {Id} Processing: {evt.EventName} via CMD: {evt.CmdType}");
+            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC_EVENT] {Id} Processing: {evt.EventName} via CMD: {evt.CmdType}");
 
             switch (evt.CmdType)
             {
@@ -184,7 +184,7 @@ namespace EAPDashboard.Models
                         {
                             ushort rVal = (ushort)(isUvPass ? 1 : 2);
                             await _driver.WriteWordAsync(uvResultDp.Address, rVal);
-                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {uvResultDp.Address}.");
+                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {uvResultDp.Address}.");
                         }
                         else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found.");
 
@@ -194,12 +194,12 @@ namespace EAPDashboard.Models
                             if (ushort.TryParse(mappedRtnCode, out ushort uvCodeVal)) 
                             {
                                 await _driver.WriteWordAsync(uvCodeDp.Address, uvCodeVal);
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode {uvCodeVal} to {uvCodeDp.Address}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnCode {uvCodeVal} to {uvCodeDp.Address}.");
                             }
                             else 
                             {
                                 await _driver.WriteAsciiAsync(uvCodeDp.Address, mappedRtnCode, uvCodeDp.Length);
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode {mappedRtnCode} to {uvCodeDp.Address}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnCode {mappedRtnCode} to {uvCodeDp.Address}.");
                             }
                         }
                         else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
@@ -208,7 +208,7 @@ namespace EAPDashboard.Models
                         if (uvUserDp != null) 
                         {
                             await _driver.WriteAsciiAsync(uvUserDp.Address, mesUserId, 3);
-                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnUserID {mesUserId} to {uvUserDp.Address}.");
+                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnUserID {mesUserId} to {uvUserDp.Address}.");
                         }
                         else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnUserID PLC Datapoint Not Found.");
                         
@@ -249,7 +249,7 @@ namespace EAPDashboard.Models
                                 string recipeId = "";
                                 if (this.IsMesSimulator) {
                                     recipeId = _rnd.Next(1000, 9999).ToString();
-                                    OnLogReceived(LogLevel.Info, evt.EventName, $"[SIMULATOR] Random RecipeID generated: {recipeId} for {rConfig.Description}");
+                                    OnLogReceived(LogLevel.Debug, evt.EventName, $"[SIMULATOR] Random RecipeID generated: {recipeId} for {rConfig.Description}");
                                 } else {
                                     recipeId = GetMesParamValue(tp[5], rConfig.RecipeParamKey) ?? "UNKNOWN";
                                 }
@@ -262,7 +262,7 @@ namespace EAPDashboard.Models
                                     if (ushort.TryParse(recipeId, out ushort rVal))
                                     {
                                         await _driver.WriteWordAsync(rcpDp.Address, rVal);
-                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write Recipe {rConfig.Description} Value {recipeId} to {rcpDp.Address}.");
+                                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write Recipe {rConfig.Description} Value {recipeId} to {rcpDp.Address}.");
                                     }
                                     else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] RecipeID '{recipeId}' is not numeric, skipping WriteWord for {rcpDp.Address}");
                                 }
@@ -276,7 +276,7 @@ namespace EAPDashboard.Models
                             if (resDp != null)
                             {
                                 await _driver.WriteWordAsync(resDp.Address, 1);
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult 1 (PP-SELECT Start) to {resDp.Address}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult 1 (PP-SELECT Start) to {resDp.Address}.");
                             }
                             else
                             {
@@ -293,18 +293,18 @@ namespace EAPDashboard.Models
                             if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr))
                             {
                                 await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, true, handshakeTarget.TrigBitOffset);
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Turn On PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Turn On PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
                             }
 
                             // 等待機台 ON Ack (等待命令執行完成)
                             if (await WaitForPlcAckAsync(handshakeTarget.AckAddr, handshakeTarget.AckBitOffset, 20))
                             {
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Receive PP-SELECT Ack Bit {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Receive PP-SELECT Ack Bit {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
                                 // EAP OFF Trigger (完成交握)
                                 if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr))
                                 {
                                     await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, false, handshakeTarget.TrigBitOffset);
-                                    OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Turn Off PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
+                                    OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Turn Off PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
                                 }
                                 
                                 string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
@@ -319,7 +319,7 @@ namespace EAPDashboard.Models
                                         {
                                             string pVal = i < panels.Count ? panels[i] : "";
                                             await _driver.WriteAsciiAsync(pDp.Address, pVal, pDp.Length);
-                                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write PanelID {pVal} to {pDp.Address}.");
+                                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write PanelID {pVal} to {pDp.Address}.");
                                         }
                                         else
                                         {
@@ -332,7 +332,7 @@ namespace EAPDashboard.Models
                                     if (woDp != null)
                                     {
                                         await _driver.WriteAsciiAsync(woDp.Address, tp[1], woDp.Length);
-                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write WorkOrder {tp[1]} to {woDp.Address}.");
+                                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write WorkOrder {tp[1]} to {woDp.Address}.");
                                     }
                                     else
                                     {
@@ -343,7 +343,7 @@ namespace EAPDashboard.Models
                                     if (rtnCodeDp != null)
                                     {
                                         await _driver.WriteWordAsync(rtnCodeDp.Address, 0);
-                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnCode 0 to {rtnCodeDp.Address}.");
+                                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnCode 0 to {rtnCodeDp.Address}.");
                                     }
                                     else
                                     {
@@ -354,7 +354,7 @@ namespace EAPDashboard.Models
                                     if (resDp != null)
                                     {
                                         await _driver.WriteWordAsync(resDp.Address, 3);
-                                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult 3 (Final PASS) to {resDp.Address}.");
+                                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult 3 (Final PASS) to {resDp.Address}.");
                                     }
                                     resultCode = 0;
                                 }
@@ -393,7 +393,7 @@ namespace EAPDashboard.Models
                     if (toWoDp != null)
                     {
                         toWo = await _driver.ReadAsciiAsync(toWoDp.Address, toWoDp.Length);
-                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Read WorkOrder {toWo} from {toWoDp.Address}.");
+                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Read WorkOrder {toWo} from {toWoDp.Address}.");
                     }
                     else
                     {
@@ -411,7 +411,7 @@ namespace EAPDashboard.Models
                         {
                             string pId = await _driver.ReadAsciiAsync(pDp.Address, pDp.Length);
                             if (!string.IsNullOrEmpty(pId)) toPanels.Add(pId);
-                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Read PanelID {pId} from {pDp.Address}.");
+                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Read PanelID {pId} from {pDp.Address}.");
                         }
                         else
                         {
@@ -431,7 +431,7 @@ namespace EAPDashboard.Models
                     {
                         ushort rVal = (ushort)(res.StartsWith("PASS") ? 1 : 2);
                         await _driver.WriteWordAsync(toResDp.Address, rVal);
-                        OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {toResDp.Address}.");
+                        OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {toResDp.Address}.");
                     }
                     else
                     {
@@ -444,7 +444,7 @@ namespace EAPDashboard.Models
                         var kpiStartDp = evt.DataPoints.FirstOrDefault(x => x.Key == "KPI_Start" && x.AccessType == "READ");
                         if (kpiStartDp != null) 
                         {
-                            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Reading KPI Data starting from {kpiStartDp.Address}.");
+                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Reading KPI Data starting from {kpiStartDp.Address}.");
                             ushort[] rawKpiData = await _driver.ReadAsync(kpiStartDp.Address, 60);
                             var mappings = DatabaseHelper.GetKpiMappings(this.Id);
                             var paramList = new List<ParameterResultItem>();
@@ -464,7 +464,7 @@ namespace EAPDashboard.Models
                             {
                                 ushort rVal = (ushort)(res.StartsWith("PASS") ? 1 : 2);
                                 await _driver.WriteWordAsync(kpiResultDp.Address, rVal);
-                                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {kpiResultDp.Address}.");
+                                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult {rVal} to {kpiResultDp.Address}.");
                             }
                             else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnResult PLC Datapoint Not Found.");
                         }
@@ -486,11 +486,11 @@ namespace EAPDashboard.Models
             if (codeDp != null) 
             {
                 await _driver.WriteWordAsync(codeDp.Address, (ushort)resultCode);
-                OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC] {Id} Write Final RtnCode {resultCode} to {codeDp.Address}.");
+                OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write Final RtnCode {resultCode} to {codeDp.Address}.");
             }
             else OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
             
-            OnLogReceived(LogLevel.Info, evt.EventName, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
+            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC_EVENT] {Id} Result: {res} (Code: {resultCode})");
         }
 
         private EquipmentState MapPlcStatusToSystemState(string rawValue)
