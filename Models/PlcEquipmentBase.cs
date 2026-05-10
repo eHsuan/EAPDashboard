@@ -384,7 +384,7 @@ namespace EAPDashboard.Models
                     List<string> toPanels = new List<string>();
                     for (int i = 0; i < 10; i++)
                     {
-                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "READ");
+                        var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList{i + 1}" && x.AccessType == "READ");
                         if (pDp != null)
                         {
                             string pId = await _driver.ReadAsciiAsync(pDp.Address, pDp.Length);
@@ -393,7 +393,7 @@ namespace EAPDashboard.Models
                         }
                         else
                         {
-                            OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} PanelList_{i + 1} PLC Datapoint Not Found (READ).");
+                            OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} PanelList{i + 1} PLC Datapoint Not Found (READ).");
                         }
                     }
 
