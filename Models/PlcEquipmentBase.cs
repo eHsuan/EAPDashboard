@@ -218,11 +218,13 @@ namespace EAPDashboard.Models
                     {
                         string pCid = getVal("CassetteID", "UNKNOWN");
                         res = await ProcessPanelInAsync(getVal("PanelID", ""), pCid, reportEqpId);
+                        if (!res.StartsWith("PASS")) resultCode = 501;
                     }
                     else if (name == "PANEL_OUT")
                     {
                         string pCid = getVal("CassetteID", "UNKNOWN");
                         res = await ProcessPanelOutAsync(getVal("PanelID", ""), pCid, "PASS", reportEqpId);
+                        if (!res.StartsWith("PASS")) resultCode = 601;
                     }
                     break;
 
@@ -239,6 +241,7 @@ namespace EAPDashboard.Models
                     else
                     {
                         string tir = await ProcessTrackInAsync(cid, wo, uid, reportEqpId);
+                        res = tir;
                         if (tir.StartsWith("PP-SELECT"))
                         {
                             string[] tp = tir.Split('|');
@@ -308,6 +311,7 @@ namespace EAPDashboard.Models
                                 }
                                 
                                 string fin = await ProcessTrackInFinalAsync(tp[1], uid, cid, reportEqpId);
+                                res = fin;
                                 if (fin.StartsWith("PASS"))
                                 {
                                     string[] fp = fin.Split('|');
@@ -359,7 +363,6 @@ namespace EAPDashboard.Models
                                     resultCode = 0;
                                 }
                                 else { resultCode = 202; }
-                                res = fin;
                             }
                             else 
                             { 
@@ -370,7 +373,6 @@ namespace EAPDashboard.Models
                         }
                         else
                         {
-                            res = tir;
                             resultCode = 201;
                         }
                     }
@@ -378,7 +380,11 @@ namespace EAPDashboard.Models
                     if (res.StartsWith("FAIL") || res.StartsWith("ERROR"))
                     {
                         var failResDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnResult" && x.AccessType == "WRITE");
-                        if (failResDp != null) await _driver.WriteWordAsync(failResDp.Address, 2); 
+                        if (failResDp != null) 
+                        {
+                            await _driver.WriteWordAsync(failResDp.Address, 2);
+                            OnLogReceived(LogLevel.Debug, evt.EventName, $"[PLC] {Id} Write RtnResult 2 (Fail State) to {failResDp.Address}.");
+                        }
                     }
                     break;
 
