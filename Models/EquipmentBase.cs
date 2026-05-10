@@ -248,6 +248,7 @@ namespace EAPDashboard.Models
                             }
 
                             tx.Commit();
+                            OnLogReceived(LogLevel.Info, $"[DB] {this.Id} Successfully bound Cassette {cassetteId} to WO {workOrder} with {panels.Count} panels.");
                             return true;
                         }
                         catch { tx.Rollback(); throw; }
@@ -272,6 +273,7 @@ namespace EAPDashboard.Models
                         await cmd.ExecuteNonQueryAsync();
                     }
                 }
+                OnLogReceived(LogLevel.Info, $"[DB] {this.Id} Successfully unbound Cassette {cassetteId}.");
                 return true;
             }
             catch { return false; }

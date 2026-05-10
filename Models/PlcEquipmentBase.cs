@@ -253,10 +253,12 @@ namespace EAPDashboard.Models
 
                             // EAP ON Trigger (通知機台執行命令)
                             if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, true, handshakeTarget.TrigBitOffset);
+                            OnLogReceived(LogLevel.Info, $"[PLC] {Id} Turn On PP-SELECT Request Bit {handshakeTarget.TriggerAddr}.");
 
                             // 等待機台 ON Ack (等待命令執行完成)
                             if (await WaitForPlcAckAsync(handshakeTarget.AckAddr, handshakeTarget.AckBitOffset, 20))
                             {
+                                OnLogReceived(LogLevel.Info, $"[PLC] {Id} Receive PP-SELECT Ack Bit {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
                                 // EAP OFF Trigger (完成交握)
                                 if (!string.IsNullOrEmpty(handshakeTarget.TriggerAddr)) await _driver.WriteBitAsync(handshakeTarget.TriggerAddr, false, handshakeTarget.TrigBitOffset);
                                 
@@ -268,14 +270,40 @@ namespace EAPDashboard.Models
                                     for (int i = 0; i < 10; i++)
                                     {
                                         var pDp = evt.DataPoints.FirstOrDefault(x => x.Key == $"PanelList_{i + 1}" && x.AccessType == "WRITE");
-                                        if (pDp != null) await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
+                                        if (pDp != null)
+                                        {
+                                            await _driver.WriteAsciiAsync(pDp.Address, i < panels.Count ? panels[i] : "", pDp.Length);
+                                            OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write PanelID {panels[i]} to {pDp.Address}.");
+                                        }
+                                        else
+                                        {
+                                            OnLogReceived(LogLevel.Warn, $"[PLC] {Id} PanelList_{i + 1} PLC Datapoint Not Found.");
+                                        }
+                                            
                                     }
 
                                     var woDp = evt.DataPoints.FirstOrDefault(x => x.Key == "WorkOrder" && x.AccessType == "WRITE");
-                                    if (woDp != null) await _driver.WriteAsciiAsync(woDp.Address, tp[1], woDp.Length);
+                                    if (woDp != null)
+                                    {
+                                        await _driver.WriteAsciiAsync(woDp.Address, tp[1], woDp.Length);
+                                        OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write WorkOrder {tp[1]} to {woDp.Address}.");
+                                    }
+                                    else
+                                    {
+                                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} WorkOrder PLC Datapoint Not Found.");
+                                    }
 
                                     var rtnCodeDp = evt.DataPoints.FirstOrDefault(x => x.Key == "RtnCode" && x.AccessType == "WRITE");
-                                    if (rtnCodeDp != null) await _driver.WriteWordAsync(rtnCodeDp.Address, 0);
+                                    if (rtnCodeDp != null)
+                                    {
+                                        await _driver.WriteWordAsync(rtnCodeDp.Address, 0);
+                                        OnLogReceived(LogLevel.Info, $"[PLC] {Id} Write RtnCode 0 to {rtnCodeDp.Address}.");
+                                    }
+                                    else
+                                    {
+                                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} RtnCode PLC Datapoint Not Found.");
+                                    }
+
 
                                     if (resDp != null) await _driver.WriteWordAsync(resDp.Address, 3);
                                     resultCode = 0;
@@ -283,7 +311,12 @@ namespace EAPDashboard.Models
                                 else { resultCode = 202; }
                                 res = fin;
                             }
-                            else { res = "FAIL|T001|PLC Handshake Timeout"; resultCode = 102; }
+                            else 
+                            { 
+                                res = "FAIL|T001|PLC Handshake Timeout"; 
+                                resultCode = 102;
+                                OnLogReceived(LogLevel.Info, $"[PLC] {Id} PP-SELECT Ack Timeout {handshakeTarget.AckAddr}.{handshakeTarget.AckBitOffset}.");
+                            }
                         }
                         else
                         {
