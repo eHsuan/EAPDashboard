@@ -51,20 +51,21 @@ namespace EAPDashboard.Models
         {
             while (!ct.IsCancellationRequested)
             {
-                if (Connection != ConnectionStatus.Connected)
+                if (Connection == ConnectionStatus.Disconnected)
                 {
                     Connection = ConnectionStatus.Connecting;
+                    OnLogReceived(LogLevel.Debug, $"[PLC] {Id} Attempting to connect to {Ip}:{Port}...");
                     bool ok = await _driver.ConnectAsync(Ip, Port);
                     if (ok) 
                     {
                         _lastPlcHeartbeatTime = DateTime.Now;
-                        Connection = ConnectionStatus.Connected;
-                        OnLogReceived(LogLevel.Debug, $"[PLC] {Id} Connected to {Ip}:{Port}");
+                        _lastHeartbeatValue = await _driver.ReadBitAsync(_events.FirstOrDefault(e => e.EventName.ToUpper() == "HEARTBEAT")?.TriggerAddr ?? "", 0);
+                        OnLogReceived(LogLevel.Debug, $"[PLC] {Id} TCP Socket established. Waiting for first heartbeat signal...");
                     }
                     else
                     {
                         Connection = ConnectionStatus.Disconnected;
-                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} Connection failed to {Ip}:{Port}. Retrying...");
+                        OnLogReceived(LogLevel.Warn, $"[PLC] {Id} Connection failed to {Ip}:{Port}. Retrying in 5s...");
                     }
                 }
                 await Task.Delay(5000, ct);
@@ -75,7 +76,7 @@ namespace EAPDashboard.Models
         {
             while (!ct.IsCancellationRequested)
             {
-                if (Connection == ConnectionStatus.Connected)
+                if (Connection == ConnectionStatus.Connected || Connection == ConnectionStatus.Connecting)
                 {
                     try 
                     {
@@ -85,6 +86,11 @@ namespace EAPDashboard.Models
                             bool currentBit = await _driver.ReadBitAsync(hbEvt.TriggerAddr, hbEvt.TrigBitOffset);
                             if (currentBit != _lastHeartbeatValue)
                             {
+                                if (Connection == ConnectionStatus.Connecting)
+                                {
+                                    Connection = ConnectionStatus.Connected;
+                                    OnLogReceived(LogLevel.Info, $"[PLC] {Id} Heartbeat detected. System is now Online.");
+                                }
                                 _lastHeartbeatValue = currentBit;
                                 _lastPlcHeartbeatTime = DateTime.Now;
                                 if (!string.IsNullOrEmpty(hbEvt.AckAddr))
@@ -94,9 +100,12 @@ namespace EAPDashboard.Models
                             }
                         }
 
-                        if (_lastPlcHeartbeatTime != DateTime.MinValue && (DateTime.Now - _lastPlcHeartbeatTime).TotalSeconds > 15)
+                        // Timeout Check (針對 Connecting 或 Connected)
+                        double timeoutLimit = (Connection == ConnectionStatus.Connecting) ? 15 : 15; // 可根據階段調整
+                        if (_lastPlcHeartbeatTime != DateTime.MinValue && (DateTime.Now - _lastPlcHeartbeatTime).TotalSeconds > timeoutLimit)
                         {
-                            OnLogReceived(LogLevel.Error, $"[PLC] {Id} Watchdog timeout, disconnecting...");
+                            string reason = (Connection == ConnectionStatus.Connecting) ? "First heartbeat signal not received" : "Watchdog timeout";
+                            OnLogReceived(LogLevel.Error, $"[PLC] {Id} {reason}, disconnecting...");
                             Connection = ConnectionStatus.Disconnected;
                             _driver.Disconnect();
                         }

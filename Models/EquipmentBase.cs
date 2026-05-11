@@ -235,14 +235,14 @@ namespace EAPDashboard.Models
                     .Handle<Exception>()
                     .FallbackAsync(async (ct) => {
                         OnLogReceived(LogLevel.Warn, "[GATEWAY] Query Primary failed, trying Secondary...");
-                        return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}", GatewayConfig.SecondaryUrl, cassetteId), ct);
+                        return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}/{2}", GatewayConfig.SecondaryUrl, this.Id, cassetteId), ct);
                     });
 
                 return Task.Run(async () => {
                     var resp = await queryPolicy.ExecuteAsync(async (ct) => {
                         using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
                         {
-                            return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}", GatewayConfig.PrimaryUrl, cassetteId), cts.Token);
+                            return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}/{2}", GatewayConfig.PrimaryUrl, this.Id, cassetteId), cts.Token);
                         }
                     }, CancellationToken.None);
 
@@ -446,7 +446,7 @@ namespace EAPDashboard.Models
             } catch { }
             try {
                 string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataLogs", now.ToString("yyyyMMdd"));
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                if (!Directory.Exists(dir)) Directory.Exists(dir);
                 string filePath = Path.Combine(dir, string.Format("{0}.csv", this.Id));
                 using (var sw = new StreamWriter(filePath, true, Encoding.UTF8)) {
                     sw.WriteLine(string.Format("{0:yyyy-MM-dd HH:mm:ss},{1},{2},\"{3}\"", now, eventName, workOrder ?? "", json.Replace("\"", "\"\"")));

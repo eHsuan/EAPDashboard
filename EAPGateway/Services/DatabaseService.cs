@@ -22,6 +22,8 @@ namespace EAPGateway.Services
 
         public ChannelReader<RetryTask> RetryReader => _retryChannel.Reader;
 
+        public void TriggerLog(string msg) => OnLog?.Invoke(msg);
+
         public async Task<bool> BindAsync(BindRequest req)
         {
             return await ExecuteDualWriteAsync("Bind", req);
@@ -59,7 +61,6 @@ namespace EAPGateway.Services
             using var conn = new SqlConnection(connStr);
             await conn.OpenAsync();
             
-            // 1. Get WorkOrder
             string woSql = "SELECT WorkOrder FROM EAP_CassetteBind WHERE CassetteID = @cid";
             using var cmdWo = new SqlCommand(woSql, conn);
             cmdWo.Parameters.AddWithValue("@cid", cassetteId);
@@ -68,7 +69,6 @@ namespace EAPGateway.Services
 
             var res = new QueryResponse { WorkOrder = woObj.ToString()! };
 
-            // 2. Get Panels
             string pSql = "SELECT PanelID FROM EAP_PanelBind WHERE CassetteID = @cid ORDER BY SlotNo";
             using var cmdP = new SqlCommand(pSql, conn);
             cmdP.Parameters.AddWithValue("@cid", cassetteId);
@@ -88,16 +88,18 @@ namespace EAPGateway.Services
             try
             {
                 await Task.WhenAll(taskA, taskB);
+                OnLog?.Invoke($"[DB] {action} Success on all databases.");
                 return true; 
             }
-            catch
+            catch (Exception ex)
             {
                 if (taskA.IsCompletedSuccessfully)
                 {
-                    OnLog?.Invoke($"[DB] Primary {action} Success, Secondary Failed. Enqueueing retry...");
+                    OnLog?.Invoke($"[DB] Primary {action} Success, Secondary Failed ({ex.InnerException?.Message ?? ex.Message}). Enqueueing retry...");
                     await _retryChannel.Writer.WriteAsync(new RetryTask { Action = action, Request = req });
                     return true; 
                 }
+                OnLog?.Invoke($"[DB] Primary {action} Failed: {ex.Message}");
                 return false;
             }
         }
@@ -112,7 +114,6 @@ namespace EAPGateway.Services
             {
                 if (action == "Bind" && req is BindRequest br)
                 {
-                    // Upsert Cassette
                     string sqlC = @"IF EXISTS (SELECT 1 FROM EAP_CassetteBind WHERE CassetteID = @cid)
                                     UPDATE EAP_CassetteBind SET WorkOrder = @wo, BindTime = GETDATE() WHERE CassetteID = @cid
                                     ELSE
@@ -122,7 +123,6 @@ namespace EAPGateway.Services
                     cmdC.Parameters.AddWithValue("@wo", br.WorkOrder);
                     await cmdC.ExecuteNonQueryAsync();
 
-                    // Replace Panels (Cascade delete not used here to be explicit)
                     using var cmdD = new SqlCommand("DELETE FROM EAP_PanelBind WHERE CassetteID = @cid", conn, tx);
                     cmdD.Parameters.AddWithValue("@cid", br.CassetteId);
                     await cmdD.ExecuteNonQueryAsync();
