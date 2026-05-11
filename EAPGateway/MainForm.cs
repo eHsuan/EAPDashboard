@@ -1,3 +1,8 @@
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using Microsoft.Data.SqlClient;
 using EAPGateway.Models;
 using EAPGateway.Services;
@@ -8,21 +13,22 @@ namespace EAPGateway
     {
         private readonly GatewayConfig _config;
         private readonly DatabaseService _dbService;
-        private readonly RetryBackgroundService _retryService;
+        private readonly LogService _logger;
 
-        public MainForm(GatewayConfig config, DatabaseService dbService, RetryBackgroundService retryService)
+        public MainForm(GatewayConfig config, DatabaseService dbService, LogService logger)
         {
             InitializeComponent();
             _config = config;
             _dbService = dbService;
-            _retryService = retryService;
+            _logger = logger;
 
-            _dbService.OnLog += Log;
-            _retryService.OnLog += Log;
+            _logger.OnLog += (time, level, msg, eqId) => Log(msg);
             
             lblPrimary.Text = $"Primary: {ExtractServer(_config.PrimaryDb)}";
             lblSecondary.Text = $"Secondary: {ExtractServer(_config.SecondaryDb)}";
             lblPort.Text = $"Listening on Port: {_config.Port}";
+
+            _logger.Info("EAPGateway System UI initialized.");
 
             System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
             timer.Interval = 5000;
@@ -60,13 +66,14 @@ namespace EAPGateway
 
         private void Log(string msg)
         {
+            if (this.IsDisposed) return;
             if (txtLog.InvokeRequired)
             {
                 txtLog.Invoke(new Action(() => Log(msg)));
                 return;
             }
             txtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}{Environment.NewLine}");
-            if (txtLog.TextLength > 10000) txtLog.Clear();
+            if (txtLog.TextLength > 20000) txtLog.Clear();
             txtLog.SelectionStart = txtLog.TextLength;
             txtLog.ScrollToCaret();
         }

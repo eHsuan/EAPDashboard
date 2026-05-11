@@ -142,9 +142,12 @@ namespace EAPDashboard.Models
 
         private async Task HandleTrackInEvent(Item root)
         {
-            string rid = ExtractVidValue(root, "111") ?? "UNKNOWN";
             string cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
-            string res = await ProcessTrackInAsync(cid, null, "UNKNOWN");
+            var info = QueryBindingFromGateway(cid);
+            string wo = info?.WorkOrder;
+            List<string> panels = info?.Panels ?? new List<string>();
+
+            string res = await ProcessTrackInAsync(cid, wo, panels, "UNKNOWN");
             if (res.StartsWith("PP-SELECT")) {
                 string[] p = res.Split('|');
                 var remoteCmd = new SecsMessage(2, 41) { SecsItem = Item.L(Item.A("PP-SELECT"), Item.L(Item.L(Item.A("PPID"), Item.A(p[2])))) };

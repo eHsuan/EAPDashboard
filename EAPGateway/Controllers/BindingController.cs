@@ -12,10 +12,12 @@ namespace EAPGateway.Controllers
     public class BindingController : ControllerBase
     {
         private readonly DatabaseService _dbService;
+        private readonly LogService _logger;
 
-        public BindingController(DatabaseService dbService)
+        public BindingController(DatabaseService dbService, LogService logger)
         {
             _dbService = dbService;
+            _logger = logger;
         }
 
         private string GetClientInfo() => Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "Unknown";
@@ -23,7 +25,7 @@ namespace EAPGateway.Controllers
         [HttpPost("bind")]
         public async Task<IActionResult> Bind([FromBody] BindRequest req)
         {
-            _dbService.TriggerLog($"[API] ({GetClientInfo()}) [{req.EqpId}] Received Bind Request for {req.CassetteId}");
+            _logger.Info($"[API] ({GetClientInfo()}) [{req.EqpId}] Received Bind Request for {req.CassetteId}", req.EqpId);
             bool ok = await _dbService.BindAsync(req);
             return ok ? Ok("PASS") : StatusCode(500, "FAIL|DB Error");
         }
@@ -31,7 +33,7 @@ namespace EAPGateway.Controllers
         [HttpPost("unbind")]
         public async Task<IActionResult> Unbind([FromBody] UnbindRequest req)
         {
-            _dbService.TriggerLog($"[API] ({GetClientInfo()}) [{req.EqpId}] Received Unbind Request for {req.CassetteId}");
+            _logger.Info($"[API] ({GetClientInfo()}) [{req.EqpId}] Received Unbind Request for {req.CassetteId}", req.EqpId);
             bool ok = await _dbService.UnbindAsync(req);
             return ok ? Ok("PASS") : StatusCode(500, "FAIL|DB Error");
         }
@@ -39,14 +41,14 @@ namespace EAPGateway.Controllers
         [HttpGet("query/{eqpId}/{cassetteId}")]
         public async Task<IActionResult> Query(string eqpId, string cassetteId)
         {
-            _dbService.TriggerLog($"[API] ({GetClientInfo()}) [{eqpId}] Querying Binding for {cassetteId}");
-            var res = await _dbService.QueryBindingAsync(cassetteId);
+            _logger.Info($"[API] ({GetClientInfo()}) [{eqpId}] Querying Binding for {cassetteId}", eqpId);
+            var res = await _dbService.QueryBindingAsync(cassetteId, eqpId);
             if (res != null)
             {
-                _dbService.TriggerLog($"[API] [{eqpId}] Query Result: PASS (WO: {res.WorkOrder}, Panels: {res.Panels.Count})");
+                _logger.Debug($"[API] [{eqpId}] Query Result: PASS (WO: {res.WorkOrder}, Panels: {res.Panels.Count})", eqpId);
                 return Ok(res);
             }
-            _dbService.TriggerLog($"[API] [{eqpId}] Query Result: NOT FOUND for {cassetteId}");
+            _logger.Warn($"[API] [{eqpId}] Query Result: NOT FOUND for {cassetteId}", eqpId);
             return NotFound("FAIL|Not Found");
         }
     }

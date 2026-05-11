@@ -242,15 +242,16 @@ namespace EAPDashboard.Models
                     string uid = getVal("UserID", "");
                     var info = QueryBindingFromGateway(cid);
                     string wo = info?.WorkOrder;
+                    List<string> boundPanels = info?.Panels ?? new List<string>();
                     
                     if (string.IsNullOrEmpty(wo))
                     {
-                        res = "FAIL|W001|WorkOrder not found in SQL";
+                        res = "FAIL|W001|Cassette Not Bound to WO";
                         resultCode = 101; 
                     }
                     else
                     {
-                        string tir = await ProcessTrackInAsync(cid, wo, uid, reportEqpId);
+                        string tir = await ProcessTrackInAsync(cid, wo, boundPanels, uid, reportEqpId);
                         res = tir;
                         if (tir.StartsWith("PP-SELECT"))
                         {

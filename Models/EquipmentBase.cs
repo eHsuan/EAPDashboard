@@ -135,24 +135,13 @@ namespace EAPDashboard.Models
             catch (Exception ex) { return $"ERROR|UNKNOWN|Verify Failed: {ex.Message}"; }
         }
 
-        public async Task<string> ProcessTrackInAsync(string cassetteId, string workOrder, string userId, string reportEqpId = null)
+        public async Task<string> ProcessTrackInAsync(string cassetteId, string workOrder, List<string> panels, string userId, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
                 string wo = workOrder;
-                List<string> panels = new List<string>();
-
-                if (string.IsNullOrEmpty(wo) && !string.IsNullOrEmpty(cassetteId))
-                {
-                    OnLogReceived(LogLevel.Info, $"[Business] {eid} Querying Binding Info for Cassette {cassetteId} via Gateway");
-                    var info = QueryBindingFromGateway(cassetteId);
-                    if (info != null)
-                    {
-                        wo = info.WorkOrder;
-                        panels = info.Panels;
-                    }
-                }
+                List<string> currentPanels = panels ?? new List<string>();
 
                 if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|[]";
 
@@ -163,7 +152,7 @@ namespace EAPDashboard.Models
                     return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|[]";
 
                 string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
-                string panelsJson = JsonConvert.SerializeObject(panels);
+                string panelsJson = JsonConvert.SerializeObject(currentPanels);
                 return $"PP-SELECT|{wo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelsJson}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|TrackIn Error: {ex.Message}|[]"; }

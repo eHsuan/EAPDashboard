@@ -1,13 +1,12 @@
 using System;
 using System.IO;
-using System.Windows.Forms;
-using EAPGateway.Models;
-using EAPGateway.Services;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using EAPGateway.Models;
+using EAPGateway.Services;
 
 namespace EAPGateway
 {
@@ -16,9 +15,10 @@ namespace EAPGateway
         [STAThread]
         static void Main()
         {
-            ApplicationConfiguration.Initialize();
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
 
-            // 1. Load Config from config.json
+            // 1. Load Config
             string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
             if (!File.Exists(configPath))
             {
@@ -32,13 +32,15 @@ namespace EAPGateway
             var config = JsonConvert.DeserializeObject<GatewayConfig>(File.ReadAllText(configPath)) ?? new GatewayConfig();
 
             // 2. Setup Services
-            var dbService = new DatabaseService(config);
-            var retryService = new RetryBackgroundService(dbService, config);
+            var logService = new LogService();
+            var dbService = new DatabaseService(config, logService);
+            var retryService = new RetryBackgroundService(dbService, config, logService);
 
             // 3. Start Web API in Background
             var builder = WebApplication.CreateBuilder();
             builder.Services.AddControllers();
             builder.Services.AddSingleton(config);
+            builder.Services.AddSingleton(logService);
             builder.Services.AddSingleton(dbService);
             builder.Services.AddHostedService(sp => retryService);
             builder.WebHost.UseUrls($"http://*:{config.Port}");
@@ -48,7 +50,8 @@ namespace EAPGateway
             _ = app.RunAsync();
 
             // 4. Start WinForms UI
-            Application.Run(new MainForm(config, dbService, retryService));
+            logService.Info("EAPGateway Web API started.");
+            System.Windows.Forms.Application.Run(new MainForm(config, dbService, logService));
         }
     }
 }

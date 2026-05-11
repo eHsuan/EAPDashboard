@@ -162,7 +162,8 @@ namespace EAPDashboard.Models
                         var ti = (TrackInReqMessage)msg;
                         var info = QueryBindingFromGateway(ti.CassetteID);
                         string wo = info?.WorkOrder ?? ti.WorkOrder;
-                        string tir = await ProcessTrackInAsync(ti.CassetteID, wo, ti.UserID);
+                        List<string> panels = info?.Panels ?? new List<string>();
+                        string tir = await ProcessTrackInAsync(ti.CassetteID, wo, panels, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
                             _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };

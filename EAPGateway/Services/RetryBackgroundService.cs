@@ -11,12 +11,13 @@ namespace EAPGateway.Services
     {
         private readonly DatabaseService _dbService;
         private readonly GatewayConfig _config;
-        public event Action<string>? OnLog;
+        private readonly LogService _logger;
 
-        public RetryBackgroundService(DatabaseService dbService, GatewayConfig config)
+        public RetryBackgroundService(DatabaseService dbService, GatewayConfig config, LogService logger)
         {
             _dbService = dbService;
             _config = config;
+            _logger = logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,11 +34,11 @@ namespace EAPGateway.Services
                         retryCount++;
                         await _dbService.ExecuteActionAsync(_config.SecondaryDb, task.Action, task.Request);
                         success = true;
-                        OnLog?.Invoke($"[RETRY] Successfully synced Secondary DB for {task.Action} after {retryCount} attempts.");
+                        _logger.Info($"[RETRY] Successfully synced Secondary DB for {task.Action} after {retryCount} attempts.", task.EqpId);
                     }
                     catch (Exception ex)
                     {
-                        OnLog?.Invoke($"[RETRY] Failed to sync Secondary DB (Attempt {retryCount}): {ex.Message}. Waiting 5s...");
+                        _logger.Warn($"[RETRY] Failed to sync Secondary DB (Attempt {retryCount}): {ex.Message}. Waiting 5s...", task.EqpId);
                         await Task.Delay(5000, stoppingToken);
                     }
                 }

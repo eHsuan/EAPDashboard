@@ -11,51 +11,50 @@ namespace EAPGateway.Services
     public class DatabaseService
     {
         private readonly GatewayConfig _config;
+        private readonly LogService _logger;
         private readonly Channel<RetryTask> _retryChannel;
-        public event Action<string>? OnLog;
 
-        public DatabaseService(GatewayConfig config)
+        public DatabaseService(GatewayConfig config, LogService logger)
         {
             _config = config;
+            _logger = logger;
             _retryChannel = Channel.CreateUnbounded<RetryTask>();
         }
 
         public ChannelReader<RetryTask> RetryReader => _retryChannel.Reader;
 
-        public void TriggerLog(string msg) => OnLog?.Invoke(msg);
-
         public async Task<bool> BindAsync(BindRequest req)
         {
-            return await ExecuteDualWriteAsync("Bind", req);
+            return await ExecuteDualWriteAsync("Bind", req, req.EqpId);
         }
 
         public async Task<bool> UnbindAsync(UnbindRequest req)
         {
-            return await ExecuteDualWriteAsync("Unbind", req);
+            return await ExecuteDualWriteAsync("Unbind", req, req.EqpId);
         }
 
-        public async Task<QueryResponse?> QueryBindingAsync(string cassetteId)
+        public async Task<QueryResponse?> QueryBindingAsync(string cassetteId, string eqpId)
         {
             try
             {
-                return await ExecuteQueryAsync(_config.PrimaryDb, cassetteId);
+                return await ExecuteQueryAsync(_config.PrimaryDb, cassetteId, eqpId);
             }
             catch (Exception ex)
             {
-                OnLog?.Invoke($"[DB] Primary Query Failed: {ex.Message}. Falling back to Secondary...");
+                _logger.Warn($"[DB] Primary Query Failed for {cassetteId}: {ex.Message}. Falling back to Secondary...", eqpId);
                 try
                 {
-                    return await ExecuteQueryAsync(_config.SecondaryDb, cassetteId);
+                    return await ExecuteQueryAsync(_config.SecondaryDb, cassetteId, eqpId);
                 }
                 catch (Exception ex2)
                 {
-                    OnLog?.Invoke($"[DB] Secondary Query Failed: {ex2.Message}");
+                    _logger.Error($"[DB] Secondary Query Failed for {cassetteId}: {ex2.Message}", eqpId);
                     return null;
                 }
             }
         }
 
-        private async Task<QueryResponse?> ExecuteQueryAsync(string connStr, string cassetteId)
+        private async Task<QueryResponse?> ExecuteQueryAsync(string connStr, string cassetteId, string eqpId)
         {
             if (string.IsNullOrEmpty(connStr)) throw new ArgumentException("Connection string is empty");
             using var conn = new SqlConnection(connStr);
@@ -77,10 +76,12 @@ namespace EAPGateway.Services
             {
                 res.Panels.Add(reader["PanelID"].ToString()!);
             }
+
+            _logger.Debug($"[DB] Query Success for {cassetteId} from {new SqlConnectionStringBuilder(connStr).DataSource}", eqpId);
             return res;
         }
 
-        private async Task<bool> ExecuteDualWriteAsync(string action, object req)
+        private async Task<bool> ExecuteDualWriteAsync(string action, object req, string eqpId)
         {
             var taskA = ExecuteActionAsync(_config.PrimaryDb, action, req);
             var taskB = ExecuteActionAsync(_config.SecondaryDb, action, req);
@@ -88,18 +89,18 @@ namespace EAPGateway.Services
             try
             {
                 await Task.WhenAll(taskA, taskB);
-                OnLog?.Invoke($"[DB] {action} Success on all databases.");
+                _logger.Info($"[DB] {action} Success on all databases.", eqpId);
                 return true; 
             }
             catch (Exception ex)
             {
                 if (taskA.IsCompletedSuccessfully)
                 {
-                    OnLog?.Invoke($"[DB] Primary {action} Success, Secondary Failed ({ex.InnerException?.Message ?? ex.Message}). Enqueueing retry...");
-                    await _retryChannel.Writer.WriteAsync(new RetryTask { Action = action, Request = req });
+                    _logger.Warn($"[DB] Primary {action} Success, Secondary Failed ({ex.InnerException?.Message ?? ex.Message}). Enqueueing retry...", eqpId);
+                    await _retryChannel.Writer.WriteAsync(new RetryTask { Action = action, Request = req, EqpId = eqpId });
                     return true; 
                 }
-                OnLog?.Invoke($"[DB] Primary {action} Failed: {ex.Message}");
+                _logger.Error($"[DB] Primary {action} Failed: {ex.Message}", eqpId);
                 return false;
             }
         }
@@ -152,5 +153,6 @@ namespace EAPGateway.Services
     {
         public string Action { get; set; } = "";
         public object Request { get; set; } = new object();
+        public string EqpId { get; set; } = "Gateway";
     }
 }
