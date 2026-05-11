@@ -7,6 +7,10 @@
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
     "ActiveEnvironment": "Test"
   },
+  "GatewaySettings": {
+    "PrimaryUrl": "http://127.0.0.1:5000",
+    "SecondaryUrl": "http://127.0.0.1:5001"
+  },
   "DbSettings": {
     "ConnectionString": "Server=twtpesqlqa2;Database=DIAEAP;User Id=DIAEAP;Password=D@08!aEAp;",
     "BindingTable": "EAP_CassetteBind",

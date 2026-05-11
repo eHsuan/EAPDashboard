@@ -160,7 +160,8 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
-                        string wo = QueryWorkOrderFromDb(ti.CassetteID) ?? ti.WorkOrder;
+                        var info = QueryBindingFromGateway(ti.CassetteID);
+                        string wo = info?.WorkOrder ?? ti.WorkOrder;
                         string tir = await ProcessTrackInAsync(ti.CassetteID, wo, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');

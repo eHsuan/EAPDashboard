@@ -13,6 +13,8 @@ using Protocol.MES.Messages;
 using Protocol.MES.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Polly;
+using System.Net.Http;
 
 namespace EAPDashboard.Models
 {
@@ -27,6 +29,26 @@ namespace EAPDashboard.Models
         [Description("DOWN")] Down 
     }
 
+    public class DbSettings
+    {
+        public string ConnectionString { get; set; }
+        public string BindingTable { get; set; }
+        public string CassetteColumn { get; set; }
+        public string WoColumn { get; set; }
+    }
+
+    public class GatewayConfig 
+    { 
+        public string PrimaryUrl { get; set; } 
+        public string SecondaryUrl { get; set; } 
+    }
+
+    public class BindingInfo
+    {
+        public string WorkOrder { get; set; }
+        public List<string> Panels { get; set; } = new List<string>();
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
@@ -34,6 +56,8 @@ namespace EAPDashboard.Models
         private string _currentRecipe;
         private Dictionary<string, string> _alarmMappings = new Dictionary<string, string>();
         private static readonly object _logLock = new object();
+        private static readonly HttpClient _httpClient = new HttpClient();
+        private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
         
         protected string _lastOperator = "UNKNOWN";
 
@@ -41,11 +65,27 @@ namespace EAPDashboard.Models
         public string Name { get; set; }
         public string Protocol { get; set; }
         public bool IsSimulator { get; set; }
-        public bool IsMesSimulator { get; set; } // 新增：判定 MES 是否為模擬器
+        public bool IsMesSimulator { get; set; } 
+        public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
 
         public event PropertyChangedEventHandler PropertyChanged;
         public event Action<DateTime, LogLevel, string> LogReceived;
+
+        public EquipmentBase()
+        {
+            var fallbackPolicy = Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
+                .Or<HttpRequestException>()
+                .Or<TaskCanceledException>()
+                .FallbackAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
+                    OnLogReceived(LogLevel.Warn, "[GATEWAY] Resilience triggered: switching to backup logic.");
+                    return new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable);
+                }));
+
+            var timeoutPolicy = Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromSeconds(5));
+
+            _resiliencePolicy = Policy.WrapAsync<HttpResponseMessage>(fallbackPolicy, timeoutPolicy);
+        }
 
         public void LoadAlarmMappings()
         {
@@ -101,51 +141,32 @@ namespace EAPDashboard.Models
             {
                 string eid = reportEqpId ?? this.Id;
                 string wo = workOrder;
+                List<string> panels = new List<string>();
+
                 if (string.IsNullOrEmpty(wo) && !string.IsNullOrEmpty(cassetteId))
                 {
-                    OnLogReceived(LogLevel.Info, $"[Business] {eid} Querying WO for Cassette {cassetteId}");
-                    wo = QueryWorkOrderFromDb(cassetteId);
+                    OnLogReceived(LogLevel.Info, $"[Business] {eid} Querying Binding Info for Cassette {cassetteId} via Gateway");
+                    var info = QueryBindingFromGateway(cassetteId);
+                    if (info != null)
+                    {
+                        wo = info.WorkOrder;
+                        panels = info.Panels;
+                    }
                 }
 
-                if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|";
-
-                var panelList = QueryPanelListFromDb(cassetteId);
-                string panelStr = Newtonsoft.Json.JsonConvert.SerializeObject(panelList);
+                if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|[]";
 
                 var qryReq = new WOQRYRequest { WONO = wo, EqpNo = eid, UserID = userId };
                 var qryReply = await Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
                 
                 if (qryReply.Result != "success") 
-                    return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|{panelStr}";
+                    return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|[]";
 
                 string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
-                return $"PP-SELECT|{wo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelStr}";
+                string panelsJson = JsonConvert.SerializeObject(panels);
+                return $"PP-SELECT|{wo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelsJson}";
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|TrackIn Error: {ex.Message}|"; }
-        }
-
-        protected List<string> QueryPanelListFromDb(string cassetteId)
-        {
-            var list = new List<string>();
-            if (DbConfig == null || string.IsNullOrEmpty(DbConfig.ConnectionString)) return list;
-            try
-            {
-                using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
-                {
-                    conn.Open();
-                    string sql = "SELECT PanelID FROM EAP_PanelBind WHERE CassetteID = @cid ORDER BY SlotNo ASC";
-                    using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@cid", cassetteId);
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read()) list.Add(reader["PanelID"].ToString());
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Query Cloud PanelList Failed: {ex.Message}"); }
-            return list;
+            catch (Exception ex) { return $"ERROR|UNKNOWN|TrackIn Error: {ex.Message}|[]"; }
         }
 
         protected string GetMesParamValue(string inputParamListDt, string paramName)
@@ -205,76 +226,87 @@ namespace EAPDashboard.Models
             catch (Exception ex) { return $"ERROR|UNKNOWN|TrackOut Failed: {ex.Message}"; }
         }
 
-        protected async Task<bool> UpdateBindingInDbAsync(string cassetteId, string workOrder, List<string> panels)
+        protected BindingInfo QueryBindingFromGateway(string cassetteId)
         {
-            if (DbConfig == null || string.IsNullOrEmpty(DbConfig.ConnectionString)) return false;
+            if (GatewayConfig == null) return null;
             try
             {
-                using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var tx = conn.BeginTransaction())
-                    {
-                        try
+                var queryPolicy = Policy<HttpResponseMessage>
+                    .Handle<Exception>()
+                    .FallbackAsync(async (ct) => {
+                        OnLogReceived(LogLevel.Warn, "[GATEWAY] Query Primary failed, trying Secondary...");
+                        return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}", GatewayConfig.SecondaryUrl, cassetteId), ct);
+                    });
+
+                return Task.Run(async () => {
+                    var resp = await queryPolicy.ExecuteAsync(async (ct) => {
+                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
                         {
-                            string delSql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
-                            using (var cmdDel = new System.Data.SqlClient.SqlCommand(delSql, conn, tx))
-                            {
-                                cmdDel.Parameters.AddWithValue("@cid", cassetteId);
-                                await cmdDel.ExecuteNonQueryAsync();
-                            }
-
-                            string insMasterSql = "INSERT INTO EAP_CassetteBind (CassetteID, WorkOrder, BindTime) VALUES (@cid, @wo, GETDATE())";
-                            using (var cmdInsM = new System.Data.SqlClient.SqlCommand(insMasterSql, conn, tx))
-                            {
-                                cmdInsM.Parameters.AddWithValue("@cid", cassetteId);
-                                cmdInsM.Parameters.AddWithValue("@wo", workOrder);
-                                await cmdInsM.ExecuteNonQueryAsync();
-                            }
-
-                            for (int i = 0; i < panels.Count; i++)
-                            {
-                                string pid = panels[i];
-                                if (string.IsNullOrEmpty(pid)) continue;
-
-                                string insDetailSql = "INSERT INTO EAP_PanelBind (PanelID, CassetteID, SlotNo, BindTime) VALUES (@pid, @cid, @slot, GETDATE())";
-                                using (var cmdInsD = new System.Data.SqlClient.SqlCommand(insDetailSql, conn, tx))
-                                {
-                                    cmdInsD.Parameters.AddWithValue("@pid", pid);
-                                    cmdInsD.Parameters.AddWithValue("@cid", cassetteId);
-                                    cmdInsD.Parameters.AddWithValue("@slot", i + 1);
-                                    await cmdInsD.ExecuteNonQueryAsync();
-                                }
-                            }
-
-                            tx.Commit();
-                            OnLogReceived(LogLevel.Info, $"[DB] {this.Id} Successfully bound Cassette {cassetteId} to WO {workOrder} with {panels.Count} panels.");
-                            return true;
+                            return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}", GatewayConfig.PrimaryUrl, cassetteId), cts.Token);
                         }
-                        catch { tx.Rollback(); throw; }
+                    }, CancellationToken.None);
+
+                    if (resp.IsSuccessStatusCode) 
+                    {
+                        string json = await resp.Content.ReadAsStringAsync();
+                        return JsonConvert.DeserializeObject<BindingInfo>(json);
                     }
+                    return null;
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception ex) 
+            { 
+                OnLogReceived(LogLevel.Error, string.Format("[GATEWAY] Binding Query Failed Final: {0}", ex.Message));
+                return null; 
+            }
+        }
+
+        protected async Task<bool> UpdateBindingInDbAsync(string cassetteId, string workOrder, List<string> panels)
+        {
+            if (GatewayConfig == null) return false;
+            try
+            {
+                var req = new { EqpId = this.Id, CassetteId = cassetteId, WorkOrder = workOrder, Panels = panels };
+                var content = new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json");
+
+                var resp = await _resiliencePolicy.ExecuteAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
+                    try {
+                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/bind", GatewayConfig.PrimaryUrl), content, ct);
+                    } catch {
+                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/bind", GatewayConfig.SecondaryUrl), content, ct);
+                    }
+                }), CancellationToken.None);
+
+                if (resp.IsSuccessStatusCode) {
+                    OnLogReceived(LogLevel.Info, string.Format("[DB] {0} Successfully bound Cassette {1} to WO {2} via Gateway.", this.Id, cassetteId, workOrder));
+                    return true;
                 }
+                return false;
             }
             catch { return false; }
         }
 
         protected async Task<bool> UnbindFromDbAsync(string cassetteId)
         {
-            if (DbConfig == null || string.IsNullOrEmpty(DbConfig.ConnectionString)) return false;
+            if (GatewayConfig == null) return false;
             try
             {
-                using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString))
-                {
-                    await conn.OpenAsync();
-                    string sql = "DELETE FROM EAP_CassetteBind WHERE CassetteID = @cid";
-                    using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.AddWithValue("@cid", cassetteId);
-                        await cmd.ExecuteNonQueryAsync();
+                var req = new { EqpId = this.Id, CassetteId = cassetteId };
+                var content = new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json");
+
+                var resp = await _resiliencePolicy.ExecuteAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
+                    try {
+                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/unbind", GatewayConfig.PrimaryUrl), content, ct);
+                    } catch {
+                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/unbind", GatewayConfig.SecondaryUrl), content, ct);
                     }
+                }), CancellationToken.None);
+
+                if (resp.IsSuccessStatusCode) {
+                    OnLogReceived(LogLevel.Info, string.Format("[DB] {0} Successfully unbound Cassette {1} via Gateway.", this.Id, cassetteId));
+                    return true;
                 }
-                OnLogReceived(LogLevel.Info, $"[DB] {this.Id} Successfully unbound Cassette {cassetteId}.");
-                return true;
+                return false;
             }
             catch { return false; }
         }
@@ -334,7 +366,7 @@ namespace EAPDashboard.Models
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                OnLogReceived(LogLevel.Info, $"[STATUS] {eid} Status Changed: {oldStatus} -> {newStatus}");
+                OnLogReceived(LogLevel.Info, string.Format("[STATUS] {0} Status Changed: {1} -> {2}", eid, oldStatus, newStatus));
 
                 if (int.TryParse(newStatus, out int sc))
                 {
@@ -347,15 +379,15 @@ namespace EAPDashboard.Models
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
+                return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
-            catch (Exception ex) { return $"ERROR|UNKNOWN|Status Update Failed: {ex.Message}"; }
+            catch (Exception ex) { return string.Format("ERROR|UNKNOWN|Status Update Failed: {0}", ex.Message); }
         }
 
         public async Task<string> ProcessPanelInAsync(string panelId, string cassetteId, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, "Panel_In", $"[PLC] {eid} - Panel: {panelId}, Cassette: {cassetteId}");
+            OnLogReceived(LogLevel.Info, "Panel_In", string.Format("[PLC] {0} - Panel: {1}, Cassette: {2}", eid, panelId, cassetteId));
             await SaveProductionDataAsync("Panel_In", "", new { PanelID = panelId, CassetteID = cassetteId, EqpID = eid });
             return "PASS|OK|Success";
         }
@@ -363,7 +395,7 @@ namespace EAPDashboard.Models
         public async Task<string> ProcessPanelOutAsync(string panelId, string cassetteId, string result, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, "Panel_Out", $"[PLC] {eid} - Panel: {panelId}, Result: {result}");
+            OnLogReceived(LogLevel.Info, "Panel_Out", string.Format("[PLC] {0} - Panel: {1}, Result: {2}", eid, panelId, result));
             await SaveProductionDataAsync("Panel_Out", "", new { PanelID = panelId, CassetteID = cassetteId, Result = result, EqpID = eid });
             return "PASS|OK|Success";
         }
@@ -371,7 +403,7 @@ namespace EAPDashboard.Models
         public async Task<string> ProcessKeyParametersReportAsync(List<Protocol.Core.Messages.ParameterResultItem> parameters, string reportEqpId = null)
         {
             string eid = reportEqpId ?? this.Id;
-            OnLogReceived(LogLevel.Info, $"[KPIV/KPOV] {eid} KPI Report: {parameters.Count} records");
+            OnLogReceived(LogLevel.Info, string.Format("[KPIV/KPOV] {0} KPI Report: {1} records", eid, parameters.Count));
             await SaveProductionDataAsync("KeyParametersReport", "", new { EqpID = eid, ProcessData = parameters });
             return "PASS|OK|Success";
         }
@@ -382,18 +414,18 @@ namespace EAPDashboard.Models
             {
                 string eid = reportEqpId ?? this.Id;
                 string mc = TransformAlarmCode(alarmCode);
-                OnLogReceived(LogLevel.Warn, $"[ALARM] {eid} Alarm Report: Code={alarmCode} (Mapped={mc}), Set={isSet}");
+                OnLogReceived(LogLevel.Warn, string.Format("[ALARM] {0} Alarm Report: Code={1} (Mapped={2}), Set={3}", eid, alarmCode, mc, isSet));
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = isSet ? "1" : "2", ErrorCode = mc };
                 var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
+                return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
             catch (Exception ex) 
             { 
-                OnLogReceived(LogLevel.Error, $"Alarm Report Exception: {ex.Message}");
-                return $"ERROR|UNKNOWN|{ex.Message}";
+                OnLogReceived(LogLevel.Error, string.Format("Alarm Report Exception: {0}", ex.Message));
+                return string.Format("ERROR|UNKNOWN|{0}", ex.Message);
             }
         }
 
@@ -415,26 +447,11 @@ namespace EAPDashboard.Models
             try {
                 string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataLogs", now.ToString("yyyyMMdd"));
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
-                string filePath = Path.Combine(dir, $"{this.Id}.csv");
+                string filePath = Path.Combine(dir, string.Format("{0}.csv", this.Id));
                 using (var sw = new StreamWriter(filePath, true, Encoding.UTF8)) {
-                    sw.WriteLine($"{now:yyyy-MM-dd HH:mm:ss},{eventName},{workOrder ?? ""},\"{json.Replace("\"", "\"\"")}\"");
+                    sw.WriteLine(string.Format("{0:yyyy-MM-dd HH:mm:ss},{1},{2},\"{3}\"", now, eventName, workOrder ?? "", json.Replace("\"", "\"\"")));
                 }
             } catch { }
-        }
-
-        protected string QueryWorkOrderFromDb(string cassetteId)
-        {
-            if (DbConfig == null || string.IsNullOrEmpty(DbConfig.ConnectionString)) return null;
-            try {
-                using (var conn = new System.Data.SqlClient.SqlConnection(DbConfig.ConnectionString)) {
-                    conn.Open();
-                    string sql = "SELECT TOP 1 WorkOrder FROM EAP_CassetteBind WHERE CassetteID = @cid";
-                    using (var cmd = new System.Data.SqlClient.SqlCommand(sql, conn)) {
-                        cmd.Parameters.AddWithValue("@cid", cassetteId);
-                        return cmd.ExecuteScalar()?.ToString();
-                    }
-                }
-            } catch { return null; }
         }
 
         protected string ExtractRecipeFromMes(string inputParamListDt)
@@ -461,9 +478,9 @@ namespace EAPDashboard.Models
                 lock (_logLock) {
                     string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", timestamp.ToString("yyyyMMdd"), this.Id ?? "System");
                     if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
-                    string filePath = Path.Combine(logDir, $"{timestamp:HH}.txt");
-                    string evtPart = string.IsNullOrEmpty(eventName) ? "" : $" [{eventName}]";
-                    File.AppendAllText(filePath, $"[{timestamp:yyyy-MM-dd HH:mm:ss.fff}] [{level}]{evtPart} : {message}{Environment.NewLine}");
+                    string filePath = Path.Combine(logDir, string.Format("{0:HH}.txt", timestamp));
+                    string evtPart = string.IsNullOrEmpty(eventName) ? "" : string.Format(" [{0}]", eventName);
+                    File.AppendAllText(filePath, string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}]{2} : {3}{4}", timestamp, level, evtPart, message, Environment.NewLine));
                 }
             } catch { }
         }

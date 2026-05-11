@@ -231,7 +231,8 @@ namespace EAPDashboard.Models
                 case CommandType.TrackInReq:
                     string cid = getVal("CassetteID", "");
                     string uid = getVal("UserID", "");
-                    string wo = QueryWorkOrderFromDb(cid);
+                    var info = QueryBindingFromGateway(cid);
+                    string wo = info?.WorkOrder;
                     
                     if (string.IsNullOrEmpty(wo))
                     {
@@ -404,8 +405,9 @@ namespace EAPDashboard.Models
                     else
                     {
                         OnLogReceived(LogLevel.Warn, evt.EventName, $"[PLC] {Id} WorkOrder PLC Datapoint Not Found (READ).");
-                        // Fallback to DB if PLC DP not defined
-                        toWo = QueryWorkOrderFromDb(toCid) ?? "";
+                        // Fallback to Gateway if PLC DP not defined
+                        var toInfo = QueryBindingFromGateway(toCid);
+                        toWo = toInfo?.WorkOrder ?? "";
                     }
 
                     // 2. 讀取 EQ 報上來的 PanelList 1~10

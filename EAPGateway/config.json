@@ -1,0 +1,5 @@
+{
+  "Port": 5000,
+  "PrimaryDb": "Data Source=twtpesqlqa2;Initial Catalog=DIAEAP;User ID=DIAEAP;Password=D@08!aEAp;Connect Timeout=3;TrustServerCertificate=True",
+  "SecondaryDb": "Data Source=twtpesqlp6;Initial Catalog=DIAEAP;User ID=DIAEAP;Password=D@08!aEAp;Connect Timeout=3;TrustServerCertificate=True"
+}

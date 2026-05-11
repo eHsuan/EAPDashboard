@@ -17,11 +17,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**" />
     <Compile Remove="dll\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**" />
     <EmbeddedResource Remove="dll\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**" />
     <None Remove="dll\**" />
   </ItemGroup>
 
@@ -34,6 +34,7 @@
     <PackageReference Include="MQTTnet" Version="3.0.16" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NModbus4" Version="2.1.0" />
+    <PackageReference Include="Polly" Version="7.2.4" />
     <PackageReference Include="Secs4Net" Version="2.4.4" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
   </ItemGroup>
@@ -46,6 +47,7 @@
     </Reference>
     <ProjectReference Include="Protocol.MES\Protocol.MES.csproj" />
     <Reference Include="System.ServiceModel" />
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 
   <ItemGroup>
