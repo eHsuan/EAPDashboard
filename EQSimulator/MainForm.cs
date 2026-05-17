@@ -144,6 +144,26 @@ namespace EQSimulator
             SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
         }
 
+        private void BtnPanelIn_Click(object sender, EventArgs e)
+        {
+            SendMessage(new EventReportMessage 
+            { 
+                CMD = CommandType.EventReport, 
+                EventID = _dictionary.GetCeid("PANEL_IN"),
+                Data = new List<EventItem> { new EventItem { Parameter = _dictionary.GetVid("LotID"), Value = _txtWorkOrder.Text } }
+            });
+        }
+
+        private void BtnPanelOut_Click(object sender, EventArgs e)
+        {
+            SendMessage(new EventReportMessage 
+            { 
+                CMD = CommandType.EventReport, 
+                EventID = _dictionary.GetCeid("PANEL_OUT"),
+                Data = new List<EventItem> { new EventItem { Parameter = _dictionary.GetVid("LotID"), Value = _txtWorkOrder.Text } }
+            });
+        }
+
         private void BtnReportStatus_Click(object sender, EventArgs e)
         {
             int status = Convert.ToInt32(_cmbStatus.SelectedValue);
@@ -189,25 +209,58 @@ namespace EQSimulator
                             }
                             break;
 
-                        case CommandType.StatusReq:
-                            SendMessage(new ReplyStatusReqMessage { 
-                                CMD = CommandType.ReplyStatusReq, 
-                                CurrentStatus = Convert.ToInt32(_cmbStatus.SelectedValue)
-                            });
+                        case CommandType.ReplyStatusReq:
+                            var rsr = (ReplyStatusReqMessage)msg;
+                            Log($"-> Status Req ACK received.");
+                            break;
+
+                        case CommandType.ReplyRtnTraceData:
+                            var rrtd = (ReplyRtnTraceDataMessage)msg;
+                            Log($"-> TraceData ACK: {rrtd.RtnResult}, Msg: {rrtd.RtnMsg}");
                             break;
 
                         case CommandType.ReplyEventReport:
                             var revm = (ReplyEventReportMessage)msg;
                             Log($"-> Event Reply Result: {revm.RtnResult}, Msg: {revm.RtnMsg}");
                             break;
-                    }
-                } catch (Exception ex) { Log($"[ERR] Parse failed: {ex.Message}"); }
-            });
-        }
 
-        private void SendMessage(BaseMessage msg)
-        {
-            if (_bus == null || !_bus.IsConnected) return;
+                        case CommandType.TimeCalibrate:
+                            Log($"-> TimeCalibrate received. Syncing...");
+                            SendMessage(new ReplyTimeCalibrateMessage { CMD = CommandType.ReplyTimeCalibrate, RtnResult = RtnResult.PASS });
+                            break;
+                        }
+                        } catch (Exception ex) { Log($"[ERR] Parse failed: {ex.Message}"); }
+                        });
+                        }
+
+                        private void BtnRtnTraceData_Click(object sender, EventArgs e)
+                        {
+                        var rtd = new RtnTraceDataMessage
+                        {
+                        CMD = CommandType.RtnTraceData,
+                        Status = _cmbStatus.SelectedValue.ToString(),
+                        CycleTime = "12.5",
+                        Availability = "98.5",
+                        Parameter = new List<Dictionary<string, double>>
+                        {
+                        new Dictionary<string, double> { { "Temperature", 25.4 } },
+                        new Dictionary<string, double> { { "Pressure", 101.3 } }
+                        },
+                        RecipeDATA = new RecipeDataContent
+                        {
+                            RecipeID = "RECIPE_001",
+                            RecipeParameter = new Dictionary<string, double>
+                            {
+                                { "TargetSpeed", 1500.0 },
+                                { "LimitTime", 60.0 }
+                            }
+                        }
+                        };
+                        SendMessage(rtd);
+                        }
+
+                        private void SendMessage(BaseMessage msg)
+                        {            if (_bus == null || !_bus.IsConnected) return;
             msg.Machine = _txtEqId.Text;
             msg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
             string reportTopic = _txtTopic.Text.TrimEnd('/') + "/Report";

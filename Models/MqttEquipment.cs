@@ -211,6 +211,7 @@ namespace EAPDashboard.Models
                         string mc = TransformAlarmCode(alm.AlarmCode);
                         State = EquipmentState.Alarm;
                         HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc });
+                        await SendReply(new ReplyAlarmMessage { CMD = CommandType.ReplyALARM, RtnResult = RtnResult.PASS });
                         break;
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
@@ -222,6 +223,19 @@ namespace EAPDashboard.Models
                         var pdr = (ProcessDataReportMessage)msg;
                         await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr);
                         await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS });
+                        break;
+                    case CommandType.RtnTraceData:
+                        var rtd = (RtnTraceDataMessage)msg;
+                        await SaveProductionDataAsync("TraceData", "", rtd);
+                        await SendReply(new ReplyRtnTraceDataMessage { CMD = CommandType.ReplyRtnTraceData, RtnResult = RtnResult.PASS, RtnMsg = "Trace data received successfully" });
+                        break;
+                    case CommandType.ReplyTimeCalibrate:
+                    case CommandType.ReplyTerminalDisplay:
+                    case CommandType.ReplySelectParameter:
+                    case CommandType.ReplyEditParameter:
+                    case CommandType.ReplyInitTraceData:
+                    case CommandType.ReplyRtnTraceData:
+                        OnLogReceived(LogLevel.Info, $"[RECV] ACK for {msg.CMD} received.");
                         break;
                     case CommandType.EventReport:
                         var evm = (EventReportMessage)msg;
@@ -248,6 +262,7 @@ namespace EAPDashboard.Models
             switch (logicalEvent)
             {
                 case "USER_VERIFY":
+                case "100":
                     string uid = getValByLogicalName("UserID");
                     string bcd = getValByLogicalName("Barcode") ?? uid;
                     string uvRes = await ProcessUserVerifyAsync(bcd, uid);
@@ -259,12 +274,26 @@ namespace EAPDashboard.Models
                     });
                     break;
 
+                case "BATCH_PROCESS_DATA":
+                case "101":
+                    await SaveProductionDataAsync("BatchData", "", evm);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    break;
+
+                case "KEY_PARAMETERS":
+                case "102":
+                    await SaveProductionDataAsync("KeyParams", "", evm);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    break;
+
                 case "PANEL_IN":
+                case "103":
                     await SaveProductionDataAsync("PanelIn", "", evm);
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
                     break;
 
                 case "PANEL_OUT":
+                case "104":
                     await SaveProductionDataAsync("PanelOut", "", evm);
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
                     break;
@@ -304,6 +333,7 @@ namespace EAPDashboard.Models
         private async Task SendAreYouThere() => await SendCommand(new AreYouThereMessage { CMD = CommandType.AreYouThere, Machine = Id });
         private async Task SendStatusRequest() => await SendCommand(new StatusReqMessage { CMD = CommandType.StatusReq, Machine = Id });
         public override async Task SendTimeCalibration() => await SendCommand(new TimeCalibrateMessage { CMD = CommandType.TimeCalibrate, Machine = Id });
+        public async Task SendTerminalDisplay(string message) => await SendCommand(new TerminalDisplayMessage { CMD = CommandType.TerminalDisplay, Machine = Id, Message = message });
 
         private async Task SendReply<T>(T replyMsg) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;

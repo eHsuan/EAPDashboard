@@ -43,6 +43,9 @@ namespace EQSimulator
             this.btnUser = new System.Windows.Forms.Button();
             this.btnTrackIn = new System.Windows.Forms.Button();
             this.btnTrackOut = new System.Windows.Forms.Button();
+            this.btnPanelIn = new System.Windows.Forms.Button();
+            this.btnPanelOut = new System.Windows.Forms.Button();
+            this.btnRtnTraceData = new System.Windows.Forms.Button();
             this.btnAlarm = new System.Windows.Forms.Button();
             this.pnlStatusReport = new System.Windows.Forms.Panel();
             this._cmbStatus = new System.Windows.Forms.ComboBox();
@@ -284,6 +287,7 @@ namespace EQSimulator
             this.flowActions.Controls.Add(this.btnTrackOut);
             this.flowActions.Controls.Add(this.btnPanelIn);
             this.flowActions.Controls.Add(this.btnPanelOut);
+            this.flowActions.Controls.Add(this.btnRtnTraceData);
             this.flowActions.Controls.Add(this.btnAlarm);
             this.flowActions.Controls.Add(this.pnlStatusReport);
             this.flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -323,12 +327,42 @@ namespace EQSimulator
             this.btnTrackOut.UseVisualStyleBackColor = true;
             this.btnTrackOut.Click += new System.EventHandler(this.BtnTrackOut_Click);
             // 
+            // btnPanelIn
+            // 
+            this.btnPanelIn.Location = new System.Drawing.Point(386, 8);
+            this.btnPanelIn.Name = "btnPanelIn";
+            this.btnPanelIn.Size = new System.Drawing.Size(90, 23);
+            this.btnPanelIn.TabIndex = 3;
+            this.btnPanelIn.Text = "Panel In";
+            this.btnPanelIn.UseVisualStyleBackColor = true;
+            this.btnPanelIn.Click += new System.EventHandler(this.BtnPanelIn_Click);
+            // 
+            // btnPanelOut
+            // 
+            this.btnPanelOut.Location = new System.Drawing.Point(482, 8);
+            this.btnPanelOut.Name = "btnPanelOut";
+            this.btnPanelOut.Size = new System.Drawing.Size(90, 23);
+            this.btnPanelOut.TabIndex = 4;
+            this.btnPanelOut.Text = "Panel Out";
+            this.btnPanelOut.UseVisualStyleBackColor = true;
+            this.btnPanelOut.Click += new System.EventHandler(this.BtnPanelOut_Click);
+            // 
+            // btnRtnTraceData
+            // 
+            this.btnRtnTraceData.Location = new System.Drawing.Point(578, 8);
+            this.btnRtnTraceData.Name = "btnRtnTraceData";
+            this.btnRtnTraceData.Size = new System.Drawing.Size(100, 23);
+            this.btnRtnTraceData.TabIndex = 5;
+            this.btnRtnTraceData.Text = "Trace Data";
+            this.btnRtnTraceData.UseVisualStyleBackColor = true;
+            this.btnRtnTraceData.Click += new System.EventHandler(this.BtnRtnTraceData_Click);
+            // 
             // btnAlarm
             // 
-            this.btnAlarm.Location = new System.Drawing.Point(386, 8);
+            this.btnAlarm.Location = new System.Drawing.Point(8, 37);
             this.btnAlarm.Name = "btnAlarm";
             this.btnAlarm.Size = new System.Drawing.Size(120, 23);
-            this.btnAlarm.TabIndex = 3;
+            this.btnAlarm.TabIndex = 6;
             this.btnAlarm.Text = "Trigger ALARM";
             this.btnAlarm.UseVisualStyleBackColor = true;
             this.btnAlarm.Click += new System.EventHandler(this.BtnAlarm_Click);
@@ -337,10 +371,10 @@ namespace EQSimulator
             // 
             this.pnlStatusReport.Controls.Add(this._cmbStatus);
             this.pnlStatusReport.Controls.Add(this.btnReportStatus);
-            this.pnlStatusReport.Location = new System.Drawing.Point(512, 8);
+            this.pnlStatusReport.Location = new System.Drawing.Point(134, 37);
             this.pnlStatusReport.Name = "pnlStatusReport";
             this.pnlStatusReport.Size = new System.Drawing.Size(250, 30);
-            this.pnlStatusReport.TabIndex = 4;
+            this.pnlStatusReport.TabIndex = 7;
             // 
             // _cmbStatus
             // 
@@ -427,6 +461,7 @@ namespace EQSimulator
         private System.Windows.Forms.Button btnTrackOut;
         private System.Windows.Forms.Button btnPanelIn;
         private System.Windows.Forms.Button btnPanelOut;
+        private System.Windows.Forms.Button btnRtnTraceData;
         private System.Windows.Forms.Button btnAlarm;
         private System.Windows.Forms.Panel pnlStatusReport;
         private System.Windows.Forms.ComboBox _cmbStatus;
