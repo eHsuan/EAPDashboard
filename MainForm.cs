@@ -9,6 +9,7 @@ using System.Net;
 using System.Windows.Forms;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using CyntecMqttLib.Interfaces;
 using System.Net.Sockets;
 using Modbus.Device;
@@ -19,6 +20,8 @@ namespace EAPDashboard
 {
     public class AppConfig
     {
+        public string EapId { get; set; }
+        public string ControllerTopic { get; set; }
         public string MqttBrokerHost { get; set; }
         public int MqttBrokerPort { get; set; }
         public int HeartbeatIntervalSeconds { get; set; }
@@ -120,6 +123,11 @@ namespace EAPDashboard
             try {
                 var json = File.ReadAllText(path);
                 _appConfig = JsonConvert.DeserializeObject<AppConfig>(json);
+
+                if (_appConfig != null && !string.IsNullOrEmpty(_appConfig.EapId))
+                {
+                    this.Text = string.Format("EAP Dashboard - {0}", _appConfig.EapId);
+                }
                 if (_appConfig.MesSettings != null) {
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";
                     Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
@@ -232,13 +240,87 @@ namespace EAPDashboard
                 _bus = new MqttBus(
                     host: _appConfig.MqttBrokerHost ?? "127.0.0.1", 
                     port: _appConfig.MqttBrokerPort > 0 ? _appConfig.MqttBrokerPort : 1883, 
-                    clientId: $"EAP_{Dns.GetHostName()}",
+                    clientId: string.Format("EAP_{0}_{1}", _appConfig.EapId, Dns.GetHostName()),
+                    username: null,
+                    password: null,
                     cleanSession: false
                 );
-                _bus.Connected += () => UpdateBrokerStatus(true);
+                _bus.Connected += async () => {
+                    UpdateBrokerStatus(true);
+                    await SubscribeToControllerCommands();
+                };
                 _bus.Disconnected += () => UpdateBrokerStatus(false);
                 await _bus.ConnectAsync();
+
+                // 啟動報工任務
+                _ = Task.Run(() => ReportStatusToControllerLoop(_mainCts.Token));
             } catch { UpdateBrokerStatus(false); }
+        }
+
+        private async Task SubscribeToControllerCommands()
+        {
+            if (string.IsNullOrEmpty(_appConfig.ControllerTopic) || string.IsNullOrEmpty(_appConfig.EapId)) return;
+            string topic = $"{_appConfig.ControllerTopic}/{_appConfig.EapId}/Command";
+            await _bus.SubscribeAsync(topic, (t, payload) => {
+                HandleControllerCommand(payload);
+            });
+        }
+
+        private void HandleControllerCommand(string json)
+        {
+            // 目前僅做介面預留與日誌紀錄
+            System.Diagnostics.Debug.WriteLine($"[ControllerCommand] Received: {json}");
+            // TODO: 解析 JSON 並執行相對應動作 (程式更新、狀態切換等)
+        }
+
+        private async Task ReportStatusToControllerLoop(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                if (_bus != null && _bus.IsConnected && !string.IsNullOrEmpty(_appConfig.ControllerTopic) && !string.IsNullOrEmpty(_appConfig.EapId))
+                {
+                    try
+                    {
+                        var report = new
+                        {
+                            EapId = _appConfig.EapId,
+                            Status = "Running", // 基本狀態
+                            Version = Application.ProductVersion,
+                            Ip = GetLocalIpAddress(),
+                            HasException = _equipments.Any(eq => eq.Connection == ConnectionStatus.Disconnected), // 簡易判定異常
+                            DeviceStatus = _equipments.ToDictionary(eq => eq.Id, eq => eq.Connection.ToString()),
+                            Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                        };
+
+                        string topic = string.Format("{0}/{1}/Report", _appConfig.ControllerTopic, _appConfig.EapId);
+                        string payload = JsonConvert.SerializeObject(report);
+                        
+                        System.Diagnostics.Debug.WriteLine(string.Format("[ControllerReport] Publishing to {0}", topic));
+                        
+                        // QoS = 0, Retain = True
+                        await _bus.PublishAsync(topic, payload, 0, true);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ControllerReport] Error: {ex.Message}");
+                    }
+                }
+                await Task.Delay(10000, ct); // 每 10 秒報工一次
+            }
+        }
+
+        private string GetLocalIpAddress()
+        {
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork) return ip.ToString();
+                }
+            }
+            catch { }
+            return "127.0.0.1";
         }
 
         private void StartEquipments()

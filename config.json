@@ -1,4 +1,6 @@
 {
+  "EapId": "EAP01",
+  "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
   "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
   "HeartbeatIntervalSeconds": 10,

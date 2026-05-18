@@ -16,10 +16,13 @@ internal class Publisher
 		_conn = conn;
 	}
 
-	public Task PublishAsync(string topic, object payload)
+	public Task PublishAsync(string topic, object payload, int qos = 1, bool retain = false)
 	{
-		//IL_0001: Unknown result type (might be due to invalid IL or missing references)
-		MqttApplicationMessage msg = new MqttApplicationMessageBuilder().WithTopic(topic).WithPayload(JsonUtil.Serialize(payload)).WithQualityOfServiceLevel((MqttQualityOfServiceLevel)1)
+		MqttApplicationMessage msg = new MqttApplicationMessageBuilder()
+			.WithTopic(topic)
+			.WithPayload(JsonUtil.Serialize(payload))
+			.WithQualityOfServiceLevel((MqttQualityOfServiceLevel)qos)
+			.WithRetainFlag(retain)
 			.Build();
 		return MqttClientExtensions.PublishAsync(_conn.Client, msg);
 	}

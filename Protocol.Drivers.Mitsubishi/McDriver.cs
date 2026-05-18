@@ -31,6 +31,7 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task<ushort[]> ReadAsync(string address, ushort length)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized. Call ConnectAsync first.");
             string addr = NormalizeAddress(address);
             ushort[] data = new ushort[length];
 
@@ -50,7 +51,7 @@ namespace Protocol.Drivers.Mitsubishi
                 }
                 else
                 {
-                    throw new Exception($"[MC_READ_BATCH_ERROR] Failed at {currentAddr}, Error: {res.Err}");
+                    throw new Exception(string.Format("[MC_READ_BATCH_ERROR] Failed at {0}, Error: {1}", currentAddr, res.Err));
                 }
             }
 
@@ -59,6 +60,7 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task WriteAsync(string address, ushort[] data)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             string addr = NormalizeAddress(address);
 
             for (int i = 0; i < data.Length; i++)
@@ -71,13 +73,14 @@ namespace Protocol.Drivers.Mitsubishi
                 }
 
                 var res = _client.Write(currentAddr, (short)data[i]);
-                if (!res.IsSucceed) throw new Exception($"MC Batch Write Failed at {currentAddr}, Error: {res.Err}");
+                if (!res.IsSucceed) throw new Exception(string.Format("MC Batch Write Failed at {0}, Error: {1}", currentAddr, res.Err));
             }
             await Task.CompletedTask;
         }
 
         public async Task<string> ReadAsciiAsync(string address, ushort length)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             var data = await ReadAsync(address, length);
             byte[] bytes = data.SelectMany(BitConverter.GetBytes).ToArray();
             return Encoding.ASCII.GetString(bytes).Replace("\0", "").Trim();
@@ -85,6 +88,7 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task WriteAsciiAsync(string address, string text, ushort length)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             string addr = NormalizeAddress(address);
             byte[] bytes = Encoding.ASCII.GetBytes(text.PadRight(length * 2, '\0'));
             ushort[] data = new ushort[length];
@@ -97,12 +101,13 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task<bool> ReadBitAsync(string address, int bitOffset = 0)
         {
+            if (_client == null) return false;
             string addr = NormalizeAddress(address);
             if (addr.StartsWith("M") && bitOffset == 0)
             {
                 var res = _client.ReadBoolean(addr);
                 if (res.IsSucceed) return await Task.FromResult(res.Value);
-                throw new Exception($"[MC_READ_BIT_ERROR] Addr: {addr}, Error: {res.Err}");
+                throw new Exception(string.Format("[MC_READ_BIT_ERROR] Addr: {0}, Error: {1}", addr, res.Err));
             }
             var word = await ReadWordAsync(addr);
             return (word & (1 << bitOffset)) != 0;
@@ -110,11 +115,12 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task WriteBitAsync(string address, bool value, int bitOffset = 0)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             string addr = NormalizeAddress(address);
             if (addr.StartsWith("M") && bitOffset == 0)
             {
                 var res = _client.Write(addr, value);
-                if (!res.IsSucceed) throw new Exception($"MC Write Bit Failed: {addr}, Error: {res.Err}");
+                if (!res.IsSucceed) throw new Exception(string.Format("MC Write Bit Failed: {0}, Error: {1}", addr, res.Err));
                 await Task.CompletedTask;
                 return;
             }
@@ -126,18 +132,20 @@ namespace Protocol.Drivers.Mitsubishi
 
         public async Task<ushort> ReadWordAsync(string address)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             string addr = NormalizeAddress(address);
             var res = _client.ReadInt16(addr);
             if (res.IsSucceed) return await Task.FromResult((ushort)res.Value);
             
-            throw new Exception($"[MC_READ_WORD_ERROR] Addr: {addr}, Error: {res.Err}");
+            throw new Exception(string.Format("[MC_READ_WORD_ERROR] Addr: {0}, Error: {1}", addr, res.Err));
         }
 
         public async Task WriteWordAsync(string address, ushort value)
         {
+            if (_client == null) throw new Exception("[MC_DRIVER] Client not initialized.");
             string addr = NormalizeAddress(address);
             var res = _client.Write(addr, (short)value);
-            if (!res.IsSucceed) throw new Exception($"MC Write Word Failed: Address {addr}, Error: {res.Err}");
+            if (!res.IsSucceed) throw new Exception(string.Format("MC Write Word Failed: Address {0}, Error: {1}", addr, res.Err));
 
             await Task.CompletedTask;
         }

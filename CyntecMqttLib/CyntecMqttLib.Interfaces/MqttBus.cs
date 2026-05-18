@@ -49,10 +49,10 @@ public class MqttBus : IDisposable
 		return _connection.DisconnectAsync();
 	}
 
-	public Task PublishAsync<T>(string topic, T payload)
+	public Task PublishAsync<T>(string topic, T payload, int qos = 1, bool retain = false)
 	{
 		MessageEnvelope envelope = MessageEnvelope.Create(payload);
-		return _publisher.PublishAsync(topic, envelope);
+		return _publisher.PublishAsync(topic, envelope, qos, retain);
 	}
 
 	public Task SubscribeAsync(string topic, Action<string, string> handler)

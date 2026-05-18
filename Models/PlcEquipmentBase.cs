@@ -76,7 +76,7 @@ namespace EAPDashboard.Models
         {
             while (!ct.IsCancellationRequested)
             {
-                if (Connection == ConnectionStatus.Connected || Connection == ConnectionStatus.Connecting)
+                if ((Connection == ConnectionStatus.Connected || Connection == ConnectionStatus.Connecting) && _driver.IsConnected)
                 {
                     try 
                     {
@@ -89,7 +89,7 @@ namespace EAPDashboard.Models
                                 if (Connection == ConnectionStatus.Connecting)
                                 {
                                     Connection = ConnectionStatus.Connected;
-                                    OnLogReceived(LogLevel.Info, $"[PLC] {Id} Heartbeat detected. System is now Online.");
+                                    OnLogReceived(LogLevel.Info, string.Format("[PLC] {0} Heartbeat detected. System is now Online.", Id));
                                 }
                                 _lastHeartbeatValue = currentBit;
                                 _lastPlcHeartbeatTime = DateTime.Now;
@@ -101,16 +101,19 @@ namespace EAPDashboard.Models
                         }
 
                         // Timeout Check (針對 Connecting 或 Connected)
-                        double timeoutLimit = (Connection == ConnectionStatus.Connecting) ? 15 : 15; // 可根據階段調整
+                        double timeoutLimit = 15; 
                         if (_lastPlcHeartbeatTime != DateTime.MinValue && (DateTime.Now - _lastPlcHeartbeatTime).TotalSeconds > timeoutLimit)
                         {
                             string reason = (Connection == ConnectionStatus.Connecting) ? "First heartbeat signal not received" : "Watchdog timeout";
-                            OnLogReceived(LogLevel.Error, $"[PLC] {Id} {reason}, disconnecting...");
+                            OnLogReceived(LogLevel.Error, string.Format("[PLC] {0} {1}, disconnecting...", Id, reason));
                             Connection = ConnectionStatus.Disconnected;
                             _driver.Disconnect();
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("[Watchdog] Error: {0}", ex.Message));
+                    }
                 }
                 await Task.Delay(1000, ct);
             }
