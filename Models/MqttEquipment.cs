@@ -37,8 +37,9 @@ namespace EAPDashboard.Models
             public string RecipeID { get; set; }
             public string UserID { get; set; }
             public string CassetteID { get; set; }
+            public DateTime Timestamp { get; set; }
         }
-        private readonly Dictionary<string, TrackInContext> _pendingTrackIn = new Dictionary<string, TrackInContext>();
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext> _pendingTrackIn = new System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
 
         public string Topic { get; set; }
@@ -109,8 +110,37 @@ namespace EAPDashboard.Models
             _heartbeatTimer.Enabled = true;
 
             _ = StartStatusBufferProcessor(_linkedCts.Token);
+            _ = MonitorTrackInTimeout(_linkedCts.Token);
             _ = SendAreYouThere();
             _ = SendStatusRequest();
+        }
+
+        private async Task MonitorTrackInTimeout(CancellationToken ct)
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_pendingTrackIn.TryGetValue(Id, out var ctx))
+                    {
+                        if ((DateTime.Now - ctx.Timestamp).TotalSeconds > 30)
+                        {
+                            if (_pendingTrackIn.TryRemove(Id, out _))
+                            {
+                                OnLogReceived(LogLevel.Error, $"[TrackIn] Timeout waiting for ReplyRemoteCMD (PP-SELECT) for WO: {ctx.WorkOrder}");
+                                await SendReply(new ReplyTrackInReqMessage 
+                                { 
+                                    CMD = CommandType.ReplyTrackInReq, 
+                                    RtnResult = RtnResult.PASS == RtnResult.FAIL ? RtnResult.PASS : RtnResult.FAIL, // Use FAIL
+                                    RtnMsg = "Timeout waiting for machine to change recipe (30s)." 
+                                });
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { OnLogReceived(LogLevel.Error, $"TrackIn Monitor Error: {ex.Message}"); }
+                await Task.Delay(5000, ct);
+            }
         }
 
         private async void HandleReport(string json)
@@ -155,8 +185,13 @@ namespace EAPDashboard.Models
                     case CommandType.IamHere: break;
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
-                        if (StatusMap.TryGetValue(rs.CurrentStatus, out var st)) State = st;
-                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}");
+                        if (StatusMap.TryGetValue(rs.CurrentStatus, out var st)) 
+                        {
+                            State = st;
+                            string errorCode = (st == EquipmentState.Alarm) ? TransformAlarmCode(rs.AlarmCode) : "0";
+                            HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = rs.CurrentStatus.ToString(), ErrorCode = errorCode });
+                        }
+                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}, Alarm: {rs.AlarmCode ?? "None"}");
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
@@ -166,7 +201,13 @@ namespace EAPDashboard.Models
                         string tir = await ProcessTrackInAsync(ti.CassetteID, wo, panels, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
-                            _pendingTrackIn[Id] = new TrackInContext { WorkOrder = tp[1], RecipeID = tp[2], UserID = ti.UserID, CassetteID = ti.CassetteID };
+                            _pendingTrackIn[Id] = new TrackInContext { 
+                                WorkOrder = tp[1], 
+                                RecipeID = tp[2], 
+                                UserID = ti.UserID, 
+                                CassetteID = ti.CassetteID,
+                                Timestamp = DateTime.Now 
+                            };
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
                                 finalRecipe = new Random().Next(1000, 9999).ToString();
@@ -189,15 +230,17 @@ namespace EAPDashboard.Models
                     case CommandType.ReplyRemoteCMD:
                         var rrm = (ReplyRemoteCMDMessage)msg;
                         if (rrm.RemoteCMDType == RemoteCommandType.PP_SELECT) {
-                            if (_pendingTrackIn.TryGetValue(Id, out var ctx)) {
-                                _pendingTrackIn.Remove(Id);
+                            if (_pendingTrackIn.TryRemove(Id, out var ctx)) {
                                 if (rrm.RtnResult == RtnResult.PASS) {
                                     CurrentRecipe = ctx.RecipeID;
                                     string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
                                     await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
                                 } else {
+                                    OnLogReceived(LogLevel.Warn, $"[TrackIn] Machine rejected PP-SELECT: {rrm.RtnMsg}");
                                     await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = $"Recipe Change Failed: {rrm.RtnMsg}" });
                                 }
+                            } else {
+                                OnLogReceived(LogLevel.Warn, $"[TrackIn] Received ReplyRemoteCMD(PP-SELECT) but no pending context found for {Id}. Maybe timeout or manual trigger.");
                             }
                         }
                         break;
@@ -221,12 +264,12 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.ProcessDataReport:
                         var pdr = (ProcessDataReportMessage)msg;
-                        await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr);
+                        await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr, saveToDb: false);
                         await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS });
                         break;
                     case CommandType.RtnTraceData:
                         var rtd = (RtnTraceDataMessage)msg;
-                        await SaveProductionDataAsync("TraceData", "", rtd);
+                        await SaveProductionDataAsync("TraceData", "", rtd, saveToDb: false);
                         await SendReply(new ReplyRtnTraceDataMessage { CMD = CommandType.ReplyRtnTraceData, RtnResult = RtnResult.PASS, RtnMsg = "Trace data received successfully" });
                         break;
                     case CommandType.ReplyTimeCalibrate:

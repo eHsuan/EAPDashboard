@@ -127,8 +127,12 @@ namespace EAPDashboard.Models
                 string eid = reportEqpId ?? this.Id;
                 OnLogReceived(LogLevel.Info, $"[Business] {eid} User Verify: Barcode={barcode}, UserID={userId}");
                 var req = new UserVerifyRequest { EqpNo = eid, User2DBarCode = barcode, UserID = userId };
-                var reply = await Task.Run(() => MESMessageFactory.CallMes<UserVerifyRequest, UserVerifyReply>(req));
                 
+                var replyTask = Task.Run(() => MESMessageFactory.CallMes<UserVerifyRequest, UserVerifyReply>(req));
+                if (await Task.WhenAny(replyTask, Task.Delay(25000)) != replyTask)
+                    return "FAIL|T001|MES Call Timeout (25s)|";
+
+                var reply = await replyTask;
                 string resPrefix = (reply.Result == "success") ? "PASS" : "FAIL";
                 return $"{resPrefix}|{reply.ResultCode}|{reply.Message}|{reply.UserID}";
             }
@@ -146,8 +150,11 @@ namespace EAPDashboard.Models
                 if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|[]";
 
                 var qryReq = new WOQRYRequest { WONO = wo, EqpNo = eid, UserID = userId };
-                var qryReply = await Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
-                
+                var qryTask = Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
+                if (await Task.WhenAny(qryTask, Task.Delay(25000)) != qryTask)
+                    return "FAIL|T001|MES WOQRY Timeout (25s)|[]";
+
+                var qryReply = await qryTask;
                 if (qryReply.Result != "success") 
                     return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|[]";
 
@@ -177,8 +184,12 @@ namespace EAPDashboard.Models
             {
                 string eid = reportEqpId ?? this.Id;
                 var req = new WOCHECKINRequest { WONO = workOrder, EqpNo = eid, UserID = userId };
-                var reply = await Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
                 
+                var checkinTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
+                if (await Task.WhenAny(checkinTask, Task.Delay(25000)) != checkinTask)
+                    return "FAIL|T001|MES WOCHECKIN Timeout (25s)|";
+
+                var reply = await checkinTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 
                 if (resPrefix == "PASS" && !string.IsNullOrEmpty(cassetteId))
@@ -200,8 +211,12 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WO: {workOrder}, Qty: {qty}, CID: {cassetteId}");
                 
                 var req = new WOCHECKOUTRequest { WONO = workOrder, EqpNo = eid, UserID = userId, OutPut = qty };
-                var reply = await Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
                 
+                var checkoutTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
+                if (await Task.WhenAny(checkoutTask, Task.Delay(25000)) != checkoutTask)
+                    return "FAIL|T001|MES WOCHECKOUT Timeout (25s)|";
+
+                var reply = await checkoutTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 
                 if (resPrefix == "PASS")
@@ -365,8 +380,12 @@ namespace EAPDashboard.Models
                 }
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = newStatus };
-                var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 
+                var statusTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
+                if (await Task.WhenAny(statusTask, Task.Delay(25000)) != statusTask)
+                    return "FAIL|T001|MES EQPSTATUS Timeout (25s)";
+
+                var reply = await statusTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
@@ -406,8 +425,12 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Warn, string.Format("[ALARM] {0} Alarm Report: Code={1} (Mapped={2}), Set={3}", eid, alarmCode, mc, isSet));
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = isSet ? "1" : "2", ErrorCode = mc };
-                var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 
+                var alarmTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
+                if (await Task.WhenAny(alarmTask, Task.Delay(25000)) != alarmTask)
+                    return "FAIL|T001|MES ALARM Timeout (25s)";
+
+                var reply = await alarmTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
@@ -418,21 +441,24 @@ namespace EAPDashboard.Models
             }
         }
 
-        public async Task SaveProductionDataAsync(string eventName, string workOrder, object data)
+        public async Task SaveProductionDataAsync(string eventName, string workOrder, object data, bool saveToDb = true)
         {
             string json = JsonConvert.SerializeObject(data);
             DateTime now = DateTime.Now;
-            try {
-                using (var conn = DatabaseHelper.GetConnection()) {
-                    await conn.OpenAsync();
-                    string sql = "INSERT INTO Production_Logs (EqpId, EventName, WorkOrder, DataJson) VALUES (@eqid, @evt, @wo, @json)";
-                    using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
-                        cmd.Parameters.AddWithValue("@eqid", this.Id); cmd.Parameters.AddWithValue("@evt", eventName);
-                        cmd.Parameters.AddWithValue("@wo", workOrder ?? ""); cmd.Parameters.AddWithValue("@json", json);
-                        await cmd.ExecuteNonQueryAsync();
+            if (saveToDb)
+            {
+                try {
+                    using (var conn = DatabaseHelper.GetConnection()) {
+                        await conn.OpenAsync();
+                        string sql = "INSERT INTO Production_Logs (EqpId, EventName, WorkOrder, DataJson) VALUES (@eqid, @evt, @wo, @json)";
+                        using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
+                            cmd.Parameters.AddWithValue("@eqid", this.Id); cmd.Parameters.AddWithValue("@evt", eventName);
+                            cmd.Parameters.AddWithValue("@wo", workOrder ?? ""); cmd.Parameters.AddWithValue("@json", json);
+                            await cmd.ExecuteNonQueryAsync();
+                        }
                     }
-                }
-            } catch { }
+                } catch { }
+            }
             try {
                 string dir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DataLogs", now.ToString("yyyyMMdd"));
                 if (!Directory.Exists(dir)) Directory.Exists(dir);
