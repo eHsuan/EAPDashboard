@@ -65,6 +65,9 @@
     <Compile Include="Controls\EapMonitorCard.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="Forms\EapControlForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Models\EapStatusModel.cs" />
   </ItemGroup>
   <ItemGroup>

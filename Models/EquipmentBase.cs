@@ -483,6 +483,14 @@ namespace EAPDashboard.Models
         public EquipmentState State { get => _state; set { if (_state != value) { _state = value; OnPropertyChanged(nameof(State)); } } }
         public string CurrentRecipe { get => _currentRecipe; set { if (_currentRecipe != value) { _currentRecipe = value; OnPropertyChanged(nameof(CurrentRecipe)); } } }
 
+        // 安全重啟相關屬性
+        public bool IsStopping { get; set; }
+        private int _activeTaskCount = 0;
+        public int ActiveTaskCount { get { return _activeTaskCount; } }
+
+        public void IncrementTask() { Interlocked.Increment(ref _activeTaskCount); }
+        public void DecrementTask() { Interlocked.Decrement(ref _activeTaskCount); }
+
         protected virtual void OnLogReceived(string message) => OnLogReceived(LogLevel.Info, null, message);
         protected virtual void OnLogReceived(LogLevel level, string message) => OnLogReceived(level, null, message);
         protected virtual void OnLogReceived(LogLevel level, string eventName, string message)

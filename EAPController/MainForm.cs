@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using CyntecMqttLib.Interfaces;
 using EAPController.Controls;
 using EAPController.Models;
+using EAPController.Forms;
 using Newtonsoft.Json;
 
 namespace EAPController
@@ -18,6 +19,7 @@ namespace EAPController
         private ControllerConfig _config;
         private readonly Dictionary<string, EapStatusModel> _eapStates = new Dictionary<string, EapStatusModel>();
         private System.Windows.Forms.Timer _uiTimer;
+        private readonly Dictionary<string, EapControlForm> _openForms = new Dictionary<string, EapControlForm>();
 
         public MainForm()
         {
@@ -75,6 +77,7 @@ namespace EAPController
             foreach (string eapId in _config.MonitoredEaps)
             {
                 EapMonitorCard card = new EapMonitorCard(eapId);
+                card.CardClicked += (c) => OpenControlPanel(c);
                 // 初始狀態為 Disconnected (灰底或紅底)
                 EapStatusModel initialModel = new EapStatusModel
                 {
@@ -93,6 +96,28 @@ namespace EAPController
 
             flowLayoutPanel1.PerformLayout();
             flowLayoutPanel1.Refresh();
+        }
+
+        private void OpenControlPanel(EapMonitorCard card)
+        {
+            if (_openForms.TryGetValue(card.EapId, out var existingForm))
+            {
+                existingForm.Activate();
+                return;
+            }
+
+            var form = new EapControlForm(card.EapId, card.LastRawJson, this);
+            form.FormClosed += (s, e) => _openForms.Remove(card.EapId);
+            _openForms[card.EapId] = form;
+            form.Show();
+        }
+
+        public async Task SendRestartCommand(string eapId)
+        {
+            if (_bus == null || !_bus.IsConnected) return;
+            string topic = string.Format("{0}/{1}/Command", _config.ControllerTopic, eapId);
+            var cmd = new { CommandType = "SafeRestart", Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") };
+            await _bus.PublishAsync(topic, cmd);
         }
 
         private async Task InitMqtt()
@@ -162,6 +187,21 @@ namespace EAPController
                 {
                     model.LastUpdated = DateTime.Now;
                     _eapStates[model.EapId] = model;
+                }
+
+                // 更新 UI 相關
+                if (this.InvokeRequired)
+                {
+                    this.Invoke(new Action(() => {
+                        var card = flowLayoutPanel1.Controls.OfType<EapMonitorCard>()
+                            .FirstOrDefault(c => string.Equals(c.EapId, model.EapId, StringComparison.OrdinalIgnoreCase));
+                        if (card != null) card.LastRawJson = envelope.Payload;
+                        
+                        if (_openForms.TryGetValue(model.EapId, out var form))
+                        {
+                            form.UpdateJson(envelope.Payload);
+                        }
+                    }));
                 }
             }
             catch (Exception ex)

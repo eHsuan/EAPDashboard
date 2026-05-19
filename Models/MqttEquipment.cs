@@ -146,12 +146,36 @@ namespace EAPDashboard.Models
         private async void HandleReport(string json)
         {
             if (string.IsNullOrEmpty(json)) return;
+
+            // 智慧拒收邏輯
+            if (IsStopping)
+            {
+                // 解析出指令類型 (簡化判斷，通常 Request 結尾不含 Reply 字樣)
+                try {
+                    var jo = JObject.Parse(json);
+                    string innerJson = jo["Payload"]?.ToString();
+                    if (!string.IsNullOrEmpty(innerJson))
+                    {
+                        var innerJo = JObject.Parse(innerJson);
+                        string cmdStr = innerJo["CMD"]?.ToString() ?? "";
+                        // 如果是 Request 類型的指令且不是 Reply
+                        if (cmdStr.ToUpper().Contains("REQ") && !cmdStr.ToUpper().Contains("REPLY"))
+                        {
+                            OnLogReceived(LogLevel.Warn, string.Format("[MQTT] Rejecting Request during shutdown: {0}", cmdStr));
+                            // TODO: 可在此實作回傳拒絕訊息
+                            return;
+                        }
+                    }
+                } catch { }
+            }
+
+            IncrementTask();
             _lastResponseTime = DateTime.Now;
 
             try {
                 var envelope = JsonConvert.DeserializeObject<CyntecMqttLib.Contracts.MessageEnvelope>(json);
                 if (envelope == null) return;
-
+                
                 string messageId = envelope.MessageId;
                 string innerJson = envelope.Payload?.ToString();
                 if (string.IsNullOrEmpty(innerJson)) return;
@@ -170,13 +194,13 @@ namespace EAPDashboard.Models
                 if (Connection != ConnectionStatus.Connected)
                 {
                     Connection = ConnectionStatus.Connected;
-                    OnLogReceived(LogLevel.Info, $"[MQTT] Connection restored for {Id}.");
+                    OnLogReceived(LogLevel.Info, string.Format("[MQTT] Connection restored for {0}.", Id));
                 }
 
                 BaseMessage msg = MessageFactory.Create(innerJson);
                 if (msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
                 {
-                    OnLogReceived(LogLevel.Info, $"[RECV] {JsonConvert.SerializeObject(msg, _logSettings)}");
+                    OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
                 }
 
                 switch (msg.CMD)
@@ -191,7 +215,7 @@ namespace EAPDashboard.Models
                             string errorCode = (st == EquipmentState.Alarm) ? TransformAlarmCode(rs.AlarmCode) : "0";
                             HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = rs.CurrentStatus.ToString(), ErrorCode = errorCode });
                         }
-                        OnLogReceived(LogLevel.Info, $"Status Reply Recv: {Id}, Status: {rs.CurrentStatus}, Alarm: {rs.AlarmCode ?? "None"}");
+                        OnLogReceived(LogLevel.Info, string.Format("Status Reply Recv: {0}, Status: {1}, Alarm: {2}", Id, rs.CurrentStatus, rs.AlarmCode ?? "None"));
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
@@ -211,7 +235,7 @@ namespace EAPDashboard.Models
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
                                 finalRecipe = new Random().Next(1000, 9999).ToString();
-                                OnLogReceived(LogLevel.Info, $"[SIM] MES Simulator detected. Random Recipe: {finalRecipe}");
+                                OnLogReceived(LogLevel.Info, string.Format("[SIM] MES Simulator detected. Random Recipe: {0}", finalRecipe));
                             } else {
                                 
                                 var evtConfig = DatabaseHelper.GetPlcConfigs(this.Id).FirstOrDefault(x => x.CmdType == CommandType.TrackInReq);
@@ -236,11 +260,11 @@ namespace EAPDashboard.Models
                                     string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
                                     await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
                                 } else {
-                                    OnLogReceived(LogLevel.Warn, $"[TrackIn] Machine rejected PP-SELECT: {rrm.RtnMsg}");
-                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = $"Recipe Change Failed: {rrm.RtnMsg}" });
+                                    OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Machine rejected PP-SELECT: {0}", rrm.RtnMsg));
+                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = string.Format("Recipe Change Failed: {0}", rrm.RtnMsg) });
                                 }
                             } else {
-                                OnLogReceived(LogLevel.Warn, $"[TrackIn] Received ReplyRemoteCMD(PP-SELECT) but no pending context found for {Id}. Maybe timeout or manual trigger.");
+                                OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Received ReplyRemoteCMD(PP-SELECT) but no pending context found for {0}. Maybe timeout or manual trigger.", Id));
                             }
                         }
                         break;
@@ -278,14 +302,15 @@ namespace EAPDashboard.Models
                     case CommandType.ReplyEditParameter:
                     case CommandType.ReplyInitTraceData:
                     case CommandType.ReplyRtnTraceData:
-                        OnLogReceived(LogLevel.Info, $"[RECV] ACK for {msg.CMD} received.");
+                        OnLogReceived(LogLevel.Info, string.Format("[RECV] ACK for {0} received.", msg.CMD));
                         break;
                     case CommandType.EventReport:
                         var evm = (EventReportMessage)msg;
                         await HandleEventReport(evm, innerJson);
                         break;
                 }
-            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Parse Report Failed: {ex.Message}"); }
+            } catch (Exception ex) { OnLogReceived(LogLevel.Error, string.Format("Parse Report Failed: {0}", ex.Message)); }
+            finally { DecrementTask(); }
         }
 
         private async Task HandleEventReport(EventReportMessage evm, string rawJson)

@@ -19,11 +19,21 @@ namespace EAPController.Controls
             get { return _eapId; }
         }
 
+        public string LastRawJson { get; set; }
+        public event Action<EapMonitorCard> CardClicked;
+
         public EapMonitorCard(string eapId)
         {
             _eapId = eapId;
             InitializeComponent();
             lblId.Text = eapId;
+
+            // 點擊穿透處理
+            this.Click += new EventHandler(delegate { if (CardClicked != null) CardClicked(this); });
+            foreach (Control c in this.Controls)
+            {
+                c.Click += new EventHandler(delegate { if (CardClicked != null) CardClicked(this); });
+            }
         }
 
         private void InitializeComponent()
@@ -87,6 +97,12 @@ namespace EAPController.Controls
                 lblStatus.Text = "Status: Disconnected";
                 lblStatus.ForeColor = Color.White;
                 lblId.ForeColor = Color.White;
+            }
+            else if (model.Status == "Restarting")
+            {
+                this.BackColor = Color.Orange; // 橘色：重啟中
+                lblStatus.ForeColor = Color.Black;
+                lblId.ForeColor = Color.Black;
             }
             else if (model.HasException)
             {

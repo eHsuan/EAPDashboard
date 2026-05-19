@@ -268,9 +268,58 @@ namespace EAPDashboard
 
         private void HandleControllerCommand(string json)
         {
-            // 目前僅做介面預留與日誌紀錄
-            System.Diagnostics.Debug.WriteLine($"[ControllerCommand] Received: {json}");
-            // TODO: 解析 JSON 並執行相對應動作 (程式更新、狀態切換等)
+            try
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("[ControllerCommand] Received: {0}", json));
+                var cmd = JsonConvert.DeserializeAnonymousType(json, new { CommandType = "", Timestamp = "" });
+                
+                if (cmd != null && cmd.CommandType == "SafeRestart")
+                {
+                    _ = Task.Run(() => ExecuteSafeRestart());
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(string.Format("[ControllerCommand] Parse Error: {0}", ex.Message));
+            }
+        }
+
+        private async Task ExecuteSafeRestart()
+        {
+            System.Diagnostics.Debug.WriteLine("!!! Remote Safe Restart Command Received. Starting Shutdown Procedure...");
+
+            // 1. 標記進入停止階段 (禁收新 Request)
+            foreach (var eq in _equipments) eq.IsStopping = true;
+
+            // 2. 等待業務消化 (最大等待 20 秒)
+            DateTime startTime = DateTime.Now;
+            while ((DateTime.Now - startTime).TotalSeconds < 20)
+            {
+                int totalActive = _equipments.Sum(eq => eq.ActiveTaskCount);
+                if (totalActive == 0) break;
+                
+                System.Diagnostics.Debug.WriteLine(string.Format("[Shutdown] Waiting for {0} active tasks to complete...", totalActive));
+                await Task.Delay(1000);
+            }
+
+            // 3. 安全中斷與清理
+            System.Diagnostics.Debug.WriteLine("[Shutdown] Business drained. Disconnecting all services...");
+            
+            // 發送最後一筆重啟中狀態
+            if (_bus != null && _bus.IsConnected)
+            {
+                var report = new { EapId = _appConfig.EapId, Status = "Restarting", Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") };
+                string topic = string.Format("{0}/{1}/Report", _appConfig.ControllerTopic, _appConfig.EapId);
+                await _bus.PublishAsync(topic, report, 0, true);
+                await Task.Delay(500); // 確保訊息發出
+            }
+
+            foreach (var eq in _equipments) eq.Stop();
+            if (_bus != null) _bus.Dispose();
+
+            // 4. 執行重啟
+            System.Diagnostics.Debug.WriteLine("[Shutdown] All services cleaned. Restarting Application NOW.");
+            Application.Restart();
         }
 
         private async Task ReportStatusToControllerLoop(CancellationToken ct)
