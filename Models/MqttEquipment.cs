@@ -38,6 +38,7 @@ namespace EAPDashboard.Models
             public string UserID { get; set; }
             public string CassetteID { get; set; }
             public DateTime Timestamp { get; set; }
+            public List<string> Panels { get; set; }
         }
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext> _pendingTrackIn = new System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
@@ -230,7 +231,8 @@ namespace EAPDashboard.Models
                                 RecipeID = tp[2], 
                                 UserID = ti.UserID, 
                                 CassetteID = ti.CassetteID,
-                                Timestamp = DateTime.Now 
+                                Timestamp = DateTime.Now,
+                                Panels = panels
                             };
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
@@ -248,7 +250,12 @@ namespace EAPDashboard.Models
                                 RecipeID = finalRecipe 
                             });
                         } else {
-                            await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = tir.Split('|').Last() });
+                            await SendReply(new ReplyTrackInReqMessage { 
+                                CMD = CommandType.ReplyTrackInReq, 
+                                RtnResult = RtnResult.FAIL, 
+                                RtnMsg = tir.Split('|').Last(),
+                                PanelID = JsonConvert.SerializeObject(panels)
+                            });
                         }
                         break;
                     case CommandType.ReplyRemoteCMD:
@@ -258,10 +265,20 @@ namespace EAPDashboard.Models
                                 if (rrm.RtnResult == RtnResult.PASS) {
                                     CurrentRecipe = ctx.RecipeID;
                                     string fin = await ProcessTrackInFinalAsync(ctx.WorkOrder, ctx.UserID, ctx.CassetteID);
-                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = fin.Split('|').Last() });
+                                    await SendReply(new ReplyTrackInReqMessage { 
+                                        CMD = CommandType.ReplyTrackInReq, 
+                                        RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, 
+                                        RtnMsg = fin.Split('|').Last(),
+                                        PanelID = JsonConvert.SerializeObject(ctx.Panels)
+                                    });
                                 } else {
                                     OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Machine rejected PP-SELECT: {0}", rrm.RtnMsg));
-                                    await SendReply(new ReplyTrackInReqMessage { CMD = CommandType.ReplyTrackInReq, RtnResult = RtnResult.FAIL, RtnMsg = string.Format("Recipe Change Failed: {0}", rrm.RtnMsg) });
+                                    await SendReply(new ReplyTrackInReqMessage { 
+                                        CMD = CommandType.ReplyTrackInReq, 
+                                        RtnResult = RtnResult.FAIL, 
+                                        RtnMsg = string.Format("Recipe Change Failed: {0}", rrm.RtnMsg),
+                                        PanelID = JsonConvert.SerializeObject(ctx.Panels)
+                                    });
                                 }
                             } else {
                                 OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Received ReplyRemoteCMD(PP-SELECT) but no pending context found for {0}. Maybe timeout or manual trigger.", Id));
@@ -270,7 +287,18 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.TrackOutReq:
                         var to = (TrackOutReqMessage)msg;
-                        string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, new List<string>());
+                        List<string> toPanels = new List<string>();
+                        string rawPanelId = to.PanelID ?? to.MaterialID;
+                        if (!string.IsNullOrEmpty(rawPanelId))
+                        {
+                            try {
+                                if (rawPanelId.Trim().StartsWith("["))
+                                    toPanels = JsonConvert.DeserializeObject<List<string>>(rawPanelId);
+                                else
+                                    toPanels.Add(rawPanelId);
+                            } catch { toPanels.Add(rawPanelId); }
+                        }
+                        string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, toPanels);
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() });
                         break;
                     case CommandType.ALARM:
