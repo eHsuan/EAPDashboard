@@ -304,8 +304,21 @@ namespace EAPDashboard.Models
                     case CommandType.ALARM:
                         var alm = (AlarmMessage)msg;
                         string mc = TransformAlarmCode(alm.AlarmCode);
-                        State = EquipmentState.Alarm;
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc });
+                        bool isAlarmSet = string.IsNullOrEmpty(alm.AlarmStatus) || alm.AlarmStatus == "Start" || alm.AlarmStatus == "1";
+                        
+                        if (isAlarmSet) {
+                            State = EquipmentState.Alarm;
+                        } else {
+                            if (State == EquipmentState.Alarm) {
+                                State = EquipmentState.Idle;
+                            }
+                        }
+
+                        HandleEqpStatusCall(new EQPSTATUSRequest { 
+                            EqpNo = Id, 
+                            StatusCode = isAlarmSet ? "1" : "2", 
+                            ErrorCode = mc 
+                        });
                         await SendReply(new ReplyAlarmMessage { CMD = CommandType.ReplyALARM, RtnResult = RtnResult.PASS });
                         break;
                     case CommandType.StatusChangeReport:
@@ -434,15 +447,18 @@ namespace EAPDashboard.Models
         private async Task SendReply<T>(T replyMsg) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;
             await SendCommand(replyMsg);
-            if (replyMsg.CMD != CommandType.IamHere)
-            {
-                OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(replyMsg, _logSettings)}");
-            }
         }
 
         private async Task SendCommand(object cmd) {
             if (_bus == null || !_bus.IsConnected) return;
             await _bus.PublishAsync(_commandTopic, cmd);
+            if (cmd is BaseMessage bm)
+            {
+                if (bm.CMD != CommandType.AreYouThere && bm.CMD != CommandType.IamHere && bm.CMD != CommandType.StatusReq)
+                {
+                    OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm, _logSettings)}");
+                }
+            }
         }
 
         public override void Stop() { _heartbeatTimer?.Stop(); _heartbeatTimer?.Dispose(); _linkedCts?.Cancel(); }

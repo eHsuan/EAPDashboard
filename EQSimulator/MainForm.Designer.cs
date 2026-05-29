@@ -218,7 +218,7 @@ namespace EQSimulator
             this._txtCassetteId.Name = "_txtCassetteId";
             this._txtCassetteId.Size = new System.Drawing.Size(100, 22);
             this._txtCassetteId.TabIndex = 6;
-            this._txtCassetteId.Text = "CASS01";
+            this._txtCassetteId.Text = "C0000000000002";
             // 
             // lblMaterialId
             // 
@@ -250,7 +250,7 @@ namespace EQSimulator
             this._txtWorkOrder.Name = "_txtWorkOrder";
             this._txtWorkOrder.Size = new System.Drawing.Size(100, 22);
             this._txtWorkOrder.TabIndex = 2;
-            this._txtWorkOrder.Text = "2P26325UP133";
+            this._txtWorkOrder.Text = "W0000000000002";
             // 
             // lblUserId
             // 

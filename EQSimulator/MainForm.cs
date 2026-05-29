@@ -193,7 +193,7 @@ namespace EQSimulator
 
         private void BtnAlarm_Click(object sender, EventArgs e)
         {
-            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "1", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
+            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "Start", AlarmType = "A", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
         }
 
         private void BtnPanelIn_Click(object sender, EventArgs e)
@@ -362,14 +362,14 @@ namespace EQSimulator
                         case 3:
                             Log("[AutoTest] Step 4: Alarm Set Report");
                             this.Invoke((MethodInvoker)delegate {
-                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "1", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
+                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "Start", AlarmType = "A", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
                             });
                             await WaitForCurrentEventAsync(10000, ct);
                             break;
                         case 4:
                             Log("[AutoTest] Step 5: Alarm End Report");
                             this.Invoke((MethodInvoker)delegate {
-                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "2", AlarmCode = "E004", AlarmMsg = "Emergency Stop Clear" });
+                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "End", AlarmType = "A", AlarmCode = "E004", AlarmMsg = "Emergency Stop Clear" });
                             });
                             await WaitForCurrentEventAsync(10000, ct);
                             break;
