@@ -79,14 +79,13 @@ namespace EQSimulator
             this.flowActions.Controls.Add(this._btnAutoTest);
         }
 
-        private string GetPanelIdJson()
+        private string GetPanelListRaw()
         {
-            if (_txtPanelList == null || string.IsNullOrEmpty(_txtPanelList.Text)) return "[]";
+            if (_txtPanelList == null || string.IsNullOrEmpty(_txtPanelList.Text)) return "";
             var list = _txtPanelList.Text.Split(',')
                 .Select(p => p.Trim())
-                .Where(p => !string.IsNullOrEmpty(p))
-                .ToList();
-            return JsonConvert.SerializeObject(list);
+                .Where(p => !string.IsNullOrEmpty(p));
+            return string.Join(",", list);
         }
 
         private void InitializeStatusCombo()
@@ -169,7 +168,6 @@ namespace EQSimulator
                 CassetteID = _txtCassetteId.Text,
                 ToolingID = _txtToolingId.Text,
                 UserID = _txtUserId.Text,
-                PanelID = GetPanelIdJson(),
                 Qty = 1
             });
         }
@@ -186,7 +184,7 @@ namespace EQSimulator
                 UserID = _txtUserId.Text,
                 CassetteID = _txtCassetteId.Text,
                 ToolingID = _txtToolingId.Text,
-                PanelID = GetPanelIdJson(),
+                PanelID = GetPanelListRaw(),
                 Result = "PASS"
             });
         }

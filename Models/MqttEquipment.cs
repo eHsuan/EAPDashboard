@@ -254,7 +254,7 @@ namespace EAPDashboard.Models
                                 CMD = CommandType.ReplyTrackInReq, 
                                 RtnResult = RtnResult.FAIL, 
                                 RtnMsg = tir.Split('|').Last(),
-                                PanelID = JsonConvert.SerializeObject(panels)
+                                PanelID = string.Join(",", panels)
                             });
                         }
                         break;
@@ -269,7 +269,7 @@ namespace EAPDashboard.Models
                                         CMD = CommandType.ReplyTrackInReq, 
                                         RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, 
                                         RtnMsg = fin.Split('|').Last(),
-                                        PanelID = JsonConvert.SerializeObject(ctx.Panels)
+                                        PanelID = string.Join(",", ctx.Panels)
                                     });
                                 } else {
                                     OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Machine rejected PP-SELECT: {0}", rrm.RtnMsg));
@@ -277,7 +277,7 @@ namespace EAPDashboard.Models
                                         CMD = CommandType.ReplyTrackInReq, 
                                         RtnResult = RtnResult.FAIL, 
                                         RtnMsg = string.Format("Recipe Change Failed: {0}", rrm.RtnMsg),
-                                        PanelID = JsonConvert.SerializeObject(ctx.Panels)
+                                        PanelID = string.Join(",", ctx.Panels)
                                     });
                                 }
                             } else {
@@ -293,9 +293,16 @@ namespace EAPDashboard.Models
                         {
                             try {
                                 if (rawPanelId.Trim().StartsWith("["))
+                                {
                                     toPanels = JsonConvert.DeserializeObject<List<string>>(rawPanelId);
+                                }
                                 else
-                                    toPanels.Add(rawPanelId);
+                                {
+                                    toPanels = rawPanelId.Split(',')
+                                        .Select(p => p.Trim())
+                                        .Where(p => !string.IsNullOrEmpty(p))
+                                        .ToList();
+                                }
                             } catch { toPanels.Add(rawPanelId); }
                         }
                         string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, toPanels);
