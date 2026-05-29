@@ -21,6 +21,7 @@ namespace EAPDashboard.Models
         private DateTime _lastPlcHeartbeatTime = DateTime.MinValue;
         private bool _lastHeartbeatValue = false;
         private static readonly Random _rnd = new Random(); // 類別層級確保隨機性
+        private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _processingEvents = new System.Collections.Concurrent.ConcurrentDictionary<string, bool>();
 
         public string Ip { get; set; }
         public int Port { get; set; }
@@ -131,37 +132,44 @@ namespace EAPDashboard.Models
 
                         try {
                             bool isTrig = await _driver.ReadBitAsync(evt.TriggerAddr, evt.TrigBitOffset);
-                            if (isTrig)
+                            if (isTrig && !_processingEvents.ContainsKey(evt.EventName))
                             {
-                                IncrementTask();
-                                _ = Task.Run(async () => {
-                                    try {
-                                        OnLogReceived(LogLevel.Debug, evt.EventName, string.Format("[PLC] {0} Event detected: {1} (CMD: {2})", Id, evt.EventName, evt.CmdType));
-                                        foreach (var dp in evt.DataPoints.Where(x => x.AccessType == "READ"))
-                                        {
-                                            if (dp.DataType == "ASCII") dp.Value = await _driver.ReadAsciiAsync(dp.Address, dp.Length);
-                                            else dp.Value = (await _driver.ReadWordAsync(dp.Address)).ToString();
-                                        }
-
-                                        await ProcessPlcEventAsync(evt);
-
-                                        if (!string.IsNullOrEmpty(evt.AckAddr))
-                                        {
-                                            await _driver.WriteBitAsync(evt.AckAddr, true, evt.AckBitOffset);
-                                            // 等待 PLC 看到 Ack 後將 Trigger OFF
-                                            if (await WaitForPlcOffAsync(evt.TriggerAddr, evt.TrigBitOffset, 10)) 
+                                if (_processingEvents.TryAdd(evt.EventName, true))
+                                {
+                                    IncrementTask();
+                                    _ = Task.Run(async () => {
+                                        try {
+                                            OnLogReceived(LogLevel.Debug, evt.EventName, string.Format("[PLC] {0} Event detected: {1} (CMD: {2})", Id, evt.EventName, evt.CmdType));
+                                            foreach (var dp in evt.DataPoints.Where(x => x.AccessType == "READ"))
                                             {
-                                                await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
+                                                if (dp.DataType == "ASCII") dp.Value = await _driver.ReadAsciiAsync(dp.Address, dp.Length);
+                                                else dp.Value = (await _driver.ReadWordAsync(dp.Address)).ToString();
                                             }
-                                            else
+
+                                            await ProcessPlcEventAsync(evt);
+
+                                            if (!string.IsNullOrEmpty(evt.AckAddr))
                                             {
-                                                OnLogReceived(LogLevel.Error, evt.EventName, string.Format("[PLC] Handshake Error: PLC Trigger {0} remained ON too long. Forcing Ack OFF.", evt.TriggerAddr));
-                                                await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
+                                                await _driver.WriteBitAsync(evt.AckAddr, true, evt.AckBitOffset);
+                                                // 等待 PLC 看到 Ack 後將 Trigger OFF
+                                                if (await WaitForPlcOffAsync(evt.TriggerAddr, evt.TrigBitOffset, 10)) 
+                                                {
+                                                    await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
+                                                }
+                                                else
+                                                {
+                                                    OnLogReceived(LogLevel.Error, evt.EventName, string.Format("[PLC] Handshake Error: PLC Trigger {0} remained ON too long. Forcing Ack OFF.", evt.TriggerAddr));
+                                                    await _driver.WriteBitAsync(evt.AckAddr, false, evt.AckBitOffset);
+                                                }
                                             }
                                         }
-                                    }
-                                    finally { DecrementTask(); }
-                                });
+                                        finally 
+                                        { 
+                                            _processingEvents.TryRemove(evt.EventName, out _);
+                                            DecrementTask(); 
+                                        }
+                                    });
+                                }
                             }
                         } catch (Exception ex) { OnLogReceived(LogLevel.Error, evt.EventName, string.Format("Polling Error ({0}): {1}", evt.EventName, ex.Message)); }
                     }
