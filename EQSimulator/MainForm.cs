@@ -21,6 +21,14 @@ namespace EQSimulator
         private string _baseTopic = "TN2/Floor2/Yellow/TS0003/";
         private EqpDictionary _dictionary = new EqpDictionary();
 
+        // Custom Variables for Auto Test & Panel List
+        private Label lblPanelList;
+        private TextBox _txtPanelList;
+        private Button _btnAutoTest;
+        private bool _isAutoTesting = false;
+        private TaskCompletionSource<bool> _currentEventTcs;
+        private System.Threading.CancellationTokenSource _autoCts;
+
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
             Formatting = Formatting.Indented,
@@ -30,6 +38,7 @@ namespace EQSimulator
         public MainForm()
         {
             InitializeComponent();
+            InitializeCustomComponents();
             InitializeStatusCombo();
         }
 
@@ -37,6 +46,47 @@ namespace EQSimulator
         {
             base.OnShown(e);
             BtnConnect_Click(null, null);
+        }
+
+        private void InitializeCustomComponents()
+        {
+            // 調整 grpParams 高度與大小以容納 Panel List 欄位
+            this.grpParams.Height = 160;
+
+            // 初始化 lblPanelList
+            this.lblPanelList = new Label();
+            this.lblPanelList.Location = new Point(10, 110);
+            this.lblPanelList.Name = "lblPanelList";
+            this.lblPanelList.Size = new Size(80, 23);
+            this.lblPanelList.Text = "Panel List:";
+            this.grpParams.Controls.Add(this.lblPanelList);
+
+            // 初始化 _txtPanelList
+            this._txtPanelList = new TextBox();
+            this._txtPanelList.Location = new Point(90, 107);
+            this._txtPanelList.Name = "_txtPanelList";
+            this._txtPanelList.Size = new Size(490, 22);
+            this._txtPanelList.Text = "P0000000000011,P0000000000012,P0000000000013,P0000000000014,P0000000000015,P0000000000016,P0000000000017,P0000000000018,P0000000000019,P0000000000020";
+            this.grpParams.Controls.Add(this._txtPanelList);
+
+            // 初始化 _btnAutoTest
+            this._btnAutoTest = new Button();
+            this._btnAutoTest.Name = "_btnAutoTest";
+            this._btnAutoTest.Size = new Size(120, 23);
+            this._btnAutoTest.Text = "Start Auto Test";
+            this._btnAutoTest.UseVisualStyleBackColor = true;
+            this._btnAutoTest.Click += new EventHandler(this.BtnAutoTest_Click);
+            this.flowActions.Controls.Add(this._btnAutoTest);
+        }
+
+        private string GetPanelIdJson()
+        {
+            if (_txtPanelList == null || string.IsNullOrEmpty(_txtPanelList.Text)) return "[]";
+            var list = _txtPanelList.Text.Split(',')
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToList();
+            return JsonConvert.SerializeObject(list);
         }
 
         private void InitializeStatusCombo()
@@ -119,6 +169,7 @@ namespace EQSimulator
                 CassetteID = _txtCassetteId.Text,
                 ToolingID = _txtToolingId.Text,
                 UserID = _txtUserId.Text,
+                PanelID = GetPanelIdJson(),
                 Qty = 1
             });
         }
@@ -135,13 +186,14 @@ namespace EQSimulator
                 UserID = _txtUserId.Text,
                 CassetteID = _txtCassetteId.Text,
                 ToolingID = _txtToolingId.Text,
+                PanelID = GetPanelIdJson(),
                 Result = "PASS"
             });
         }
 
         private void BtnAlarm_Click(object sender, EventArgs e)
         {
-            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
+            SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "1", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
         }
 
         private void BtnPanelIn_Click(object sender, EventArgs e)
@@ -192,6 +244,7 @@ namespace EQSimulator
                         case CommandType.ReplyTrackInReq:
                             var rti = (ReplyTrackInReqMessage)msg;
                             Log($"-> TrackIn Result: {rti.RtnResult}, Msg: {rti.RtnMsg}");
+                            _currentEventTcs?.TrySetResult(true);
                             break;
 
                         case CommandType.RemoteCMD:
@@ -214,6 +267,22 @@ namespace EQSimulator
                             Log($"-> Status Req ACK received.");
                             break;
 
+                        case CommandType.ReplyStatusChangeReport:
+                            Log("-> Status Change ACK received.");
+                            _currentEventTcs?.TrySetResult(true);
+                            break;
+
+                        case CommandType.ReplyALARM:
+                            Log("-> Alarm Report ACK received.");
+                            _currentEventTcs?.TrySetResult(true);
+                            break;
+
+                        case CommandType.ReplyTrackOutReq:
+                            var rto = (ReplyTrackOutReqMessage)msg;
+                            Log($"-> TrackOut Result: {rto.RtnResult}, Msg: {rto.RtnMsg}");
+                            _currentEventTcs?.TrySetResult(true);
+                            break;
+
                         case CommandType.ReplyRtnTraceData:
                             var rrtd = (ReplyRtnTraceDataMessage)msg;
                             Log($"-> TraceData ACK: {rrtd.RtnResult}, Msg: {rrtd.RtnMsg}");
@@ -222,6 +291,7 @@ namespace EQSimulator
                         case CommandType.ReplyEventReport:
                             var revm = (ReplyEventReportMessage)msg;
                             Log($"-> Event Reply Result: {revm.RtnResult}, Msg: {revm.RtnMsg}");
+                            _currentEventTcs?.TrySetResult(true);
                             break;
 
                         case CommandType.TimeCalibrate:
@@ -231,9 +301,120 @@ namespace EQSimulator
                         }
                         } catch (Exception ex) { Log($"[ERR] Parse failed: {ex.Message}"); }
                         });
-                        }
+        }
 
-                        private void BtnRtnTraceData_Click(object sender, EventArgs e)
+        private void BtnAutoTest_Click(object sender, EventArgs e)
+        {
+            if (_bus == null || !_bus.IsConnected)
+            {
+                MessageBox.Show("Please connect to MQTT Broker first.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (_isAutoTesting)
+            {
+                _isAutoTesting = false;
+                _btnAutoTest.Text = "Start Auto Test";
+                _autoCts?.Cancel();
+                _currentEventTcs?.TrySetResult(false);
+            }
+            else
+            {
+                _isAutoTesting = true;
+                _btnAutoTest.Text = "Stop Auto Test";
+                _autoCts = new System.Threading.CancellationTokenSource();
+                _ = Task.Run(() => RunAutoTestLoop(_autoCts.Token));
+            }
+        }
+
+        private async Task RunAutoTestLoop(System.Threading.CancellationToken ct)
+        {
+            Log("[AutoTest] Starting Auto Test Loop...");
+            int step = 0;
+            while (_isAutoTesting && !ct.IsCancellationRequested)
+            {
+                try
+                {
+                    switch (step)
+                    {
+                        case 0:
+                            Log("[AutoTest] Step 1: Status Change Report (RUNNING)");
+                            this.Invoke((MethodInvoker)delegate {
+                                _cmbStatus.SelectedValue = 0; // RUNNING
+                                BtnReportStatus_Click(null, null);
+                            });
+                            await WaitForCurrentEventAsync(10000, ct);
+                            break;
+                        case 1:
+                            Log("[AutoTest] Step 2: User Verify");
+                            this.Invoke((MethodInvoker)delegate {
+                                BtnUser_Click(null, null);
+                            });
+                            await WaitForCurrentEventAsync(10000, ct);
+                            break;
+                        case 2:
+                            Log("[AutoTest] Step 3: Track In Request");
+                            this.Invoke((MethodInvoker)delegate {
+                                BtnTrackIn_Click(null, null);
+                            });
+                            await WaitForCurrentEventAsync(25000, ct); // 包含 PP-SELECT 比對，稍微等長一點
+                            break;
+                        case 3:
+                            Log("[AutoTest] Step 4: Alarm Set Report");
+                            this.Invoke((MethodInvoker)delegate {
+                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "1", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
+                            });
+                            await WaitForCurrentEventAsync(10000, ct);
+                            break;
+                        case 4:
+                            Log("[AutoTest] Step 5: Alarm End Report");
+                            this.Invoke((MethodInvoker)delegate {
+                                SendMessage(new AlarmMessage { CMD = CommandType.ALARM, AlarmStatus = "2", AlarmCode = "E004", AlarmMsg = "Emergency Stop Clear" });
+                            });
+                            await WaitForCurrentEventAsync(10000, ct);
+                            break;
+                        case 5:
+                            Log("[AutoTest] Step 6: Track Out Request");
+                            this.Invoke((MethodInvoker)delegate {
+                                BtnTrackOut_Click(null, null);
+                            });
+                            await WaitForCurrentEventAsync(10000, ct);
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log($"[AutoTest] Error in Step {step + 1}: {ex.Message}");
+                }
+
+                if (!_isAutoTesting || ct.IsCancellationRequested) break;
+
+                step = (step + 1) % 6;
+                // 每個事件之間停頓 2 秒
+                await Task.Delay(2000, ct);
+            }
+            Log("[AutoTest] Auto Test Loop Stopped.");
+        }
+
+        private async Task WaitForCurrentEventAsync(int timeoutMs, System.Threading.CancellationToken ct)
+        {
+            _currentEventTcs = new TaskCompletionSource<bool>();
+            using (ct.Register(() => _currentEventTcs.TrySetResult(false)))
+            {
+                var delayTask = Task.Delay(timeoutMs, ct);
+                var completedTask = await Task.WhenAny(_currentEventTcs.Task, delayTask);
+                if (completedTask == delayTask)
+                {
+                    Log("[AutoTest] [TIMEOUT] Wait timeout for event reply.");
+                }
+                else
+                {
+                    Log("[AutoTest] Reply received.");
+                }
+            }
+    }
+
+    private void BtnRtnTraceData_Click(object sender, EventArgs e)
                         {
                         var rtd = new RtnTraceDataMessage
                         {
