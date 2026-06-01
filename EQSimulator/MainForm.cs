@@ -28,6 +28,7 @@ namespace EQSimulator
         private bool _isAutoTesting = false;
         private TaskCompletionSource<bool> _currentEventTcs;
         private System.Threading.CancellationTokenSource _autoCts;
+        private Button _btnSaveSettings;
 
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
@@ -77,6 +78,19 @@ namespace EQSimulator
             this._btnAutoTest.UseVisualStyleBackColor = true;
             this._btnAutoTest.Click += new EventHandler(this.BtnAutoTest_Click);
             this.flowActions.Controls.Add(this._btnAutoTest);
+
+            // 初始化 _btnSaveSettings
+            this._btnSaveSettings = new Button();
+            this._btnSaveSettings.Location = new Point(480, 10);
+            this._btnSaveSettings.Name = "_btnSaveSettings";
+            this._btnSaveSettings.Size = new Size(100, 55);
+            this._btnSaveSettings.Text = "記憶設定";
+            this._btnSaveSettings.UseVisualStyleBackColor = true;
+            this._btnSaveSettings.Click += new EventHandler(this.BtnSaveSettings_Click);
+            this.panelTop.Controls.Add(this._btnSaveSettings);
+
+            // 自動載入設定
+            LoadSettings();
         }
 
         private string GetPanelListRaw()
@@ -452,5 +466,80 @@ namespace EQSimulator
             if (_txtLog.InvokeRequired) { _txtLog.Invoke((MethodInvoker)(() => Log(text))); return; }
             _txtLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {text}{Environment.NewLine}");
         }
+
+        private void BtnSaveSettings_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var settings = new EqSettings
+                {
+                    Broker = _txtBroker.Text,
+                    EqId = _txtEqId.Text,
+                    Topic = _txtTopic.Text,
+                    UserId = _txtUserId.Text,
+                    Barcode = _txtBarcode.Text,
+                    WorkOrder = _txtWorkOrder.Text,
+                    MaterialId = _txtMaterialId.Text,
+                    CassetteId = _txtCassetteId.Text,
+                    ToolingId = _txtToolingId.Text,
+                    Qty = _txtQty.Text,
+                    PanelList = _txtPanelList?.Text ?? ""
+                };
+                string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "eq_settings.json");
+                System.IO.File.WriteAllText(path, JsonConvert.SerializeObject(settings, Formatting.Indented));
+                Log("設定儲存成功！已儲存至 eq_settings.json");
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERR] 儲存設定失敗: {ex.Message}");
+            }
+        }
+
+        private void LoadSettings()
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "eq_settings.json");
+                if (System.IO.File.Exists(path))
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    var settings = JsonConvert.DeserializeObject<EqSettings>(json);
+                    if (settings != null)
+                    {
+                        _txtBroker.Text = settings.Broker;
+                        _txtEqId.Text = settings.EqId;
+                        _txtTopic.Text = settings.Topic;
+                        _txtUserId.Text = settings.UserId;
+                        _txtBarcode.Text = settings.Barcode;
+                        _txtWorkOrder.Text = settings.WorkOrder;
+                        _txtMaterialId.Text = settings.MaterialId;
+                        _txtCassetteId.Text = settings.CassetteId;
+                        _txtToolingId.Text = settings.ToolingId;
+                        _txtQty.Text = settings.Qty;
+                        if (_txtPanelList != null) _txtPanelList.Text = settings.PanelList;
+                        Log("成功載入記憶的設定值。");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERR] 載入設定失敗: {ex.Message}");
+            }
+        }
+    }
+
+    public class EqSettings
+    {
+        public string Broker { get; set; }
+        public string EqId { get; set; }
+        public string Topic { get; set; }
+        public string UserId { get; set; }
+        public string Barcode { get; set; }
+        public string WorkOrder { get; set; }
+        public string MaterialId { get; set; }
+        public string CassetteId { get; set; }
+        public string ToolingId { get; set; }
+        public string Qty { get; set; }
+        public string PanelList { get; set; }
     }
 }
