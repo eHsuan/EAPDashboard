@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>Protocol.MES</AssemblyName>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>
     <LangVersion>latest</LangVersion>
@@ -12,9 +12,12 @@
   <PropertyGroup />
   <ItemGroup />
   <ItemGroup>
-    <Reference Include="System.Web.Services" />
+    <Compile Remove="Protocol.MES.corp.delta.twcynmes01\**" />
+    <Compile Remove="Protocol.MES.Properties\**" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <Reference Include="System.Core" />
-    <Reference Include="Microsoft.CSharp" />
+    <PackageReference Include="System.ServiceModel.Http" Version="6.0.0" />
+    <PackageReference Include="System.ServiceModel.Primitives" Version="6.0.0" />
   </ItemGroup>
 </Project>

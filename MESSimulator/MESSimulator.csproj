@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>MESSimulator</RootNamespace>
     <AssemblyName>MESSimulator</AssemblyName>
@@ -12,10 +12,6 @@
 
   <ItemGroup>
     <Content Include="MES.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="System.Web.Services" />
   </ItemGroup>
 
   <ItemGroup>
