@@ -1,0 +1,37 @@
+namespace Protocol.Core.Enums;
+
+public enum CommandType
+{
+	ALARM,
+	ReplyALARM,
+	SelectParameter,
+	ReplySelectParameter,
+	EditParameter,
+	ReplyEditParameter,
+	RemoteCMD,
+	ReplyRemoteCMD,
+	InitTraceData,
+	ReplyInitTraceData,
+	ProcessDataReport,
+	ReplyProcessDataReport,
+	StatusReq,
+	ReplyStatusReq,
+	StatusChangeReport,
+	ReplyStatusChangeReport,
+	AreYouThere,
+	IamHere,
+	TimeCalibrate,
+	ReplyTimeCalibrate,
+	TrackInReq,
+	ReplyTrackInReq,
+	TrackOutReq,
+	ReplyTrackOutReq,
+	TerminalDisplay,
+	ReplyTerminalDisplay,
+	EventReport,
+	ReplyEventReport,
+	RtnTraceData,
+	ReplyRtnTraceData,
+	ConfigUpdate,
+	ReplyConfigUpdate
+}

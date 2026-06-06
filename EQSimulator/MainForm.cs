@@ -250,7 +250,7 @@ namespace EQSimulator
                     
                     switch (msg.CMD) {
                         case CommandType.AreYouThere:
-                            SendMessage(new IamHereMessage { CMD = CommandType.IamHere });
+                            SendMessage(new IamHereMessage { CMD = CommandType.IamHere }, msg);
                             break;
                         
                         case CommandType.ReplyTrackInReq:
@@ -268,7 +268,7 @@ namespace EQSimulator
                                         CMD = CommandType.ReplyRemoteCMD, 
                                         RemoteCMDType = RemoteCommandType.PP_SELECT,
                                         RtnResult = RtnResult.PASS 
-                                    });
+                                    }, rcmd);
                                     Log($"-> Recipe {rcmd.RecipeID} Change SUCCESS.");
                                 });
                             }
@@ -452,14 +452,23 @@ namespace EQSimulator
                         SendMessage(rtd);
                         }
 
-                        private void SendMessage(BaseMessage msg)
-                        {            if (_bus == null || !_bus.IsConnected) return;
-            msg.Machine = _txtEqId.Text;
-            msg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
-            string reportTopic = _txtTopic.Text.TrimEnd('/') + "/Report";
-            _bus.PublishAsync(reportTopic, msg);
-            Log($"[SEND] {msg.CMD}");
-        }
+                        private void SendMessage(BaseMessage msg, BaseMessage requestMsg = null)
+                        {
+                            if (_bus == null || !_bus.IsConnected) return;
+                            msg.Machine = _txtEqId.Text;
+                            msg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
+                            if (requestMsg != null)
+                            {
+                                msg.TransactionID = requestMsg.TransactionID;
+                            }
+                            else if (string.IsNullOrEmpty(msg.TransactionID))
+                            {
+                                msg.TransactionID = Guid.NewGuid().ToString("N");
+                            }
+                            string reportTopic = _txtTopic.Text.TrimEnd('/') + "/Report";
+                            _bus.PublishAsync(reportTopic, msg);
+                            Log($"[SEND] {msg.CMD}");
+                        }
 
         private void Log(string text)
         {

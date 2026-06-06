@@ -39,6 +39,7 @@ namespace EAPDashboard.Models
             public string CassetteID { get; set; }
             public DateTime Timestamp { get; set; }
             public List<string> Panels { get; set; }
+            public string TransactionID { get; set; }
         }
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext> _pendingTrackIn = new System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
@@ -232,7 +233,8 @@ namespace EAPDashboard.Models
                                 UserID = ti.UserID, 
                                 CassetteID = ti.CassetteID,
                                 Timestamp = DateTime.Now,
-                                Panels = panels
+                                Panels = panels,
+                                TransactionID = ti.TransactionID
                             };
                             string finalRecipe = "";
                             if (this.IsMesSimulator) {
@@ -244,18 +246,20 @@ namespace EAPDashboard.Models
                                 finalRecipe = GetMesParamValue(tp[5], evtConfig?.RecipeParamKey) ?? tp[2];
                             }
 
-                            await SendCommand(new RemoteCMDMessage { 
+                            var rcmd = new RemoteCMDMessage { 
                                 CMD = CommandType.RemoteCMD, 
                                 RemoteCMDType = RemoteCommandType.PP_SELECT, 
                                 RecipeID = finalRecipe 
-                            });
+                            };
+                            rcmd.TransactionID = ti.TransactionID;
+                            await SendCommand(rcmd);
                         } else {
                             await SendReply(new ReplyTrackInReqMessage { 
                                 CMD = CommandType.ReplyTrackInReq, 
                                 RtnResult = RtnResult.FAIL, 
                                 RtnMsg = tir.Split('|').Last(),
                                 PanelID = string.Join(",", panels)
-                            });
+                            }, msg);
                         }
                         break;
                     case CommandType.ReplyRemoteCMD:
@@ -270,7 +274,7 @@ namespace EAPDashboard.Models
                                         RtnResult = fin.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, 
                                         RtnMsg = fin.Split('|').Last(),
                                         PanelID = string.Join(",", ctx.Panels)
-                                    });
+                                    }, rrm);
                                 } else {
                                     OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Machine rejected PP-SELECT: {0}", rrm.RtnMsg));
                                     await SendReply(new ReplyTrackInReqMessage { 
@@ -278,7 +282,7 @@ namespace EAPDashboard.Models
                                         RtnResult = RtnResult.FAIL, 
                                         RtnMsg = string.Format("Recipe Change Failed: {0}", rrm.RtnMsg),
                                         PanelID = string.Join(",", ctx.Panels)
-                                    });
+                                    }, rrm);
                                 }
                             } else {
                                 OnLogReceived(LogLevel.Warn, string.Format("[TrackIn] Received ReplyRemoteCMD(PP-SELECT) but no pending context found for {0}. Maybe timeout or manual trigger.", Id));
@@ -306,7 +310,7 @@ namespace EAPDashboard.Models
                             } catch { toPanels.Add(rawPanelId); }
                         }
                         string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, toPanels);
-                        await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() });
+                        await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() }, msg);
                         break;
                     case CommandType.ALARM:
                         var alm = (AlarmMessage)msg;
@@ -326,23 +330,23 @@ namespace EAPDashboard.Models
                             StatusCode = isAlarmSet ? "1" : "2", 
                             ErrorCode = mc 
                         });
-                        await SendReply(new ReplyAlarmMessage { CMD = CommandType.ReplyALARM, RtnResult = RtnResult.PASS });
+                        await SendReply(new ReplyAlarmMessage { CMD = CommandType.ReplyALARM, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
                         if (StatusMap.TryGetValue(scm.NewStatus, out var nst)) State = nst;
                         HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = scm.NewStatus.ToString() });
-                        await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS });
+                        await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.ProcessDataReport:
                         var pdr = (ProcessDataReportMessage)msg;
                         await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr, saveToDb: false);
-                        await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS });
+                        await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.RtnTraceData:
                         var rtd = (RtnTraceDataMessage)msg;
                         await SaveProductionDataAsync("TraceData", "", rtd, saveToDb: false);
-                        await SendReply(new ReplyRtnTraceDataMessage { CMD = CommandType.ReplyRtnTraceData, RtnResult = RtnResult.PASS, RtnMsg = "Trace data received successfully" });
+                        await SendReply(new ReplyRtnTraceDataMessage { CMD = CommandType.ReplyRtnTraceData, RtnResult = RtnResult.PASS, RtnMsg = "Trace data received successfully" }, msg);
                         break;
                     case CommandType.ReplyTimeCalibrate:
                     case CommandType.ReplyTerminalDisplay:
@@ -387,35 +391,35 @@ namespace EAPDashboard.Models
                         CMD = CommandType.ReplyEventReport, 
                         RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
                         RtnMsg = uvp[2] 
-                    });
+                    }, evm);
                     break;
 
                 case "BATCH_PROCESS_DATA":
                 case "101":
                     await SaveProductionDataAsync("BatchData", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 case "KEY_PARAMETERS":
                 case "102":
                     await SaveProductionDataAsync("KeyParams", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 case "PANEL_IN":
                 case "103":
                     await SaveProductionDataAsync("PanelIn", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 case "PANEL_OUT":
                 case "104":
                     await SaveProductionDataAsync("PanelOut", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 default:
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS });
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
             }
         }
@@ -451,19 +455,30 @@ namespace EAPDashboard.Models
         public override async Task SendTimeCalibration() => await SendCommand(new TimeCalibrateMessage { CMD = CommandType.TimeCalibrate, Machine = Id });
         public async Task SendTerminalDisplay(string message) => await SendCommand(new TerminalDisplayMessage { CMD = CommandType.TerminalDisplay, Machine = Id, Message = message });
 
-        private async Task SendReply<T>(T replyMsg) where T : BaseMessage {
+        private async Task SendReply<T>(T replyMsg, BaseMessage requestMsg = null) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;
+            if (requestMsg != null)
+            {
+                replyMsg.TransactionID = requestMsg.TransactionID;
+            }
             await SendCommand(replyMsg);
         }
 
         private async Task SendCommand(object cmd) {
             if (_bus == null || !_bus.IsConnected) return;
-            await _bus.PublishAsync(_commandTopic, cmd);
             if (cmd is BaseMessage bm)
             {
-                if (bm.CMD != CommandType.AreYouThere && bm.CMD != CommandType.IamHere && bm.CMD != CommandType.StatusReq)
+                if (string.IsNullOrEmpty(bm.TransactionID))
                 {
-                    OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm, _logSettings)}");
+                    bm.TransactionID = Guid.NewGuid().ToString("N");
+                }
+            }
+            await _bus.PublishAsync(_commandTopic, cmd);
+            if (cmd is BaseMessage bm2)
+            {
+                if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere && bm2.CMD != CommandType.StatusReq)
+                {
+                    OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
                 }
             }
         }
