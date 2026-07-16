@@ -14,9 +14,6 @@ using Protocol.MES.Messages;
 using Protocol.MES.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Protocol.Core.Base;
-using Protocol.Core.Enums;
-using Protocol.Core.Factory;
 using Protocol.Core.Messages;
 
 namespace EAPDashboard.Models
@@ -29,10 +26,6 @@ namespace EAPDashboard.Models
         private System.Timers.Timer _retryTimer;
         private System.Timers.Timer _aliveCheckTimer;
         private bool _aliveCheckAwaitingReply = false;
-
-        private MqttBus _mqttBus;
-        private string _commandTopic;
-        private string _reportTopic;
 
         private List<string> _activeTraceParameters = new List<string>();
         private readonly object _traceLock = new object();
@@ -50,7 +43,6 @@ namespace EAPDashboard.Models
         public ushort DeviceId { get; set; } = 0;
         public string DictionaryPath { get; set; }
         public bool IsActive { get; set; } = true;
-        public string Topic { get; set; }
 
         public SecsEquipment()
         {
@@ -63,29 +55,12 @@ namespace EAPDashboard.Models
             try {
                 OnLogReceived(LogLevel.Info, $"[START] SECS module initialized for {Id}.");
                 _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-                _mqttBus = bus;
 
                 string fullDictPath = Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath);
                 if (File.Exists(fullDictPath)) _dictionary = SecsDictionary.Load(fullDictPath);
 
                 LoadAlarmMappings();
                 _ = StartStatusBufferProcessor(_linkedCts.Token);
-
-                // 訂閱設備專屬的 MQTT 控制主題
-                if (_mqttBus != null && !string.IsNullOrEmpty(Topic))
-                {
-                    _commandTopic = $"{Topic.TrimEnd('/')}/Command";
-                    _reportTopic = $"{Topic.TrimEnd('/')}/Report";
-                    
-                    _ = Task.Run(async () =>
-                    {
-                        await _mqttBus.SubscribeAsync(_commandTopic, async (topic, payload) =>
-                        {
-                            await HandleMqttCommandAsync(payload);
-                        });
-                        OnLogReceived(LogLevel.Info, $"[MQTT] Subscribed to command topic: {_commandTopic}");
-                    });
-                }
 
                 // 啟動主動連線偵測 Loop
                 _retryTimer = new System.Timers.Timer(15000);
@@ -226,14 +201,6 @@ namespace EAPDashboard.Models
                 }
                 else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
-                    
-                    // 同步發布 MQTT 狀態上報
-                    var statusReport = new StatusChangeReportMessage
-                    {
-                        CMD = CommandType.StatusChangeReport,
-                        NewStatus = int.TryParse(statusCode, out var sc) ? sc : 3
-                    };
-                    await SendMqttReplyAsync(statusReport);
                 }
 
                 await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
@@ -309,20 +276,16 @@ namespace EAPDashboard.Models
                     }
                 }
 
-                // 儲存至本地資料庫
+                // 儲存至本地資料庫及日誌檔
                 await SaveProductionDataAsync(logicalEvent, "", extractedData);
 
-                // 上報 MQTT
-                var pdr = new ProcessDataReportMessage
+                // 報工給 MES
+                if (parameterResults.Count > 0)
                 {
-                    CMD = CommandType.ProcessDataReport,
-                    WorkOrder = extractedData.TryGetValue("WorkOrder", out var wo) ? wo : "",
-                    Result = "PASS",
-                    ProcessData = parameterResults
-                };
-                
-                await SendMqttReplyAsync(pdr);
-                OnLogReceived(LogLevel.Info, $"[ProcessData] Dynamic extraction complete. Extracted {extractedData.Count} parameter(s) for event {logicalEvent}.");
+                    await ProcessKeyParametersReportAsync(parameterResults);
+                }
+
+                OnLogReceived(LogLevel.Info, $"[ProcessData] Dynamic extraction complete. Extracted {extractedData.Count} parameter(s) for event {logicalEvent} and reported to MES.");
             }
             catch (Exception ex)
             {
@@ -362,7 +325,7 @@ namespace EAPDashboard.Models
                 payload["SampleTime"] = stime;
 
                 var traceParams = new List<object>();
-                var parameterResults = new List<Dictionary<string, double>>();
+                var parameterResults = new List<ParameterResultItem>();
 
                 if (vals != null && vals.Count > 0)
                 {
@@ -374,26 +337,24 @@ namespace EAPDashboard.Models
                         traceParams.Add(new { ParameterName = paramName, Value = valStr });
                         
                         double.TryParse(valStr, out double doubleVal);
-
-                        var paramDict = new Dictionary<string, double>();
-                        paramDict[paramName] = doubleVal;
-                        parameterResults.Add(paramDict);
+                        parameterResults.Add(new ParameterResultItem
+                        {
+                            Parameter = paramName,
+                            Value = doubleVal
+                        });
                     }
                 }
 
                 payload["Parameters"] = traceParams;
 
-                // 儲存生產資料 (TraceData 不寫入 SQLite 以免資料膨脹)
+                // 儲存生產資料 (TraceData 不寫入 SQLite 以免資料膨脹，僅記錄到 DataLogs CSV 檔案)
                 await SaveProductionDataAsync("TraceData", "", payload, saveToDb: false);
 
-                // 上報 MQTT (RtnTraceData)
-                var traceMsg = new RtnTraceDataMessage
+                // 報工給 MES
+                if (parameterResults.Count > 0)
                 {
-                    CMD = CommandType.RtnTraceData,
-                    CycleTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    Parameter = parameterResults
-                };
-                await SendMqttReplyAsync(traceMsg);
+                    await ProcessKeyParametersReportAsync(parameterResults);
+                }
 
                 // 回覆 S6F2
                 await message.TryReplyAsync(new SecsMessage(6, 2) { SecsItem = Item.B(0) });
@@ -404,102 +365,64 @@ namespace EAPDashboard.Models
             }
         }
 
-        private async Task HandleMqttCommandAsync(string json)
+        public async Task<bool> SendTraceInitializeAsync(uint trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
         {
-            if (string.IsNullOrEmpty(json)) return;
+            lock (_traceLock)
+            {
+                _activeTraceParameters = paramNames ?? new List<string>();
+            }
+            return await SendTraceInitializeInternalAsync(trid, dsper, tots, svids);
+        }
+
+        private async Task<bool> SendTraceInitializeInternalAsync(uint trid, uint dsper, uint tots, List<string> svids)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                var jo = JObject.Parse(json);
-                if (IsStopping)
+                var svidItems = new List<Item>();
+                if (svids != null)
                 {
-                    OnLogReceived(LogLevel.Warn, "[MQTT] Command rejected during shutdown procedure.");
-                    return;
-                }
-
-                IncrementTask();
-
-                string cmdTypeStr = jo["CMD"]?.ToString() ?? "";
-                string txId = jo["TransactionID"]?.ToString() ?? Guid.NewGuid().ToString("N");
-
-                if (cmdTypeStr.Equals("AreYouThere", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 代理保活檢測 (Proxy Alive Check)
-                    bool isAlive = false;
-                    if (Connection == ConnectionStatus.Connected && _secsGem != null)
+                    foreach (var svid in svids)
                     {
-                        try
+                        if (uint.TryParse(svid, out uint numericSvid))
                         {
-                            using (var reply = await _secsGem.SendAsync(new SecsMessage(1, 1)))
-                            {
-                                if (reply.S == 1 && reply.F == 2) isAlive = true;
-                            }
+                            svidItems.Add(Item.U4(numericSvid));
                         }
-                        catch { }
-                    }
-
-                    if (isAlive)
-                    {
-                        await SendMqttReplyAsync(new IamHereMessage { CMD = CommandType.IamHere, TransactionID = txId });
-                    }
-                    else
-                    {
-                        OnLogReceived(LogLevel.Warn, "[MQTT] Proxy Alive Check failed: Equipment not responding S1F2.");
+                        else
+                        {
+                            svidItems.Add(Item.A(svid));
+                        }
                     }
                 }
-                else if (cmdTypeStr.Equals("RemoteCMD", StringComparison.OrdinalIgnoreCase))
+
+                string dsperStr = dsper.ToString("D6"); 
+                var traceMsg = new SecsMessage(2, 23)
                 {
-                    var rcmdType = (RemoteCommandType)Enum.Parse(typeof(RemoteCommandType), jo["RemoteCMDType"]?.ToString() ?? "START", true);
-                    string recipeId = jo["RecipeID"]?.ToString() ?? "";
-                    
-                    string rcmdName = rcmdType.ToString();
-                    var parameters = new Dictionary<string, string>();
-                    if (rcmdType == RemoteCommandType.PP_SELECT)
-                    {
-                        parameters["PPID"] = recipeId;
-                    }
+                    SecsItem = Item.L(
+                        Item.U4(trid),
+                        Item.A(dsperStr),
+                        Item.U4(tots),
+                        Item.U4(1), // REPGSZ
+                        Item.L(svidItems)
+                    )
+                };
 
-                    bool success = await SendRemoteCommandAsync(rcmdName, parameters);
-
-                    await SendMqttReplyAsync(new ReplyRemoteCMDMessage
-                    {
-                        CMD = CommandType.ReplyRemoteCMD,
-                        RemoteCMDType = rcmdType,
-                        RtnResult = success ? RtnResult.PASS : RtnResult.FAIL,
-                        RtnMsg = success ? "Success" : "Equipment rejected command or timed out.",
-                        TransactionID = txId
-                    });
-                }
-                else if (cmdTypeStr.Equals("InitTraceData", StringComparison.OrdinalIgnoreCase))
+                OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsperStr}, TOTS:{tots})");
+                using (var reply = await _secsGem.SendAsync(traceMsg))
                 {
-                    var svids = jo["SVID"]?.ToObject<List<string>>() ?? new List<string>();
-                    var paramsList = jo["ParameterName"]?.ToObject<List<string>>() ?? new List<string>();
-                    uint dsper = jo["DSPER"]?.ToObject<uint>() ?? 5;
-                    uint tots = jo["TOTS"]?.ToObject<uint>() ?? 100;
-
-                    lock (_traceLock)
+                    if (reply.S == 2 && reply.F == 24 && reply.SecsItem != null)
                     {
-                        _activeTraceParameters = paramsList;
+                        byte checkVal = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F24] Trace Initialize Ack: {checkVal}");
+                        return checkVal == 0;
                     }
-
-                    bool success = await SendTraceInitializeAsync(1, dsper, tots, svids);
-
-                    await SendMqttReplyAsync(new ReplyInitTraceDataMessage
-                    {
-                        CMD = CommandType.ReplyInitTraceData,
-                        RtnResult = success ? RtnResult.PASS : RtnResult.FAIL,
-                        RtnMsg = success ? "Trace initialized successfully" : "Failed to initialize trace on equipment",
-                        TransactionID = txId
-                    });
                 }
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Error, $"[MQTT_CMD] Error processing MQTT command: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"[S2F23] Send Trace Initialize Error: {ex.Message}");
             }
-            finally
-            {
-                DecrementTask();
-            }
+            return false;
         }
 
         public async Task<bool> SendRemoteCommandAsync(string rcmd, Dictionary<string, string> parameters = null)
@@ -540,70 +463,6 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Error, $"[S2F41] Send Remote Command Error: {ex.Message}");
             }
             return false;
-        }
-
-        private async Task<bool> SendTraceInitializeAsync(uint trid, uint dsper, uint tots, List<string> svids)
-        {
-            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
-            try
-            {
-                var svidItems = new List<Item>();
-                if (svids != null)
-                {
-                    foreach (var svid in svids)
-                    {
-                        if (uint.TryParse(svid, out uint numericSvid))
-                        {
-                            svidItems.Add(Item.U4(numericSvid));
-                        }
-                        else
-                        {
-                            svidItems.Add(Item.A(svid));
-                        }
-                    }
-                }
-
-                string dsperStr = dsper.ToString("D6"); // Formatted as YYYYMMDDhhmmss style 6-char width
-                var traceMsg = new SecsMessage(2, 23)
-                {
-                    SecsItem = Item.L(
-                        Item.U4(trid),
-                        Item.A(dsperStr),
-                        Item.U4(tots),
-                        Item.U4(1), // REPGSZ
-                        Item.L(svidItems)
-                    )
-                };
-
-                OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsperStr}, TOTS:{tots})");
-                using (var reply = await _secsGem.SendAsync(traceMsg))
-                {
-                    if (reply.S == 2 && reply.F == 24 && reply.SecsItem != null)
-                    {
-                        byte checkVal = reply.SecsItem.FirstValue<byte>();
-                        OnLogReceived(LogLevel.Info, $"[S2F24] Trace Initialize Ack: {checkVal}");
-                        return checkVal == 0;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                OnLogReceived(LogLevel.Error, $"[S2F23] Send Trace Initialize Error: {ex.Message}");
-            }
-            return false;
-        }
-
-        private async Task SendMqttReplyAsync<T>(T replyMsg) where T : BaseMessage
-        {
-            if (_mqttBus == null || !_mqttBus.IsConnected || string.IsNullOrEmpty(_reportTopic)) return;
-            replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
-            replyMsg.Machine = Id;
-            if (string.IsNullOrEmpty(replyMsg.TransactionID))
-            {
-                replyMsg.TransactionID = Guid.NewGuid().ToString("N");
-            }
-            await _mqttBus.PublishAsync(_reportTopic, replyMsg);
-            OnLogReceived(LogLevel.Info, $"[MQTT_SEND] Reply sent: {replyMsg.CMD} (TxID: {replyMsg.TransactionID})");
         }
 
         private string GetVidByLogicalName(string logicalName)
@@ -689,15 +548,6 @@ namespace EAPDashboard.Models
                         if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
                         HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
                     }
-
-                    var alarmMsg = new AlarmMessage
-                    {
-                        CMD = CommandType.AlarmReport,
-                        AlarmCode = mc,
-                        AlarmStatus = isSet ? "Start" : "End",
-                        AlarmMsg = altx
-                    };
-                    await SendMqttReplyAsync(alarmMsg);
                 }
                 await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
             } catch (Exception ex) {
@@ -727,7 +577,7 @@ namespace EAPDashboard.Models
                         _ = Task.Run(async () =>
                         {
                             await Task.Delay(500); // 延遲 500ms 保護舊機台佇列
-                            await SendTraceInitializeAsync(1, 0, 0, new List<string>());
+                            await SendTraceInitializeInternalAsync(1, 0, 0, new List<string>());
                         });
                     }
                 } 
