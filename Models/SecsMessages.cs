@@ -68,6 +68,30 @@ namespace EAPDashboard.Models
             };
         }
 
+        /// <summary>
+        /// S1F2: Are You There Reply
+        /// </summary>
+        public static SecsMessage S1F2(string eqpName, string eqpId)
+        {
+            return new SecsMessage(1, 2)
+            {
+                Name = "Are You There Reply",
+                SecsItem = Item.L(Item.A(eqpName), Item.A(eqpId))
+            };
+        }
+
+        /// <summary>
+        /// S1F14: Establish Communications Reply
+        /// </summary>
+        public static SecsMessage S1F14(byte commack = 0)
+        {
+            return new SecsMessage(1, 14)
+            {
+                Name = "Establish Communications Reply",
+                SecsItem = Item.B(commack)
+            };
+        }
+
         #endregion
 
         #region Stream 2: Equipment Constant & Configs
@@ -276,6 +300,46 @@ namespace EAPDashboard.Models
                     Item.B(aled),
                     Item.U4(0) // 0 means ALL ALIDs
                 )
+            };
+        }
+
+        /// <summary>
+        /// S5F2: Alarm Report Acknowledge
+        /// </summary>
+        public static SecsMessage S5F2()
+        {
+            return new SecsMessage(5, 2)
+            {
+                Name = "Alarm Report Acknowledge",
+                SecsItem = Item.B(0)
+            };
+        }
+
+        #endregion
+
+        #region Stream 6: Reports & Trace
+
+        /// <summary>
+        /// S6F2: Trace Data Acknowledge
+        /// </summary>
+        public static SecsMessage S6F2()
+        {
+            return new SecsMessage(6, 2)
+            {
+                Name = "Trace Data Acknowledge",
+                SecsItem = Item.B(0)
+            };
+        }
+
+        /// <summary>
+        /// S6F12: Event Report Acknowledge
+        /// </summary>
+        public static SecsMessage S6F12()
+        {
+            return new SecsMessage(6, 12)
+            {
+                Name = "Event Report Acknowledge",
+                SecsItem = Item.B(0)
             };
         }
 

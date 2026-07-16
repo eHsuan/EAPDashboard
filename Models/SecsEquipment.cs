@@ -172,18 +172,12 @@ namespace EAPDashboard.Models
 
         private async Task HandleS1F1(PrimaryMessageWrapper message)
         {
-            await message.TryReplyAsync(new SecsMessage(1, 2) 
-            { 
-                SecsItem = Item.L(Item.A(Name), Item.A(Id)) 
-            });
+            await message.TryReplyAsync(SecsMessages.S1F2(Name, Id));
         }
 
         private async Task HandleS1F13(PrimaryMessageWrapper message)
         {
-            await message.TryReplyAsync(new SecsMessage(1, 14) 
-            { 
-                SecsItem = Item.B(0) 
-            });
+            await message.TryReplyAsync(SecsMessages.S1F14(0));
         }
 
         private async Task HandleS5F1(PrimaryMessageWrapper message)
@@ -206,7 +200,7 @@ namespace EAPDashboard.Models
                     if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
                 }
-                await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
+                await message.TryReplyAsync(SecsMessages.S5F2());
             } catch (Exception ex) {
                 OnLogReceived(LogLevel.Error, $"[S5F1] Error processing Alarm: {ex.Message}");
             }
@@ -263,7 +257,7 @@ namespace EAPDashboard.Models
                 }
 
                 // 回覆 S6F2
-                await message.TryReplyAsync(new SecsMessage(6, 2) { SecsItem = Item.B(0) });
+                await message.TryReplyAsync(SecsMessages.S6F2());
             }
             catch (Exception ex)
             {
@@ -303,7 +297,7 @@ namespace EAPDashboard.Models
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
                 }
 
-                await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
+                await message.TryReplyAsync(SecsMessages.S6F12());
             } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
         }
 
