@@ -31,6 +31,7 @@ namespace EAPDashboard.Models
                 MigrateModbusToPlc(conn);
                 MigrateBitOffsetToTrigAck(conn);
                 MigrateToTripleLayerSchema(conn);
+                MigrateBufferSchemaToAddEqpId(conn);
 
                 string schema = @"
                     CREATE TABLE IF NOT EXISTS Equipment (
@@ -117,6 +118,7 @@ namespace EAPDashboard.Models
 
                     CREATE TABLE IF NOT EXISTS Local_Binding_Buffer (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EqpId TEXT,
                         CassetteID TEXT,
                         WorkOrder TEXT,
                         PanelList TEXT,
@@ -125,6 +127,7 @@ namespace EAPDashboard.Models
 
                     CREATE TABLE IF NOT EXISTS Local_Unbinding_Buffer (
                         Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        EqpId TEXT,
                         CassetteID TEXT,
                         Timestamp DATETIME DEFAULT (datetime('now', 'localtime'))
                     );
@@ -159,6 +162,43 @@ namespace EAPDashboard.Models
 
                 using (var cmd = new SQLiteCommand(schema, conn)) { cmd.ExecuteNonQuery(); }
             }
+        }
+
+        private static void MigrateBufferSchemaToAddEqpId(SQLiteConnection conn)
+        {
+            try
+            {
+                // 檢查 Local_Binding_Buffer
+                bool hasEqpId1 = false;
+                using (var cmd = new SQLiteCommand("PRAGMA table_info(Local_Binding_Buffer)", conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) if (reader["name"].ToString() == "EqpId") hasEqpId1 = true;
+                }
+                if (!hasEqpId1)
+                {
+                    using (var cmd = new SQLiteCommand("ALTER TABLE Local_Binding_Buffer ADD COLUMN EqpId TEXT", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                // 檢查 Local_Unbinding_Buffer
+                bool hasEqpId2 = false;
+                using (var cmd = new SQLiteCommand("PRAGMA table_info(Local_Unbinding_Buffer)", conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) if (reader["name"].ToString() == "EqpId") hasEqpId2 = true;
+                }
+                if (!hasEqpId2)
+                {
+                    using (var cmd = new SQLiteCommand("ALTER TABLE Local_Unbinding_Buffer ADD COLUMN EqpId TEXT", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch { }
         }
 
         private static void MigrateToTripleLayerSchema(SQLiteConnection conn)
@@ -302,7 +342,7 @@ namespace EAPDashboard.Models
                                 else if (name.Contains("STATUS"))
                                     evt.CmdType = Protocol.Core.Enums.CommandType.StatusChangeReport;
                                 else if (name.Contains("ALARM"))
-                                    evt.CmdType = Protocol.Core.Enums.CommandType.ALARM;
+                                    evt.CmdType = Protocol.Core.Enums.CommandType.AlarmReport;
                                 else if (name.Contains("TRACK_IN") || name.Contains("TRACKIN"))
                                     evt.CmdType = Protocol.Core.Enums.CommandType.TrackInReq;
                                 else if (name.Contains("TRACK_OUT") || name.Contains("TRACKOUT"))
@@ -354,9 +394,9 @@ namespace EAPDashboard.Models
         }
 
         public static SQLiteConnection GetConnection() => new SQLiteConnection(ConnectionString);
-        public static List<PendingBinding> GetPendingBindings() { var list = new List<PendingBinding>(); try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("SELECT * FROM Local_Binding_Buffer", conn)) using (var reader = cmd.ExecuteReader()) while (reader.Read()) list.Add(new PendingBinding { Id = Convert.ToInt32(reader["Id"]), CassetteID = reader["CassetteID"].ToString(), WorkOrder = reader["WorkOrder"].ToString(), PanelList = reader["PanelList"].ToString() }); } } catch { } return list; }
+        public static List<PendingBinding> GetPendingBindings(string eqpId) { var list = new List<PendingBinding>(); try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("SELECT * FROM Local_Binding_Buffer WHERE EqpId = @eqpid", conn)) { cmd.Parameters.AddWithValue("@eqpid", eqpId); using (var reader = cmd.ExecuteReader()) while (reader.Read()) list.Add(new PendingBinding { Id = Convert.ToInt32(reader["Id"]), CassetteID = reader["CassetteID"].ToString(), WorkOrder = reader["WorkOrder"].ToString(), PanelList = reader["PanelList"].ToString() }); } } } catch { } return list; }
         public static void DeletePendingBinding(int id) { try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("DELETE FROM Local_Binding_Buffer WHERE Id = @id", conn)) { cmd.Parameters.AddWithValue("@id", id); cmd.ExecuteNonQuery(); } } } catch { } }
-        public static List<string> GetPendingUnbindings() { var list = new List<string>(); try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("SELECT CassetteID FROM Local_Unbinding_Buffer", conn)) using (var reader = cmd.ExecuteReader()) while (reader.Read()) list.Add(reader["CassetteID"].ToString()); } } catch { } return list; }
+        public static List<string> GetPendingUnbindings(string eqpId) { var list = new List<string>(); try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("SELECT CassetteID FROM Local_Unbinding_Buffer WHERE EqpId = @eqpid", conn)) { cmd.Parameters.AddWithValue("@eqpid", eqpId); using (var reader = cmd.ExecuteReader()) while (reader.Read()) list.Add(reader["CassetteID"].ToString()); } } } catch { } return list; }
         public static void DeletePendingUnbinding(string cid) { try { using (var conn = GetConnection()) { conn.Open(); using (var cmd = new SQLiteCommand("DELETE FROM Local_Unbinding_Buffer WHERE CassetteID = @cid", conn)) { cmd.Parameters.AddWithValue("@cid", cid); cmd.ExecuteNonQuery(); } } } catch { } }
 
         private static void MigrateModbusToPlc(SQLiteConnection conn)

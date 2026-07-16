@@ -320,8 +320,9 @@ namespace EAPDashboard.Models
             try {
                 using (var conn = DatabaseHelper.GetConnection()) {
                     await conn.OpenAsync();
-                    string sql = "INSERT INTO Local_Binding_Buffer (CassetteID, WorkOrder, PanelList) VALUES (@cid, @wo, @json)";
+                    string sql = "INSERT INTO Local_Binding_Buffer (EqpId, CassetteID, WorkOrder, PanelList) VALUES (@eqid, @cid, @wo, @json)";
                     using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
+                        cmd.Parameters.AddWithValue("@eqid", this.Id);
                         cmd.Parameters.AddWithValue("@cid", cid); cmd.Parameters.AddWithValue("@wo", wo);
                         cmd.Parameters.AddWithValue("@json", JsonConvert.SerializeObject(panels));
                         await cmd.ExecuteNonQueryAsync();
@@ -335,8 +336,9 @@ namespace EAPDashboard.Models
             try {
                 using (var conn = DatabaseHelper.GetConnection()) {
                     await conn.OpenAsync();
-                    string sql = "INSERT INTO Local_Unbinding_Buffer (CassetteID) VALUES (@cid)";
+                    string sql = "INSERT INTO Local_Unbinding_Buffer (EqpId, CassetteID) VALUES (@eqid, @cid)";
                     using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
+                        cmd.Parameters.AddWithValue("@eqid", this.Id);
                         cmd.Parameters.AddWithValue("@cid", cid);
                         await cmd.ExecuteNonQueryAsync();
                     }
@@ -350,12 +352,12 @@ namespace EAPDashboard.Models
             {
                 try
                 {
-                    var pendings = DatabaseHelper.GetPendingBindings();
+                    var pendings = DatabaseHelper.GetPendingBindings(this.Id);
                     foreach (var p in pendings) {
                         var panels = JsonConvert.DeserializeObject<List<string>>(p.PanelList);
                         if (await UpdateBindingInDbAsync(p.CassetteID, p.WorkOrder, panels)) DatabaseHelper.DeletePendingBinding(p.Id);
                     }
-                    var unpendings = DatabaseHelper.GetPendingUnbindings();
+                    var unpendings = DatabaseHelper.GetPendingUnbindings(this.Id);
                     foreach (var cid in unpendings) {
                         if (await UnbindFromDbAsync(cid)) DatabaseHelper.DeletePendingUnbinding(cid);
                     }

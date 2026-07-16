@@ -312,7 +312,7 @@ namespace EAPDashboard.Models
                         string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, toPanels);
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() }, msg);
                         break;
-                    case CommandType.ALARM:
+                    case CommandType.AlarmReport:
                         var alm = (AlarmMessage)msg;
                         string mc = TransformAlarmCode(alm.AlarmCode);
                         bool isAlarmSet = string.IsNullOrEmpty(alm.AlarmStatus) || alm.AlarmStatus == "Start" || alm.AlarmStatus == "1";

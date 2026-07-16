@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
@@ -22,12 +22,15 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CyntecMqttLib\CyntecMqttLib.csproj" />
-    <Reference Include="Protocol.Core">
-      <HintPath>..\dll\Protocol.Core\Protocol.Core.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Protocol.Core">
+      <HintPath>..\dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>

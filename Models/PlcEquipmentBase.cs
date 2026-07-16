@@ -189,7 +189,7 @@ namespace EAPDashboard.Models
 
             switch (evt.CmdType)
             {
-                case CommandType.ALARM:
+                case CommandType.AlarmReport:
                     string alarmCode = getVal("AlarmCode", "UNKNOWN");
                     bool isSet = getVal("AlarmStatus", "1") == "1";
                     res = await ProcessAlarmAsync(alarmCode, isSet, reportEqpId);

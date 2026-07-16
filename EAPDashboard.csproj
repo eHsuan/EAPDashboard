@@ -46,10 +46,10 @@
   <ItemGroup>
     <ProjectReference Include="CyntecMqttLib\CyntecMqttLib.csproj" />
     <ProjectReference Include="Protocol.Drivers.Mitsubishi\Protocol.Drivers.Mitsubishi.csproj" />
-    <Reference Include="Protocol.Core">
-      <HintPath>dll\Protocol.Core\Protocol.Core.dll</HintPath>
-    </Reference>
     <ProjectReference Include="Protocol.MES\Protocol.MES.csproj" />
+    <Reference Include="Protocol.Core">
+      <HintPath>dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
+    </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Net.Http" />
   </ItemGroup>
