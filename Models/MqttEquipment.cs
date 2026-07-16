@@ -241,9 +241,7 @@ namespace EAPDashboard.Models
                                 finalRecipe = new Random().Next(1000, 9999).ToString();
                                 OnLogReceived(LogLevel.Info, string.Format("[SIM] MES Simulator detected. Random Recipe: {0}", finalRecipe));
                             } else {
-                                
-                                var evtConfig = DatabaseHelper.GetPlcConfigs(this.Id).FirstOrDefault(x => x.CmdType == CommandType.TrackInReq);
-                                finalRecipe = GetMesParamValue(tp[5], evtConfig?.RecipeParamKey) ?? tp[2];
+                                finalRecipe = tp[2];
                             }
 
                             var rcmd = new RemoteCMDMessage { 

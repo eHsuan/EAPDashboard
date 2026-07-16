@@ -12,9 +12,6 @@ using System.Threading.Tasks;
 using System.Linq;
 using CyntecMqttLib.Interfaces;
 using System.Net.Sockets;
-using Modbus.Device;
-
-using Protocol.Drivers.Mitsubishi;
 
 namespace EAPDashboard
 {
@@ -64,11 +61,6 @@ namespace EAPDashboard
         private CancellationTokenSource _mainCts;
         private MqttBus _bus;
 
-        // Modbus 連線池管理器
-        private static readonly Dictionary<string, IModbusMaster> _modbusPool = new Dictionary<string, IModbusMaster>();
-        private static readonly Dictionary<string, TcpClient> _tcpPool = new Dictionary<string, TcpClient>();
-        private static readonly SemaphoreSlim _poolLock = new SemaphoreSlim(1, 1);
-
         public MainForm()
         {
             InitializeComponent();
@@ -77,23 +69,6 @@ namespace EAPDashboard
             this.Load += MainForm_Load;
             this.FormClosed += MainForm_FormClosed;
             _mainCts = new CancellationTokenSource();
-        }
-
-        public static async Task<IModbusMaster> GetModbusMasterAsync(string ip, int port)
-        {
-            string key = $"{ip}:{port}";
-            await _poolLock.WaitAsync();
-            try {
-                if (_tcpPool.TryGetValue(key, out var client) && client.Connected) return _modbusPool[key];
-                
-                var newClient = new TcpClient();
-                await newClient.ConnectAsync(ip, port);
-                var master = ModbusIpMaster.CreateIp(newClient);
-                
-                _tcpPool[key] = newClient;
-                _modbusPool[key] = master;
-                return master;
-            } finally { _poolLock.Release(); }
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -111,7 +86,6 @@ namespace EAPDashboard
             _mainCts?.Cancel();
             _mainCts?.Dispose();
             foreach (var eq in _equipments) eq.Stop();
-            foreach (var tcp in _tcpPool.Values) tcp.Close();
             if (_bus != null) _bus.Dispose();
         }
 
@@ -183,33 +157,6 @@ namespace EAPDashboard
                                 } else if (protocol == "SECS") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
                                     else eq = new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig };
-                                } else if (protocol == "MODBUSTCP") {
-                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
-                                    else {
-                                        var modbusDriver = new ModbusDriver();
-                                        var modEq = new PlcEquipmentBase(modbusDriver) { 
-                                            Id = eqId, Name = name, Protocol = protocol, 
-                                            Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]),
-                                            DbConfig = _appConfig.DbSettings,
-                                            GatewayConfig = gConfig
-                                        };
-                                        modEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
-                                        eq = modEq;
-                                    }
-                                } else if (protocol == "MC") {
-                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
-                                    else {
-                                        var mcDriver = new McDriver();
-                                        var mcEq = new PlcEquipmentBase(mcDriver) { 
-                                            Id = eqId, Name = name, Protocol = protocol, 
-                                            Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]),
-                                            DbConfig = _appConfig.DbSettings,
-                                            GatewayConfig = gConfig,
-                                            IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test" ? true : false,
-                                        };
-                                        mcEq.SetEvents(DatabaseHelper.GetPlcConfigs(eqId));
-                                        eq = mcEq;
-                                    }
                                 }
                                 if (eq != null) {
                                     eq.IsSimulator = isSim;
