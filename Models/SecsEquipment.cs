@@ -69,14 +69,14 @@ namespace EAPDashboard.Models
 
                 // 啟動應用層 S1F1 存活檢測計時器
                 _aliveCheckTimer = new System.Timers.Timer(30000); // 每 30 秒 Alive Check
-                _aliveCheckTimer.Elapsed += async (s, e) => await TriggerAliveCheckAsync();
+                _aliveCheckTimer.Elapsed += async (s, e) => await SendS1F1();
                 _aliveCheckTimer.AutoReset = true; _aliveCheckTimer.Enabled = true;
 
                 _ = RunConnectionTask(_linkedCts.Token);
             } catch (Exception ex) { OnLogReceived(LogLevel.Fatal, $"[CRITICAL] SECS Crash: {ex.Message}"); }
         }
 
-        private async Task TriggerAliveCheckAsync()
+        private async Task SendS1F1()
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return;
 
