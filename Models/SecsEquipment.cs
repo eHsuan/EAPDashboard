@@ -189,27 +189,22 @@ namespace EAPDashboard.Models
         private async Task HandleS5F1(PrimaryMessageWrapper message)
         {
             try {
-                var root = message.PrimaryMessage.SecsItem;
-                if (root != null && root.Count >= 3) {
-                    byte alcd = root.Items[0].FirstValue<byte>();
-                    string alid = root.Items[1].FirstValue<uint>().ToString();
-                    string altx = root.Items[2].GetString();
-                    bool isSet = (alcd & 0x80) != 0 || alcd == 1;
+                var data = message.PrimaryMessage.ParseS5F1();
+                string alidStr = data.Alid.ToString();
 
-                    string mc = TransformAlarmCode(alid);
-                    if (mc == alid || alid == "0")
-                    {
-                        mc = TransformAlarmCode(altx);
-                    }
+                string mc = TransformAlarmCode(alidStr);
+                if (mc == alidStr || data.Alid == 0)
+                {
+                    mc = TransformAlarmCode(data.Altx);
+                }
 
-                    if (isSet) { 
-                        State = EquipmentState.Alarm; 
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); 
-                    }
-                    else { 
-                        if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
-                    }
+                if (data.IsSet) { 
+                    State = EquipmentState.Alarm; 
+                    HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); 
+                }
+                else { 
+                    if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
+                    HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
                 }
                 await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
             } catch (Exception ex) {
@@ -221,21 +216,8 @@ namespace EAPDashboard.Models
         {
             try
             {
-                var root = message.PrimaryMessage.SecsItem;
-                if (root == null || root.Count < 4) return;
-
-                // SECS S6F1 結構:
-                // L, 4
-                //   1. U4, TRID
-                //   2. U4, SMPLN
-                //   3. A, STIME
-                //   4. L, n (Values)
-                uint trid = root.Items[0].FirstValue<uint>();
-                uint smpln = root.Items[1].FirstValue<uint>();
-                string stime = root.Items[2].GetString();
-                var vals = root.Items[3];
-
-                OnLogReceived(LogLevel.Debug, $"[RECV] S6F1 Trace Data (TRID:{trid}, SMPLN:{smpln})");
+                var data = message.PrimaryMessage.ParseS6F1();
+                OnLogReceived(LogLevel.Debug, $"[RECV] S6F1 Trace Data (TRID:{data.Trid}, SMPLN:{data.Smpln})");
 
                 List<string> paramNames;
                 lock (_traceLock)
@@ -244,19 +226,19 @@ namespace EAPDashboard.Models
                 }
 
                 var payload = new Dictionary<string, object>();
-                payload["TRID"] = trid;
-                payload["SampleNo"] = smpln;
-                payload["SampleTime"] = stime;
+                payload["TRID"] = data.Trid;
+                payload["SampleNo"] = data.Smpln;
+                payload["SampleTime"] = data.Stime;
 
                 var traceParams = new List<object>();
                 var parameterResults = new List<ParameterResultItem>();
 
-                if (vals != null && vals.Count > 0)
+                if (data.Values != null && data.Values.Count > 0)
                 {
-                    for (int i = 0; i < vals.Count; i++)
+                    for (int i = 0; i < data.Values.Count; i++)
                     {
                         string paramName = (i < paramNames.Count) ? paramNames[i] : $"SVID_Index_{i}";
-                        string valStr = ExtractVidValue(vals.Items[i], "0");
+                        string valStr = ExtractVidValue(data.Values.Items[i], "0");
 
                         traceParams.Add(new { ParameterName = paramName, Value = valStr });
                         
@@ -292,14 +274,13 @@ namespace EAPDashboard.Models
         private async Task HandleS6F11(PrimaryMessageWrapper message)
         {
             try {
-                var root = message.PrimaryMessage.SecsItem;
-                if (root == null || root.Count < 3) return;
-                string ceid = root.Items[1].FirstValue<uint>().ToString();
-                string logicalEvent = _dictionary?.GetEventName(ceid) ?? ceid;
-                OnLogReceived(LogLevel.Info, $"[EVENT] {logicalEvent} (CEID:{ceid})");
+                var data = message.PrimaryMessage.ParseS6F11();
+                string ceidStr = data.Ceid.ToString();
+                string logicalEvent = _dictionary?.GetEventName(ceidStr) ?? ceidStr;
+                OnLogReceived(LogLevel.Info, $"[EVENT] {logicalEvent} (CEID:{ceidStr})");
 
                 string statusVid = GetVidByLogicalName("Status") ?? GetVidByLogicalName("NewStatus") ?? "102";
-                string statusCode = ExtractVidValue(root.Items[2], statusVid);
+                string statusCode = ExtractVidValue(data.Reports, statusVid);
                 
                 if (!string.IsNullOrEmpty(statusCode)) {
                     string mappedStatusStr = _dictionary?.MapStatus(statusCode) ?? statusCode;
@@ -309,16 +290,16 @@ namespace EAPDashboard.Models
                 }
 
                 string upperEvent = logicalEvent.ToUpper();
-                if (upperEvent == "TRACK_IN" || ceid == "200") {
-                    await HandleS6F11TrackIn(root);
+                if (upperEvent == "TRACK_IN" || ceidStr == "200") {
+                    await HandleS6F11TrackIn(data.Reports);
                 }
-                else if (upperEvent == "TRACK_OUT" || ceid == "206") {
-                    await HandleS6F11TrackOut(root);
+                else if (upperEvent == "TRACK_OUT" || ceidStr == "206") {
+                    await HandleS6F11TrackOut(data.Reports);
                 }
-                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceid == "102") {
-                    await HandleS6F11ProcessData(root, ceid, logicalEvent);
+                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceidStr == "102") {
+                    await HandleS6F11ProcessData(data.Reports, ceidStr, logicalEvent);
                 }
-                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
+                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceidStr)) {
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
                 }
 
@@ -326,12 +307,12 @@ namespace EAPDashboard.Models
             } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
         }
 
-        private async Task HandleS6F11TrackIn(Item root)
+        private async Task HandleS6F11TrackIn(Item reports)
         {
             string cassetteVid = GetVidByLogicalName("CassetteID") ?? "300";
-            string cid = ExtractVidValue(root, cassetteVid);
+            string cid = ExtractVidValue(reports, cassetteVid);
             if (string.IsNullOrEmpty(cid)) {
-                cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
+                cid = ExtractVidValue(reports, "300") ?? ExtractVidValue(reports, "320") ?? "UNKNOWN";
             }
 
             var info = QueryBindingFromGateway(cid);
@@ -355,10 +336,10 @@ namespace EAPDashboard.Models
             }
         }
 
-        private async Task HandleS6F11TrackOut(Item root)
+        private async Task HandleS6F11TrackOut(Item reports)
         {
             string woVid = GetVidByLogicalName("WorkOrder") ?? GetVidByLogicalName("RecipeID") ?? "111";
-            string rid = ExtractVidValue(root, woVid);
+            string rid = ExtractVidValue(reports, woVid);
             if (string.IsNullOrEmpty(rid)) {
                 rid = "UNKNOWN";
             }
@@ -367,7 +348,7 @@ namespace EAPDashboard.Models
             OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
         }
 
-        private async Task HandleS6F11ProcessData(Item root, string ceid, string logicalEvent)
+        private async Task HandleS6F11ProcessData(Item reports, string ceid, string logicalEvent)
         {
             try
             {
@@ -380,7 +361,7 @@ namespace EAPDashboard.Models
                     {
                         string vid = kvp.Key;
                         string varName = kvp.Value;
-                        string val = ExtractVidValue(root, vid);
+                        string val = ExtractVidValue(reports, vid);
                         if (!string.IsNullOrEmpty(val))
                         {
                             extractedData[varName] = val;

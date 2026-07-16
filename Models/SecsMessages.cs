@@ -10,6 +10,8 @@ namespace EAPDashboard.Models
     /// </summary>
     public static class SecsMessages
     {
+        #region Stream 1: Communications & Connection
+        
         /// <summary>
         /// S1F1: Are You There Request
         /// </summary>
@@ -31,11 +33,86 @@ namespace EAPDashboard.Models
         }
 
         /// <summary>
+        /// S1F15: Request OFF-LINE
+        /// </summary>
+        public static SecsMessage S1F15()
+        {
+            return new SecsMessage(1, 15) { Name = "Request OFF-LINE" };
+        }
+
+        /// <summary>
         /// S1F17: Request ON-LINE
         /// </summary>
         public static SecsMessage S1F17()
         {
             return new SecsMessage(1, 17) { Name = "Request ON-LINE" };
+        }
+
+        /// <summary>
+        /// S1F3: Selected Status Request (Read VIDs)
+        /// </summary>
+        public static SecsMessage S1F3(List<uint> vids)
+        {
+            var vidItems = new List<Item>();
+            if (vids != null)
+            {
+                foreach (var vid in vids)
+                {
+                    vidItems.Add(Item.U4(vid));
+                }
+            }
+            return new SecsMessage(1, 3)
+            {
+                Name = "Selected Status Request",
+                SecsItem = Item.L(vidItems)
+            };
+        }
+
+        #endregion
+
+        #region Stream 2: Equipment Constant & Configs
+
+        /// <summary>
+        /// S2F13: Equipment Constant Request (Read ECIDs)
+        /// </summary>
+        public static SecsMessage S2F13(List<uint> ecids = null)
+        {
+            var ecidItems = new List<Item>();
+            if (ecids != null)
+            {
+                foreach (var ecid in ecids)
+                {
+                    ecidItems.Add(Item.U4(ecid));
+                }
+            }
+            return new SecsMessage(2, 13)
+            {
+                Name = "Equipment Constant Request",
+                SecsItem = Item.L(ecidItems)
+            };
+        }
+
+        /// <summary>
+        /// S2F15: New Equipment Constant Send (Write ECIDs)
+        /// </summary>
+        public static SecsMessage S2F15(Dictionary<uint, string> ecidValues)
+        {
+            var ecList = new List<Item>();
+            if (ecidValues != null)
+            {
+                foreach (var kvp in ecidValues)
+                {
+                    ecList.Add(Item.L(
+                        Item.U4(kvp.Key),
+                        Item.A(kvp.Value)
+                    ));
+                }
+            }
+            return new SecsMessage(2, 15)
+            {
+                Name = "New Equipment Constant Send",
+                SecsItem = Item.L(ecList)
+            };
         }
 
         /// <summary>
@@ -86,6 +163,64 @@ namespace EAPDashboard.Models
         }
 
         /// <summary>
+        /// S2F33: Define Report
+        /// </summary>
+        public static SecsMessage S2F33(uint dataid, uint rptid, List<uint> svids)
+        {
+            var svidItems = new List<Item>();
+            if (svids != null)
+            {
+                foreach (var svid in svids)
+                {
+                    svidItems.Add(Item.U4(svid));
+                }
+            }
+            
+            return new SecsMessage(2, 33)
+            {
+                Name = "Define Report",
+                SecsItem = Item.L(
+                    Item.U4(dataid),
+                    Item.L(
+                        Item.L(
+                            Item.U4(rptid),
+                            Item.L(svidItems)
+                        )
+                    )
+                )
+            };
+        }
+
+        /// <summary>
+        /// S2F35: Link Event Report
+        /// </summary>
+        public static SecsMessage S2F35(uint dataid, uint ceid, List<uint> rptids)
+        {
+            var rptidItems = new List<Item>();
+            if (rptids != null)
+            {
+                foreach (var rptid in rptids)
+                {
+                    rptidItems.Add(Item.U4(rptid));
+                }
+            }
+
+            return new SecsMessage(2, 35)
+            {
+                Name = "Link Event Report",
+                SecsItem = Item.L(
+                    Item.U4(dataid),
+                    Item.L(
+                        Item.L(
+                            Item.U4(ceid),
+                            Item.L(rptidItems)
+                        )
+                    )
+                )
+            };
+        }
+
+        /// <summary>
         /// S2F37: Enable/Disable Event Report
         /// </summary>
         public static SecsMessage S2F37(bool enable)
@@ -124,6 +259,10 @@ namespace EAPDashboard.Models
             };
         }
 
+        #endregion
+
+        #region Stream 5: Alarms
+
         /// <summary>
         /// S5F3: Enable/Disable Alarm Send
         /// </summary>
@@ -139,5 +278,147 @@ namespace EAPDashboard.Models
                 )
             };
         }
+
+        #endregion
+
+        #region Stream 7: Process Programs (Recipes)
+
+        /// <summary>
+        /// S7F1: Process Program Request (Download Recipe)
+        /// </summary>
+        public static SecsMessage S7F1(string ppid)
+        {
+            return new SecsMessage(7, 1)
+            {
+                Name = "Process Program Request",
+                SecsItem = Item.A(ppid)
+            };
+        }
+
+        /// <summary>
+        /// S7F3: Process Program Send (Upload Recipe)
+        /// </summary>
+        public static SecsMessage S7F3(string ppid, byte[] ppbody)
+        {
+            return new SecsMessage(7, 3)
+            {
+                Name = "Process Program Send",
+                SecsItem = Item.L(
+                    Item.A(ppid),
+                    Item.B(ppbody)
+                )
+            };
+        }
+
+        /// <summary>
+        /// S7F17: Process Program Delete
+        /// </summary>
+        public static SecsMessage S7F17(List<string> ppids = null)
+        {
+            var ppidItems = new List<Item>();
+            if (ppids != null)
+            {
+                foreach (var ppid in ppids)
+                {
+                    ppidItems.Add(Item.A(ppid));
+                }
+            }
+            return new SecsMessage(7, 17)
+            {
+                Name = "Process Program Delete",
+                SecsItem = Item.L(ppidItems)
+            };
+        }
+
+        #endregion
     }
+
+    #region Decoded Receive Data Carriers
+
+    /// <summary>
+    /// S5F1: Alarm Report Send 解包資料
+    /// </summary>
+    public class S5F1Data
+    {
+        public byte Alcd { get; set; }
+        public uint Alid { get; set; }
+        public string Altx { get; set; }
+        public bool IsSet => (Alcd & 0x80) != 0 || Alcd == 1;
+    }
+
+    /// <summary>
+    /// S6F1: Trace Data Send 解包資料
+    /// </summary>
+    public class S6F1Data
+    {
+        public uint Trid { get; set; }
+        public uint Smpln { get; set; }
+        public string Stime { get; set; }
+        public Item Values { get; set; }
+    }
+
+    /// <summary>
+    /// S6F11: Event Report Send 解包資料
+    /// </summary>
+    public class S6F11Data
+    {
+        public uint Dataid { get; set; }
+        public uint Ceid { get; set; }
+        public Item Reports { get; set; }
+    }
+
+    #endregion
+
+    #region SECS Message Extensions
+
+    public static class SecsMessageExtensions
+    {
+        /// <summary>
+        /// 解包 S5F1: Alarm Report Send
+        /// </summary>
+        public static S5F1Data ParseS5F1(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            if (root == null || root.Count < 3) throw new Exception("Invalid S5F1 structure.");
+            return new S5F1Data
+            {
+                Alcd = root.Items[0].FirstValue<byte>(),
+                Alid = root.Items[1].FirstValue<uint>(),
+                Altx = root.Items[2].GetString()
+            };
+        }
+
+        /// <summary>
+        /// 解包 S6F1: Trace Data Send
+        /// </summary>
+        public static S6F1Data ParseS6F1(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            if (root == null || root.Count < 4) throw new Exception("Invalid S6F1 structure.");
+            return new S6F1Data
+            {
+                Trid = root.Items[0].FirstValue<uint>(),
+                Smpln = root.Items[1].FirstValue<uint>(),
+                Stime = root.Items[2].GetString(),
+                Values = root.Items[3]
+            };
+        }
+
+        /// <summary>
+        /// 解包 S6F11: Event Report Send
+        /// </summary>
+        public static S6F11Data ParseS6F11(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            if (root == null || root.Count < 3) throw new Exception("Invalid S6F11 structure.");
+            return new S6F11Data
+            {
+                Dataid = root.Items[0].FirstValue<uint>(),
+                Ceid = root.Items[1].FirstValue<uint>(),
+                Reports = root.Items[2]
+            };
+        }
+    }
+
+    #endregion
 }
