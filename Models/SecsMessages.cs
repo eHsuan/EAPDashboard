@@ -190,7 +190,7 @@ namespace EAPDashboard.Models
         /// <summary>
         /// S2F23: Trace Initialize Request
         /// </summary>
-        public static SecsMessage S2F23(uint trid, uint dsper, uint tots, List<string> svids)
+        public static SecsMessage S2F23(string trid, uint dsper, uint tots, List<string> svids)
         {
             var svidItems = new List<Item>();
             if (svids != null)
@@ -208,12 +208,13 @@ namespace EAPDashboard.Models
                 }
             }
 
-            string dsperStr = dsper.ToString("D6"); 
+            TimeSpan ts = TimeSpan.FromSeconds(dsper);
+            string dsperStr = $"{(int)ts.TotalHours:D2}{ts.Minutes:D2}{ts.Seconds:D2}";
             return new SecsMessage(2, 23)
             {
                 Name = "Trace Initialize Request",
                 SecsItem = Item.L(
-                    Item.U4(trid),
+                    Item.A(trid),
                     Item.A(dsperStr),
                     Item.U4(tots),
                     Item.U4(1), // REPGSZ
@@ -571,7 +572,7 @@ namespace EAPDashboard.Models
     /// </summary>
     public class S6F1Data
     {
-        public uint Trid { get; set; }
+        public string Trid { get; set; }
         public uint Smpln { get; set; }
         public string Stime { get; set; }
         public Item Values { get; set; }
@@ -733,7 +734,7 @@ namespace EAPDashboard.Models
             if (root == null || root.Count < 4) throw new Exception("Invalid S6F1 structure.");
             return new S6F1Data
             {
-                Trid = root.Items[0].FirstValue<uint>(),
+                Trid = ExtractSingleValue(root.Items[0]),
                 Smpln = root.Items[1].FirstValue<uint>(),
                 Stime = root.Items[2].GetString(),
                 Values = root.Items[3]

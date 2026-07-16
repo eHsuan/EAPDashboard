@@ -424,7 +424,7 @@ namespace EAPDashboard.Models
             return false;
         }
 
-        public async Task<bool> SendS2F23(uint trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
+        public async Task<bool> SendS2F23(string trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
         {
             lock (_traceLock)
             {
@@ -433,7 +433,7 @@ namespace EAPDashboard.Models
             return await SendS2F23Internal(trid, dsper, tots, svids);
         }
 
-        private async Task<bool> SendS2F23Internal(uint trid, uint dsper, uint tots, List<string> svids)
+        private async Task<bool> SendS2F23Internal(string trid, uint dsper, uint tots, List<string> svids)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
@@ -669,7 +669,7 @@ namespace EAPDashboard.Models
 
                 // Step 5: S2F23 (Trace Initialize TOTS=0)
                 await Task.Delay(300);
-                bool traceOk = await SendS2F23Internal(1, 0, 0, new List<string>());
+                bool traceOk = await SendS2F23Internal("1", 0, 0, new List<string>());
                 if (traceOk) OnLogReceived(LogLevel.Info, "[INIT] S2F23 Trace initialization cleanup complete.");
                 else OnLogReceived(LogLevel.Warn, "[INIT] S2F23 Trace initialization cleanup failed. Continuing...");
 
