@@ -92,7 +92,7 @@ namespace EAPDashboard.Models
             try
             {
                 _aliveCheckAwaitingReply = true;
-                using (var reply = await _secsGem.SendAsync(new SecsMessage(1, 1)))
+                using (var reply = await _secsGem.SendAsync(new S1F1()))
                 {
                     if (reply.S == 1 && reply.F == 2)
                     {
@@ -417,9 +417,8 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                var msg = new SecsMessage(1, 17);
                 OnLogReceived(LogLevel.Info, "[S1F17] Sending Request ON-LINE...");
-                using (var reply = await _secsGem.SendAsync(msg))
+                using (var reply = await _secsGem.SendAsync(new S1F17()))
                 {
                     if (reply.S == 1 && reply.F == 18 && reply.SecsItem != null)
                     {
@@ -450,36 +449,8 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                var svidItems = new List<Item>();
-                if (svids != null)
-                {
-                    foreach (var svid in svids)
-                    {
-                        if (uint.TryParse(svid, out uint numericSvid))
-                        {
-                            svidItems.Add(Item.U4(numericSvid));
-                        }
-                        else
-                        {
-                            svidItems.Add(Item.A(svid));
-                        }
-                    }
-                }
-
-                string dsperStr = dsper.ToString("D6"); 
-                var traceMsg = new SecsMessage(2, 23)
-                {
-                    SecsItem = Item.L(
-                        Item.U4(trid),
-                        Item.A(dsperStr),
-                        Item.U4(tots),
-                        Item.U4(1), // REPGSZ
-                        Item.L(svidItems)
-                    )
-                };
-
-                OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsperStr}, TOTS:{tots})");
-                using (var reply = await _secsGem.SendAsync(traceMsg))
+                OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsper}, TOTS:{tots})");
+                using (var reply = await _secsGem.SendAsync(new S2F23(trid, dsper, tots, svids)))
                 {
                     if (reply.S == 2 && reply.F == 24 && reply.SecsItem != null)
                     {
@@ -491,7 +462,7 @@ namespace EAPDashboard.Models
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Error, $"[S2F23] Send Trace Initialize Error: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"[S2F23] Send S2F23 Error: {ex.Message}");
             }
             return false;
         }
@@ -502,9 +473,8 @@ namespace EAPDashboard.Models
             try
             {
                 string hostTime = DateTime.Now.ToString("yyyyMMddHHmmss");
-                var msg = new SecsMessage(2, 31) { SecsItem = Item.A(hostTime) };
                 OnLogReceived(LogLevel.Info, $"[S2F31] Sending Date and Time Set ({hostTime})...");
-                using (var reply = await _secsGem.SendAsync(msg))
+                using (var reply = await _secsGem.SendAsync(new S2F31(hostTime)))
                 {
                     if (reply.S == 2 && reply.F == 32 && reply.SecsItem != null)
                     {
@@ -526,15 +496,8 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                var msg = new SecsMessage(2, 37)
-                {
-                    SecsItem = Item.L(
-                        Item.Boolean(enable),
-                        Item.L() // Empty list means ALL CEIDs
-                    )
-                };
                 OnLogReceived(LogLevel.Info, $"[S2F37] Sending Enable Events (CEED:{enable}, ALL)...");
-                using (var reply = await _secsGem.SendAsync(msg))
+                using (var reply = await _secsGem.SendAsync(new S2F37(enable)))
                 {
                     if (reply.S == 2 && reply.F == 38 && reply.SecsItem != null)
                     {
@@ -556,25 +519,8 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                var paramList = new List<Item>();
-                if (parameters != null)
-                {
-                    foreach (var kvp in parameters)
-                    {
-                        paramList.Add(Item.L(Item.A(kvp.Key), Item.A(kvp.Value)));
-                    }
-                }
-
-                var remoteCmd = new SecsMessage(2, 41)
-                {
-                    SecsItem = Item.L(
-                        Item.A(rcmd),
-                        Item.L(paramList)
-                    )
-                };
-
                 OnLogReceived(LogLevel.Info, $"[S2F41] Sending Host Command: {rcmd}");
-                using (var reply = await _secsGem.SendAsync(remoteCmd))
+                using (var reply = await _secsGem.SendAsync(new S2F41(rcmd, parameters)))
                 {
                     if (reply.S == 2 && reply.F == 42 && reply.SecsItem != null)
                     {
@@ -596,16 +542,8 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                byte aled = enable ? (byte)0x80 : (byte)0x00;
-                var msg = new SecsMessage(5, 3)
-                {
-                    SecsItem = Item.L(
-                        Item.B(aled),
-                        Item.U4(0) // 0 means ALL ALIDs
-                    )
-                };
                 OnLogReceived(LogLevel.Info, $"[S5F3] Sending Enable Alarms (ALED:{enable}, ALL)...");
-                using (var reply = await _secsGem.SendAsync(msg))
+                using (var reply = await _secsGem.SendAsync(new S5F3(enable)))
                 {
                     if (reply.S == 5 && reply.F == 4 && reply.SecsItem != null)
                     {
@@ -697,6 +635,23 @@ namespace EAPDashboard.Models
             }
         }
 
+        private async Task SendS1F13(ISecsGem gem) 
+        { 
+            try { 
+                using (var reply = await gem.SendAsync(new S1F13())) { 
+                    if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
+                        Connection = ConnectionStatus.Connected; 
+                        OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running initialization sequence...");
+                        
+                        _ = Task.Run(async () =>
+                        {
+                            await RunInitializationSequenceAsync();
+                        });
+                    }
+                } 
+            } catch { } 
+        }
+
         private async Task RunInitializationSequenceAsync()
         {
             try
@@ -735,23 +690,6 @@ namespace EAPDashboard.Models
             {
                 OnLogReceived(LogLevel.Error, $"[INIT] Error in Initialization Sequence: {ex.Message}");
             }
-        }
-
-        private async Task SendS1F13(ISecsGem gem) 
-        { 
-            try { 
-                using (var reply = await gem.SendAsync(new SecsMessage(1, 13) { SecsItem = Item.L() })) { 
-                    if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
-                        Connection = ConnectionStatus.Connected; 
-                        OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running initialization sequence...");
-                        
-                        _ = Task.Run(async () =>
-                        {
-                            await RunInitializationSequenceAsync();
-                        });
-                    }
-                } 
-            } catch { } 
         }
         
         public override void Stop() 
