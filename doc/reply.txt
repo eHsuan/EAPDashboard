@@ -1,5 +1,13 @@
-S1F17 (Request ON-LINE)：強迫機台進入連線模式。
-S2F31 (Date and Time Set)：校正時間。
-S2F37 (Enable Events)：打開 S6F11 (狀態/報工作業) 的廣播開關。
-S5F3 (Enable Alarms)：打開 S5F1 (異常警報) 的廣播開關。
-S2F23, TOTS=0 (Trace Initialize)：清除前朝遺留的 S6F1 追蹤任務。
+以目前的程式架構來看
+var msg = new SecsMessage(5, 3)
+{
+    SecsItem = Item.L(
+        Item.B(aled),
+        Item.U4(0) // 0 means ALL ALIDs
+    )
+};
+若不懂SECS的人要新增SxFy會非常的麻煩
+他得先看懂SEMI Standard才知道SxFy的結構
+有辦法將每個SxFy做成class，並預設好裡面各個物件
+要新增的人比如說要新增S2F15只要call S2F15他就能看到底下的物件有哪些
+這樣做可行嗎?

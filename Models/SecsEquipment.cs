@@ -412,6 +412,30 @@ namespace EAPDashboard.Models
             }
         }
 
+        public async Task<bool> SendS1F17()
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                var msg = new SecsMessage(1, 17);
+                OnLogReceived(LogLevel.Info, "[S1F17] Sending Request ON-LINE...");
+                using (var reply = await _secsGem.SendAsync(msg))
+                {
+                    if (reply.S == 1 && reply.F == 18 && reply.SecsItem != null)
+                    {
+                        byte onlack = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S1F18] Request ON-LINE Acknowledge: {onlack}");
+                        return onlack == 0 || onlack == 2;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S1F17] Send S1F17 Error: {ex.Message}");
+            }
+            return false;
+        }
+
         public async Task<bool> SendS2F23(uint trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
         {
             lock (_traceLock)
@@ -472,6 +496,61 @@ namespace EAPDashboard.Models
             return false;
         }
 
+        private async Task<bool> SendS2F31()
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                string hostTime = DateTime.Now.ToString("yyyyMMddHHmmss");
+                var msg = new SecsMessage(2, 31) { SecsItem = Item.A(hostTime) };
+                OnLogReceived(LogLevel.Info, $"[S2F31] Sending Date and Time Set ({hostTime})...");
+                using (var reply = await _secsGem.SendAsync(msg))
+                {
+                    if (reply.S == 2 && reply.F == 32 && reply.SecsItem != null)
+                    {
+                        byte tiack = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F32] Date and Time Set Acknowledge: {tiack}");
+                        return tiack == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S2F31] Send S2F31 Error: {ex.Message}");
+            }
+            return false;
+        }
+
+        public async Task<bool> SendS2F37(bool enable)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                var msg = new SecsMessage(2, 37)
+                {
+                    SecsItem = Item.L(
+                        Item.Boolean(enable),
+                        Item.L() // Empty list means ALL CEIDs
+                    )
+                };
+                OnLogReceived(LogLevel.Info, $"[S2F37] Sending Enable Events (CEED:{enable}, ALL)...");
+                using (var reply = await _secsGem.SendAsync(msg))
+                {
+                    if (reply.S == 2 && reply.F == 38 && reply.SecsItem != null)
+                    {
+                        byte erack = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F38] Enable Events Acknowledge: {erack}");
+                        return erack == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S2F37] Send S2F37 Error: {ex.Message}");
+            }
+            return false;
+        }
+
         public async Task<bool> SendS2F41(string rcmd, Dictionary<string, string> parameters = null)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
@@ -512,15 +591,35 @@ namespace EAPDashboard.Models
             return false;
         }
 
-        private async Task SendS2F31()
+        public async Task<bool> SendS5F3(bool enable)
         {
-            if (Connection == ConnectionStatus.Connected && _secsGem != null)
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
             {
-                await _secsGem.SendAsync(new SecsMessage(2, 31) 
-                { 
-                    SecsItem = Item.A(DateTime.Now.ToString("yyyyMMddHHmmss")) 
-                });
+                byte aled = enable ? (byte)0x80 : (byte)0x00;
+                var msg = new SecsMessage(5, 3)
+                {
+                    SecsItem = Item.L(
+                        Item.B(aled),
+                        Item.U4(0) // 0 means ALL ALIDs
+                    )
+                };
+                OnLogReceived(LogLevel.Info, $"[S5F3] Sending Enable Alarms (ALED:{enable}, ALL)...");
+                using (var reply = await _secsGem.SendAsync(msg))
+                {
+                    if (reply.S == 5 && reply.F == 4 && reply.SecsItem != null)
+                    {
+                        byte alack = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S5F4] Enable Alarms Acknowledge: {alack}");
+                        return alack == 0;
+                    }
+                }
             }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S5F3] Send S5F3 Error: {ex.Message}");
+            }
+            return false;
         }
 
         public override async Task SendTimeCalibration()
@@ -598,18 +697,57 @@ namespace EAPDashboard.Models
             }
         }
 
+        private async Task RunInitializationSequenceAsync()
+        {
+            try
+            {
+                OnLogReceived(LogLevel.Info, "[INIT] Starting SECS/GEM Initialization Sequence...");
+
+                // Step 1: S1F17 (Request ON-LINE)
+                await Task.Delay(300);
+                bool onlineOk = await SendS1F17();
+                if (!onlineOk) OnLogReceived(LogLevel.Warn, "[INIT] S1F17 (Request ON-LINE) failed or rejected. Continuing sequence...");
+
+                // Step 2: S2F31 (Date and Time Set)
+                await Task.Delay(300);
+                bool timeOk = await SendS2F31();
+                if (!timeOk) OnLogReceived(LogLevel.Warn, "[INIT] S2F31 (Date & Time Set) failed or rejected. Continuing sequence...");
+
+                // Step 3: S2F37 (Enable Events)
+                await Task.Delay(300);
+                bool eventsOk = await SendS2F37(true);
+                if (!eventsOk) OnLogReceived(LogLevel.Warn, "[INIT] S2F37 (Enable Events) failed or rejected. Continuing sequence...");
+
+                // Step 4: S5F3 (Enable Alarms)
+                await Task.Delay(300);
+                bool alarmsOk = await SendS5F3(true);
+                if (!alarmsOk) OnLogReceived(LogLevel.Warn, "[INIT] S5F3 (Enable Alarms) failed or rejected. Continuing sequence...");
+
+                // Step 5: S2F23 (Trace Initialize TOTS=0)
+                await Task.Delay(300);
+                bool traceOk = await SendS2F23Internal(1, 0, 0, new List<string>());
+                if (traceOk) OnLogReceived(LogLevel.Info, "[INIT] S2F23 Trace initialization cleanup complete.");
+                else OnLogReceived(LogLevel.Warn, "[INIT] S2F23 Trace initialization cleanup failed. Continuing...");
+
+                OnLogReceived(LogLevel.Info, "[INIT] SECS/GEM Initialization Sequence completed.");
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[INIT] Error in Initialization Sequence: {ex.Message}");
+            }
+        }
+
         private async Task SendS1F13(ISecsGem gem) 
         { 
             try { 
                 using (var reply = await gem.SendAsync(new SecsMessage(1, 13) { SecsItem = Item.L() })) { 
                     if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
                         Connection = ConnectionStatus.Connected; 
-                        OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running Trace initialization cleanup...");
+                        OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running initialization sequence...");
                         
                         _ = Task.Run(async () =>
                         {
-                            await Task.Delay(500); // 延遲 500ms 保護舊機台佇列
-                            await SendS2F23Internal(1, 0, 0, new List<string>());
+                            await RunInitializationSequenceAsync();
                         });
                     }
                 } 
