@@ -709,7 +709,7 @@ namespace EAPDashboard.Models
         public async Task<bool> SendPauseCommandAsync() => await SendS2F41("PAUSE");
         public async Task<bool> SendResumeCommandAsync() => await SendS2F41("RESUME");
 
-        public async Task<bool> SendNewEquipmentConstantsAsync(Dictionary<uint, string> ecidValues)
+        public async Task<bool> SendS2F15(Dictionary<uint, string> ecidValues)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
@@ -732,7 +732,7 @@ namespace EAPDashboard.Models
             return false;
         }
 
-        public async Task<bool> SendTerminalMessageAsync(string text, byte tid = 0)
+        public async Task<bool> SendS10F3(string text, byte tid = 0)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
