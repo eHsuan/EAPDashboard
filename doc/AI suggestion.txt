@@ -1,0 +1,80 @@
+1. 連線與存活檢測 (對應 MQTT 2.7 Alive Check)
+目前規範要求 EQ 與 EAP(BC) 雙向都要具備 30 秒的存活檢測（AreYouThere / IamHere）。
+所需的 SECS SF：
+S1F1 (Are You There Request)
+S1F2 (On Line Data)
+目前 EAP 狀況：已實作「設備 
+→
+→
+ EAP」的 S1F1 接收。
+⚠️ 需要擴充實作：
+EAP 必須也能主動發起 S1F1 給設備，並接收設備的 S1F2，以完成「EAP 
+→
+→
+ 設備」的存活檢測（對應 MQTT 的 BC 主動檢測）。
+連線建鏈交握 S1F13 / S1F14 已完成雙向實作，這部分無需變更。
+2. 設備狀態變更上報 (對應 MQTT 2.6 Status Change Report)
+機台燈號或狀態（RUN、IDLE、DOWN 等）改變時，將變化上報給系統。
+所需的 SECS SF：
+S6F11 (Event Report Send)
+S6F12 (Event Report Acknowledge)
+目前 EAP 狀況：已實作接收 CEID="50,51,52,53" 與對應的變數 VID 102。
+✅ 滿足現況，但需注意：
+需確保舊設備上報 S6F11 時，Report (RPTID) 中綁定的 VID 能轉譯為 MQTT 規範中的 OldStatus 與 NewStatus（對應規範 1.7 節燈號代碼 0~12）。
+3. 警報上報 (對應 MQTT 2.4 Alarm Report)
+發生硬體或軟體異常時，即時通報。
+所需的 SECS SF：
+S5F1 (Alarm Report Send)
+S5F2 (Alarm Report Acknowledge)
+目前 EAP 狀況：已實作接收與轉譯 ALCD、ALTX。
+✅ 滿足現況，但需注意：
+需確保 EAP 將 S5F1 轉譯為 MQTT 的 AlarmStatus (Start/End)、AlarmCode 與 AlarmMsg。
+4. 製程資料收集 (對應 MQTT 2.5 Process Data Report)
+機台完成一個生產單位（Unit）時，上報該單位的品質與製程參數（EDC）。
+所需的 SECS SF：
+S6F11 (Event Report Send)
+S6F12 (Event Report Acknowledge)
+目前 EAP 狀況：目前僅實作 Track In/Out (CEID 200, 206) 及狀態變更。
+⚠️ 需要擴充實作：
+針對舊機台的「Unit 完成事件 (Unit Complete CEID)」，EAP 需新增對該 CEID 的解析。
+需從對應的 S6F11 中抽出製程數據 VIDs（如溫度、壓力等），將其打包成 MQTT 規範的 ProcessData JSON 陣列。
+5. 追蹤資料 (對應 MQTT 2.14 Trace Data Report)
+固定頻率（如每幾秒）連續上報機台感測器數據（如溫度、電壓曲線）。
+所需的 SECS SF：
+S2F23 (Trace Initialize Send) - EAP 主動發起
+S2F24 (Trace Initialize Acknowledge) - 設備回覆
+S6F1 (Trace Data Send) - 設備主動上報
+S6F2 (Trace Data Acknowledge) - EAP 回覆
+目前 EAP 狀況：完全未實作。
+🚨 必須新增實作：
+EAP 收到 MQTT 的 InitTraceData 時，需轉換為 S2F23 下發給設備（設定 TRID、DSPER 採樣頻率、TOTS 總採樣數以及所需追蹤的 SVIDs）。
+EAP 需實作接收 S6F1，並將收集到的資料轉譯為 MQTT RtnTraceData (包含 CycleTime, Parameter 陣列等)。
+6. 設備狀態查詢 (對應 MQTT 2.9 Status Request)
+當 EAP 重啟或斷線重連時，EAP 需主動向機台要當前的狀態與參數。
+所需的 SECS SF：
+S1F3 (Selected Equipment Status Request)
+S1F4 (Selected Equipment Status Data)
+目前 EAP 狀況：未實作。
+🚨 必須新增實作：
+EAP 收到 MQTT 的 StatusReq 時，需發送 S1F3（帶入狀態對應的 SVID），並解析 S1F4 取得機台當前狀態。
+7. 時間校正 (對應 MQTT 2.8 Time Calibration)
+確保系統與機台時間一致。
+所需的 SECS SF：
+S2F31 (Date and Time Set Request)
+S2F32 (Date and Time Set Acknowledge)
+目前 EAP 狀況：已實作 EAP 發起 S2F31。
+✅ 滿足現況：只要將 MQTT 收到的時間轉成 S2F31 格式（YYYYMMDDhhmmss）發送即可。
+8. 遠端指令控制 (對應 MQTT 2.10 Remote Command)
+雖然是基本功能，但如果舊設備支援基本的停止或暫停。
+所需的 SECS SF：
+S2F41 (Host Command Send)
+S2F42 (Host Command Acknowledge)
+目前 EAP 狀況：已實作 PP-SELECT (配方切換)。
+⚠️ 需要擴充實作：
+依據 MQTT PDF 的附件 5.1，需額外擴充支援 START (啟動), STOP (停止), PAUSE (暫停), RESUME (恢復) 等 Command 參數的解析與發送。
+總結：EAP 接下來需要補齊的 SECS 開發工作清單 (To-Do List)
+1.(高優先) 實作 Trace Data 相關交握：S2F23(發送) / S2F24(接收) 與 S6F1(接收) / S6F2(發送)。
+2.(高優先) 實作狀態主動查詢：S1F3(發送) / S1F4(接收)，用於 MQTT 的 Status Request。
+3.(中優先) 擴充 S6F11 解析邏輯：除了 Track In/Out 外，加入「生產單元完成」的事件 (Process Data) 處理。
+4.(中優先) 擴充 S1F1(發送) / S1F2(接收)：補齊 EAP 主動 Ping 機台的機制。
+5.(低優先) 擴充 S2F41：加入 START / STOP 等機台控制指令的轉換。
