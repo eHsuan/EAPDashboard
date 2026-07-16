@@ -681,7 +681,7 @@ namespace EAPDashboard.Models
             }
         }
 
-        public async Task<List<string>> QueryEquipmentStatusAsync(List<uint> vids)
+        public async Task<List<string>> SendS1F3(List<uint> vids)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return new List<string>();
             try
@@ -704,10 +704,10 @@ namespace EAPDashboard.Models
             return new List<string>();
         }
 
-        public async Task<bool> SendStartCommandAsync() => await SendS2F41("START");
-        public async Task<bool> SendStopCommandAsync() => await SendS2F41("STOP");
-        public async Task<bool> SendPauseCommandAsync() => await SendS2F41("PAUSE");
-        public async Task<bool> SendResumeCommandAsync() => await SendS2F41("RESUME");
+        public async Task<bool> SendS2F41Start() => await SendS2F41("START");
+        public async Task<bool> SendS2F41Stop() => await SendS2F41("STOP");
+        public async Task<bool> SendS2F41Pause() => await SendS2F41("PAUSE");
+        public async Task<bool> SendS2F41Resume() => await SendS2F41("RESUME");
 
         public async Task<bool> SendS2F15(Dictionary<uint, string> ecidValues)
         {
