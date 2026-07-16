@@ -167,12 +167,26 @@ namespace EAPDashboard.Models
                     if (f == 1) await HandleS6F1(message);
                     else if (f == 11) await HandleS6F11(message); 
                     break;
+                case 10:
+                    if (f == 3) await HandleS10F3(message);
+                    break;
             }
         }
 
         private async Task HandleS1F1(PrimaryMessageWrapper message)
         {
             await message.TryReplyAsync(SecsMessages.S1F2(Name, Id));
+        }
+
+        private async Task HandleS10F3(PrimaryMessageWrapper message)
+        {
+            try {
+                var data = message.PrimaryMessage.ParseS10F3();
+                OnLogReceived(LogLevel.Info, $"[TERMINAL] Msg from Eqp (TID:{data.Tid}): {data.Text}");
+                await message.TryReplyAsync(SecsMessages.S10F4());
+            } catch (Exception ex) {
+                OnLogReceived(LogLevel.Error, $"[S10F3] Error processing Terminal Message: {ex.Message}");
+            }
         }
 
         private async Task HandleS1F13(PrimaryMessageWrapper message)
@@ -694,6 +708,52 @@ namespace EAPDashboard.Models
         public async Task<bool> SendStopCommandAsync() => await SendS2F41("STOP");
         public async Task<bool> SendPauseCommandAsync() => await SendS2F41("PAUSE");
         public async Task<bool> SendResumeCommandAsync() => await SendS2F41("RESUME");
+
+        public async Task<bool> SendNewEquipmentConstantsAsync(Dictionary<uint, string> ecidValues)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                OnLogReceived(LogLevel.Info, $"[S2F15] Sending New Equipment Constants ({ecidValues.Count} IDs)...");
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S2F15(ecidValues)))
+                {
+                    if (reply.S == 2 && reply.F == 16 && reply.SecsItem != null)
+                    {
+                        byte eac = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F16] New Equipment Constant Ack: {eac}");
+                        return eac == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S2F15] New Equipment Constant Send failed: {ex.Message}");
+            }
+            return false;
+        }
+
+        public async Task<bool> SendTerminalMessageAsync(string text, byte tid = 0)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                OnLogReceived(LogLevel.Info, $"[S10F3] Sending Terminal Message (TID:{tid}): {text}");
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S10F3(text, tid)))
+                {
+                    if (reply.S == 10 && reply.F == 4 && reply.SecsItem != null)
+                    {
+                        byte ackc10 = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S10F4] Terminal Display Ack: {ackc10}");
+                        return ackc10 == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S10F3] Terminal Message Send failed: {ex.Message}");
+            }
+            return false;
+        }
         
         public override void Stop() 
         { 

@@ -479,6 +479,44 @@ namespace EAPDashboard.Models
         }
 
         #endregion
+
+        #region Stream 10: Terminal Display
+
+        /// <summary>
+        /// S10F3: Terminal Display Single
+        /// </summary>
+        public static SecsMessage S10F3(string text, byte tid = 0)
+        {
+            var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            var lineItems = new List<Item>();
+            foreach (var line in lines)
+            {
+                lineItems.Add(Item.A(line));
+            }
+
+            return new SecsMessage(10, 3)
+            {
+                Name = "Terminal Display Single",
+                SecsItem = Item.L(
+                    Item.B(tid),
+                    Item.L(lineItems)
+                )
+            };
+        }
+
+        /// <summary>
+        /// S10F4: Terminal Display Single Acknowledge
+        /// </summary>
+        public static SecsMessage S10F4()
+        {
+            return new SecsMessage(10, 4)
+            {
+                Name = "Terminal Display Single Acknowledge",
+                SecsItem = Item.B(0)
+            };
+        }
+
+        #endregion
     }
 
     #region Decoded Receive Data Carriers
@@ -547,6 +585,15 @@ namespace EAPDashboard.Models
         public uint Dataid { get; set; }
         public uint Ceid { get; set; }
         public Item Reports { get; set; }
+    }
+
+    /// <summary>
+    /// S10F3: Terminal Display Single 解包資料
+    /// </summary>
+    public class S10F3Data
+    {
+        public byte Tid { get; set; }
+        public string Text { get; set; }
     }
 
     #endregion
@@ -728,6 +775,37 @@ namespace EAPDashboard.Models
                 result.Add(root.GetString());
             }
             return result;
+        }
+
+        /// <summary>
+        /// 解包 S10F3: Terminal Display Single
+        /// </summary>
+        public static S10F3Data ParseS10F3(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            if (root == null || root.Count < 2) throw new Exception("Invalid S10F3 structure.");
+            
+            byte tid = root.Items[0].FirstValue<byte>();
+            var textList = root.Items[1];
+            var sb = new System.Text.StringBuilder();
+            if (textList.Format == SecsFormat.List)
+            {
+                for (int i = 0; i < textList.Count; i++)
+                {
+                    if (i > 0) sb.Append(Environment.NewLine);
+                    sb.Append(textList.Items[i].GetString());
+                }
+            }
+            else
+            {
+                sb.Append(textList.GetString());
+            }
+
+            return new S10F3Data
+            {
+                Tid = tid,
+                Text = sb.ToString()
+            };
         }
 
         private static string ExtractSingleValue(Item item)

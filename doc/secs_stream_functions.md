@@ -36,6 +36,8 @@
 | **S7F3** | Process Program Send | Host $\rightarrow$ Eqp | 主動上傳/下發 Recipe 二進制或文字配方內容給設備。 | **S7F4** |
 | **S7F17** | Process Program Delete | Host $\rightarrow$ Eqp | 主動下發命令刪除設備端指定的 Recipe。 | **S7F18** |
 | **S7F19** | Current EPID Request | Host $\rightarrow$ Eqp | 主動向設備請求當前已載入或已儲存的配方 (PPID) 列表。 | **S7F20** |
+| **S10F3** | Terminal Display Single | Host $\rightarrow$ Eqp | 主動在設備面板（液晶螢幕）上顯示文字訊息。 | **S10F4** |
+| **S10F4** | Terminal Display Reply | Host $\rightarrow$ Eqp | 當設備向 EAP 發起 S10F3 時，EAP 自動回覆確認收到。 | (無) |
 
 ---
 
@@ -54,3 +56,4 @@
 | **S6F1** | Trace Data Send | Eqp $\rightarrow$ Host | `S6F1Data` | 設備定頻 Trace 上報。EAP 解包取得 `Trid`、`Smpln`、`Stime` 與採樣 VIDs 值，記錄至本地 CSV 並以 KPI 參數報工給 MES。 |
 | **S6F11** | Event Report Send | Eqp $\rightarrow$ Host | `S6F11Data` | 設備事件/狀態廣播。EAP 解包取得 `Ceid` 與綁定的報告項目：<br>- **進站 (CEID 200)** / **出站 (CEID 206)**：執行 Track In/Out MES 報工與自動 PP-SELECT Recipe 下發。<br>- **製程 EDC 資料 (CEID 102)**：動態提取報告中所有 VID 數值，記錄並報工給 MES。<br>- **狀態變更 (CEID 50-53)**：更新 EAP 畫面狀態，並上傳狀態代碼給 MES。 |
 | **S7F20** | Current EPID Data | Eqp $\rightarrow$ Host | `List<string> Ppids` | 配方清單回覆。取得目前設備上存在的所有配方檔案名稱列表。 |
+| **S10F3** | Terminal Display Single | Eqp $\rightarrow$ Host | `S10F3Data` | 設備在 EAP 終端上顯示訊息。EAP 解包取得 `Tid` 與 `Text`，記錄至日誌並自動回覆 S10F4。 |
