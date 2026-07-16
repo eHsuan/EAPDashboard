@@ -418,6 +418,43 @@ namespace EAPDashboard.Models
                 Reports = root.Items[2]
             };
         }
+
+        /// <summary>
+        /// 解包 S1F4: Selected Equipment Status Data (VID values list)
+        /// </summary>
+        public static List<string> ParseS1F4(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            var result = new List<string>();
+            if (root == null) return result;
+            if (root.Format == SecsFormat.List)
+            {
+                foreach (var item in root.Items)
+                {
+                    result.Add(ExtractSingleValue(item));
+                }
+            }
+            else
+            {
+                result.Add(ExtractSingleValue(root));
+            }
+            return result;
+        }
+
+        private static string ExtractSingleValue(Item item)
+        {
+            if (item == null) return string.Empty;
+            switch (item.Format)
+            {
+                case SecsFormat.ASCII: return item.GetString();
+                case SecsFormat.U1: case SecsFormat.Binary: return item.FirstValue<byte>().ToString();
+                case SecsFormat.U2: return item.FirstValue<ushort>().ToString();
+                case SecsFormat.U4: return item.FirstValue<uint>().ToString();
+                case SecsFormat.I4: return item.FirstValue<int>().ToString();
+                case SecsFormat.Boolean: return item.FirstValue<bool>().ToString();
+                default: return string.Empty;
+            }
+        }
     }
 
     #endregion

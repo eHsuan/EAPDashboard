@@ -672,6 +672,34 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Error, $"[INIT] Error in Initialization Sequence: {ex.Message}");
             }
         }
+
+        public async Task<List<string>> QueryEquipmentStatusAsync(List<uint> vids)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return new List<string>();
+            try
+            {
+                OnLogReceived(LogLevel.Info, $"[S1F3] Requesting Status for {vids.Count} VIDs...");
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S1F3(vids)))
+                {
+                    if (reply.S == 1 && reply.F == 4)
+                    {
+                        var values = reply.ParseS1F4();
+                        OnLogReceived(LogLevel.Info, $"[S1F4] Received {values.Count} Status values from equipment.");
+                        return values;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S1F3] Selected Status Request failed: {ex.Message}");
+            }
+            return new List<string>();
+        }
+
+        public async Task<bool> SendStartCommandAsync() => await SendS2F41("START");
+        public async Task<bool> SendStopCommandAsync() => await SendS2F41("STOP");
+        public async Task<bool> SendPauseCommandAsync() => await SendS2F41("PAUSE");
+        public async Task<bool> SendResumeCommandAsync() => await SendS2F41("RESUME");
         
         public override void Stop() 
         { 
