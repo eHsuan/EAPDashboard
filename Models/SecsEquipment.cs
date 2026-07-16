@@ -42,6 +42,7 @@ namespace EAPDashboard.Models
         public int Port { get; set; }
         public ushort DeviceId { get; set; } = 0;
         public string DictionaryPath { get; set; }
+        public string TimeFormat { get; set; } = "16";
         public bool IsActive { get; set; } = true;
 
         public SecsEquipment()
@@ -461,7 +462,17 @@ namespace EAPDashboard.Models
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
             {
-                string hostTime = DateTime.Now.ToString("yyyyMMddHHmmss");
+                string formatStr = "yyyyMMddHHmmss00"; // 預設 16 碼
+                if (TimeFormat == "14")
+                {
+                    formatStr = "yyyyMMddHHmmss";
+                }
+                else if (TimeFormat == "12")
+                {
+                    formatStr = "yyMMddHHmmss";
+                }
+
+                string hostTime = DateTime.Now.ToString(formatStr);
                 OnLogReceived(LogLevel.Info, $"[S2F31] Sending Date and Time Set ({hostTime})...");
                 using (var reply = await _secsGem.SendAsync(SecsMessages.S2F31(hostTime)))
                 {

@@ -156,7 +156,7 @@ namespace EAPDashboard
                                     else eq = new MqttEquipment { Id = eqId, Name = name, Topic = topic, DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig };
                                 } else if (protocol == "SECS") {
                                     if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
-                                    else eq = new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig };
+                                    else eq = new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig, TimeFormat = reader["TimeFormat"]?.ToString() ?? "16" };
                                 }
                                 if (eq != null) {
                                     eq.IsSimulator = isSim;

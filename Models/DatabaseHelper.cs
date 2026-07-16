@@ -29,6 +29,7 @@ namespace EAPDashboard.Models
             {
                 conn.Open();
                 MigrateBufferSchemaToAddEqpId(conn);
+                MigrateEquipmentSchemaForTimeFormat(conn);
 
                 string schema = @"
                     CREATE TABLE IF NOT EXISTS Equipment (
@@ -40,6 +41,7 @@ namespace EAPDashboard.Models
                         Topic TEXT,
                         DeviceId INTEGER,
                         DictionaryPath TEXT,
+                        TimeFormat TEXT DEFAULT '16',
                         IsActive INTEGER DEFAULT 1
                     );
 
@@ -118,6 +120,27 @@ namespace EAPDashboard.Models
                 if (!hasEqpId2)
                 {
                     using (var cmd = new SQLiteCommand("ALTER TABLE Local_Unbinding_Buffer ADD COLUMN EqpId TEXT", conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static void MigrateEquipmentSchemaForTimeFormat(SQLiteConnection conn)
+        {
+            try
+            {
+                bool hasTimeFormat = false;
+                using (var cmd = new SQLiteCommand("PRAGMA table_info(Equipment)", conn))
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read()) if (reader["name"].ToString() == "TimeFormat") hasTimeFormat = true;
+                }
+                if (!hasTimeFormat)
+                {
+                    using (var cmd = new SQLiteCommand("ALTER TABLE Equipment ADD COLUMN TimeFormat TEXT DEFAULT '16'", conn))
                     {
                         cmd.ExecuteNonQuery();
                     }
