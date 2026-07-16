@@ -92,7 +92,7 @@ namespace EAPDashboard.Models
             try
             {
                 _aliveCheckAwaitingReply = true;
-                using (var reply = await _secsGem.SendAsync(new S1F1()))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S1F1()))
                 {
                     if (reply.S == 1 && reply.F == 2)
                     {
@@ -418,7 +418,7 @@ namespace EAPDashboard.Models
             try
             {
                 OnLogReceived(LogLevel.Info, "[S1F17] Sending Request ON-LINE...");
-                using (var reply = await _secsGem.SendAsync(new S1F17()))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S1F17()))
                 {
                     if (reply.S == 1 && reply.F == 18 && reply.SecsItem != null)
                     {
@@ -450,7 +450,7 @@ namespace EAPDashboard.Models
             try
             {
                 OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsper}, TOTS:{tots})");
-                using (var reply = await _secsGem.SendAsync(new S2F23(trid, dsper, tots, svids)))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S2F23(trid, dsper, tots, svids)))
                 {
                     if (reply.S == 2 && reply.F == 24 && reply.SecsItem != null)
                     {
@@ -474,7 +474,7 @@ namespace EAPDashboard.Models
             {
                 string hostTime = DateTime.Now.ToString("yyyyMMddHHmmss");
                 OnLogReceived(LogLevel.Info, $"[S2F31] Sending Date and Time Set ({hostTime})...");
-                using (var reply = await _secsGem.SendAsync(new S2F31(hostTime)))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S2F31(hostTime)))
                 {
                     if (reply.S == 2 && reply.F == 32 && reply.SecsItem != null)
                     {
@@ -497,7 +497,7 @@ namespace EAPDashboard.Models
             try
             {
                 OnLogReceived(LogLevel.Info, $"[S2F37] Sending Enable Events (CEED:{enable}, ALL)...");
-                using (var reply = await _secsGem.SendAsync(new S2F37(enable)))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S2F37(enable)))
                 {
                     if (reply.S == 2 && reply.F == 38 && reply.SecsItem != null)
                     {
@@ -520,7 +520,7 @@ namespace EAPDashboard.Models
             try
             {
                 OnLogReceived(LogLevel.Info, $"[S2F41] Sending Host Command: {rcmd}");
-                using (var reply = await _secsGem.SendAsync(new S2F41(rcmd, parameters)))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S2F41(rcmd, parameters)))
                 {
                     if (reply.S == 2 && reply.F == 42 && reply.SecsItem != null)
                     {
@@ -543,7 +543,7 @@ namespace EAPDashboard.Models
             try
             {
                 OnLogReceived(LogLevel.Info, $"[S5F3] Sending Enable Alarms (ALED:{enable}, ALL)...");
-                using (var reply = await _secsGem.SendAsync(new S5F3(enable)))
+                using (var reply = await _secsGem.SendAsync(SecsMessages.S5F3(enable)))
                 {
                     if (reply.S == 5 && reply.F == 4 && reply.SecsItem != null)
                     {
@@ -638,7 +638,7 @@ namespace EAPDashboard.Models
         private async Task SendS1F13(ISecsGem gem) 
         { 
             try { 
-                using (var reply = await gem.SendAsync(new S1F13())) { 
+                using (var reply = await gem.SendAsync(SecsMessages.S1F13())) { 
                     if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
                         Connection = ConnectionStatus.Connected; 
                         OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running initialization sequence...");
