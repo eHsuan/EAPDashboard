@@ -12,6 +12,12 @@ using Secs4Net;
 using Protocol.MES.Factory;
 using Protocol.MES.Messages;
 using Protocol.MES.Enums;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Protocol.Core.Base;
+using Protocol.Core.Enums;
+using Protocol.Core.Factory;
+using Protocol.Core.Messages;
 
 namespace EAPDashboard.Models
 {
@@ -21,6 +27,15 @@ namespace EAPDashboard.Models
         private ISecsGem _secsGem;
         private SecsDictionary _dictionary;
         private System.Timers.Timer _retryTimer;
+        private System.Timers.Timer _aliveCheckTimer;
+        private bool _aliveCheckAwaitingReply = false;
+
+        private MqttBus _mqttBus;
+        private string _commandTopic;
+        private string _reportTopic;
+
+        private List<string> _activeTraceParameters = new List<string>();
+        private readonly object _traceLock = new object();
 
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
 
@@ -35,6 +50,7 @@ namespace EAPDashboard.Models
         public ushort DeviceId { get; set; } = 0;
         public string DictionaryPath { get; set; }
         public bool IsActive { get; set; } = true;
+        public string Topic { get; set; }
 
         public SecsEquipment()
         {
@@ -47,19 +63,74 @@ namespace EAPDashboard.Models
             try {
                 OnLogReceived(LogLevel.Info, $"[START] SECS module initialized for {Id}.");
                 _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
-                
+                _mqttBus = bus;
+
                 string fullDictPath = Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath);
                 if (File.Exists(fullDictPath)) _dictionary = SecsDictionary.Load(fullDictPath);
 
                 LoadAlarmMappings();
                 _ = StartStatusBufferProcessor(_linkedCts.Token);
 
+                // 訂閱設備專屬的 MQTT 控制主題
+                if (_mqttBus != null && !string.IsNullOrEmpty(Topic))
+                {
+                    _commandTopic = $"{Topic.TrimEnd('/')}/Command";
+                    _reportTopic = $"{Topic.TrimEnd('/')}/Report";
+                    
+                    _ = Task.Run(async () =>
+                    {
+                        await _mqttBus.SubscribeAsync(_commandTopic, async (topic, payload) =>
+                        {
+                            await HandleMqttCommandAsync(payload);
+                        });
+                        OnLogReceived(LogLevel.Info, $"[MQTT] Subscribed to command topic: {_commandTopic}");
+                    });
+                }
+
+                // 啟動主動連線偵測 Loop
                 _retryTimer = new System.Timers.Timer(15000);
                 _retryTimer.Elapsed += (s, e) => { if (Connection == ConnectionStatus.Disconnected) _ = RunConnectionTask(_linkedCts.Token); };
                 _retryTimer.AutoReset = true; _retryTimer.Enabled = true;
 
+                // 啟動應用層 S1F1 存活檢測計時器
+                _aliveCheckTimer = new System.Timers.Timer(30000); // 每 30 秒 Alive Check
+                _aliveCheckTimer.Elapsed += async (s, e) => await TriggerAliveCheckAsync();
+                _aliveCheckTimer.AutoReset = true; _aliveCheckTimer.Enabled = true;
+
                 _ = RunConnectionTask(_linkedCts.Token);
             } catch (Exception ex) { OnLogReceived(LogLevel.Fatal, $"[CRITICAL] SECS Crash: {ex.Message}"); }
+        }
+
+        private async Task TriggerAliveCheckAsync()
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return;
+
+            if (_aliveCheckAwaitingReply)
+            {
+                OnLogReceived(LogLevel.Error, "[ALIVE_CHECK] S1F1 response timeout (30s). Equipment software application frozen. Forcing reconnect...");
+                _aliveCheckAwaitingReply = false;
+                Connection = ConnectionStatus.Disconnected;
+                (_secsGem as IDisposable)?.Dispose(); // 強制觸發連線斷開
+                return;
+            }
+
+            try
+            {
+                _aliveCheckAwaitingReply = true;
+                using (var reply = await _secsGem.SendAsync(new SecsMessage(1, 1)))
+                {
+                    if (reply.S == 1 && reply.F == 2)
+                    {
+                        _aliveCheckAwaitingReply = false;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[ALIVE_CHECK] Send S1F1 failed: {ex.Message}. Disconnecting...");
+                _aliveCheckAwaitingReply = false;
+                Connection = ConnectionStatus.Disconnected;
+            }
         }
 
         private async Task RunConnectionTask(CancellationToken token)
@@ -114,8 +185,13 @@ namespace EAPDashboard.Models
                     if (f == 1) await message.TryReplyAsync(new SecsMessage(1, 2) { SecsItem = Item.L(Item.A(Name), Item.A(Id)) });
                     else if (f == 13) await message.TryReplyAsync(new SecsMessage(1, 14) { SecsItem = Item.B(0) });
                     break;
-                case 6: if (f == 11) await HandleS6F11(message); break;
-                case 5: if (f == 1) await HandleS5F1(message); break;
+                case 6: 
+                    if (f == 11) await HandleS6F11(message); 
+                    else if (f == 1) await HandleS6F1(message);
+                    break;
+                case 5: 
+                    if (f == 1) await HandleS5F1(message); 
+                    break;
             }
         }
 
@@ -145,8 +221,19 @@ namespace EAPDashboard.Models
                 else if (upperEvent == "TRACK_OUT" || ceid == "206") {
                     await HandleTrackOutEvent(root);
                 }
+                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceid == "102") {
+                    await HandleProcessDataEvent(root, ceid, logicalEvent);
+                }
                 else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
+                    
+                    // 同步發布 MQTT 狀態上報
+                    var statusReport = new StatusChangeReportMessage
+                    {
+                        CMD = CommandType.StatusChangeReport,
+                        NewStatus = int.TryParse(statusCode, out var sc) ? sc : 3
+                    };
+                    await SendMqttReplyAsync(statusReport);
                 }
 
                 await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
@@ -168,12 +255,16 @@ namespace EAPDashboard.Models
             string res = await ProcessTrackInAsync(cid, wo, panels, "UNKNOWN");
             if (res.StartsWith("PP-SELECT")) {
                 string[] p = res.Split('|');
-                var remoteCmd = new SecsMessage(2, 41) { SecsItem = Item.L(Item.A("PP-SELECT"), Item.L(Item.L(Item.A("PPID"), Item.A(p[2])))) };
-                using (var reply = await _secsGem.SendAsync(remoteCmd)) {
-                    if (reply.S == 2 && reply.F == 42 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
-                        string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
-                        OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
-                    }
+                
+                var parameters = new Dictionary<string, string>();
+                parameters["PPID"] = p[2];
+                
+                bool cmdSuccess = await SendRemoteCommandAsync("PP-SELECT", parameters);
+                if (cmdSuccess) {
+                    string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
+                    OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
+                } else {
+                    OnLogReceived(LogLevel.Error, $"[AUTO] PP-SELECT command rejected by equipment. TrackIn aborted.");
                 }
             }
         }
@@ -188,6 +279,331 @@ namespace EAPDashboard.Models
 
             string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
             OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
+        }
+
+        private async Task HandleProcessDataEvent(Item root, string ceid, string logicalEvent)
+        {
+            try
+            {
+                var extractedData = new Dictionary<string, string>();
+                var parameterResults = new List<ParameterResultItem>();
+
+                if (_dictionary?.Variables != null)
+                {
+                    foreach (var kvp in _dictionary.Variables)
+                    {
+                        string vid = kvp.Key;
+                        string varName = kvp.Value;
+                        string val = ExtractVidValue(root, vid);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            extractedData[varName] = val;
+
+                            double.TryParse(val, out double doubleVal);
+                            parameterResults.Add(new ParameterResultItem
+                            {
+                                Parameter = varName,
+                                Value = doubleVal
+                            });
+                        }
+                    }
+                }
+
+                // 儲存至本地資料庫
+                await SaveProductionDataAsync(logicalEvent, "", extractedData);
+
+                // 上報 MQTT
+                var pdr = new ProcessDataReportMessage
+                {
+                    CMD = CommandType.ProcessDataReport,
+                    WorkOrder = extractedData.TryGetValue("WorkOrder", out var wo) ? wo : "",
+                    Result = "PASS",
+                    ProcessData = parameterResults
+                };
+                
+                await SendMqttReplyAsync(pdr);
+                OnLogReceived(LogLevel.Info, $"[ProcessData] Dynamic extraction complete. Extracted {extractedData.Count} parameter(s) for event {logicalEvent}.");
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[ProcessData] Error processing Event S6F11: {ex.Message}");
+            }
+        }
+
+        private async Task HandleS6F1(PrimaryMessageWrapper message)
+        {
+            try
+            {
+                var root = message.PrimaryMessage.SecsItem;
+                if (root == null || root.Count < 4) return;
+
+                // SECS S6F1 結構:
+                // L, 4
+                //   1. U4, TRID
+                //   2. U4, SMPLN
+                //   3. A, STIME
+                //   4. L, n (Values)
+                uint trid = root.Items[0].FirstValue<uint>();
+                uint smpln = root.Items[1].FirstValue<uint>();
+                string stime = root.Items[2].GetString();
+                var vals = root.Items[3];
+
+                OnLogReceived(LogLevel.Debug, $"[RECV] S6F1 Trace Data (TRID:{trid}, SMPLN:{smpln})");
+
+                List<string> paramNames;
+                lock (_traceLock)
+                {
+                    paramNames = _activeTraceParameters.ToList();
+                }
+
+                var payload = new Dictionary<string, object>();
+                payload["TRID"] = trid;
+                payload["SampleNo"] = smpln;
+                payload["SampleTime"] = stime;
+
+                var traceParams = new List<object>();
+                var parameterResults = new List<Dictionary<string, double>>();
+
+                if (vals != null && vals.Count > 0)
+                {
+                    for (int i = 0; i < vals.Count; i++)
+                    {
+                        string paramName = (i < paramNames.Count) ? paramNames[i] : $"SVID_Index_{i}";
+                        string valStr = ExtractVidValue(vals.Items[i], "0");
+
+                        traceParams.Add(new { ParameterName = paramName, Value = valStr });
+                        
+                        double.TryParse(valStr, out double doubleVal);
+
+                        var paramDict = new Dictionary<string, double>();
+                        paramDict[paramName] = doubleVal;
+                        parameterResults.Add(paramDict);
+                    }
+                }
+
+                payload["Parameters"] = traceParams;
+
+                // 儲存生產資料 (TraceData 不寫入 SQLite 以免資料膨脹)
+                await SaveProductionDataAsync("TraceData", "", payload, saveToDb: false);
+
+                // 上報 MQTT (RtnTraceData)
+                var traceMsg = new RtnTraceDataMessage
+                {
+                    CMD = CommandType.RtnTraceData,
+                    CycleTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Parameter = parameterResults
+                };
+                await SendMqttReplyAsync(traceMsg);
+
+                // 回覆 S6F2
+                await message.TryReplyAsync(new SecsMessage(6, 2) { SecsItem = Item.B(0) });
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S6F1] Error processing Trace Data: {ex.Message}");
+            }
+        }
+
+        private async Task HandleMqttCommandAsync(string json)
+        {
+            if (string.IsNullOrEmpty(json)) return;
+            try
+            {
+                var jo = JObject.Parse(json);
+                if (IsStopping)
+                {
+                    OnLogReceived(LogLevel.Warn, "[MQTT] Command rejected during shutdown procedure.");
+                    return;
+                }
+
+                IncrementTask();
+
+                string cmdTypeStr = jo["CMD"]?.ToString() ?? "";
+                string txId = jo["TransactionID"]?.ToString() ?? Guid.NewGuid().ToString("N");
+
+                if (cmdTypeStr.Equals("AreYouThere", StringComparison.OrdinalIgnoreCase))
+                {
+                    // 代理保活檢測 (Proxy Alive Check)
+                    bool isAlive = false;
+                    if (Connection == ConnectionStatus.Connected && _secsGem != null)
+                    {
+                        try
+                        {
+                            using (var reply = await _secsGem.SendAsync(new SecsMessage(1, 1)))
+                            {
+                                if (reply.S == 1 && reply.F == 2) isAlive = true;
+                            }
+                        }
+                        catch { }
+                    }
+
+                    if (isAlive)
+                    {
+                        await SendMqttReplyAsync(new IamHereMessage { CMD = CommandType.IamHere, TransactionID = txId });
+                    }
+                    else
+                    {
+                        OnLogReceived(LogLevel.Warn, "[MQTT] Proxy Alive Check failed: Equipment not responding S1F2.");
+                    }
+                }
+                else if (cmdTypeStr.Equals("RemoteCMD", StringComparison.OrdinalIgnoreCase))
+                {
+                    var rcmdType = (RemoteCommandType)Enum.Parse(typeof(RemoteCommandType), jo["RemoteCMDType"]?.ToString() ?? "START", true);
+                    string recipeId = jo["RecipeID"]?.ToString() ?? "";
+                    
+                    string rcmdName = rcmdType.ToString();
+                    var parameters = new Dictionary<string, string>();
+                    if (rcmdType == RemoteCommandType.PP_SELECT)
+                    {
+                        parameters["PPID"] = recipeId;
+                    }
+
+                    bool success = await SendRemoteCommandAsync(rcmdName, parameters);
+
+                    await SendMqttReplyAsync(new ReplyRemoteCMDMessage
+                    {
+                        CMD = CommandType.ReplyRemoteCMD,
+                        RemoteCMDType = rcmdType,
+                        RtnResult = success ? RtnResult.PASS : RtnResult.FAIL,
+                        RtnMsg = success ? "Success" : "Equipment rejected command or timed out.",
+                        TransactionID = txId
+                    });
+                }
+                else if (cmdTypeStr.Equals("InitTraceData", StringComparison.OrdinalIgnoreCase))
+                {
+                    var svids = jo["SVID"]?.ToObject<List<string>>() ?? new List<string>();
+                    var paramsList = jo["ParameterName"]?.ToObject<List<string>>() ?? new List<string>();
+                    uint dsper = jo["DSPER"]?.ToObject<uint>() ?? 5;
+                    uint tots = jo["TOTS"]?.ToObject<uint>() ?? 100;
+
+                    lock (_traceLock)
+                    {
+                        _activeTraceParameters = paramsList;
+                    }
+
+                    bool success = await SendTraceInitializeAsync(1, dsper, tots, svids);
+
+                    await SendMqttReplyAsync(new ReplyInitTraceDataMessage
+                    {
+                        CMD = CommandType.ReplyInitTraceData,
+                        RtnResult = success ? RtnResult.PASS : RtnResult.FAIL,
+                        RtnMsg = success ? "Trace initialized successfully" : "Failed to initialize trace on equipment",
+                        TransactionID = txId
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[MQTT_CMD] Error processing MQTT command: {ex.Message}");
+            }
+            finally
+            {
+                DecrementTask();
+            }
+        }
+
+        public async Task<bool> SendRemoteCommandAsync(string rcmd, Dictionary<string, string> parameters = null)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                var paramList = new List<Item>();
+                if (parameters != null)
+                {
+                    foreach (var kvp in parameters)
+                    {
+                        paramList.Add(Item.L(Item.A(kvp.Key), Item.A(kvp.Value)));
+                    }
+                }
+
+                var remoteCmd = new SecsMessage(2, 41)
+                {
+                    SecsItem = Item.L(
+                        Item.A(rcmd),
+                        Item.L(paramList)
+                    )
+                };
+
+                OnLogReceived(LogLevel.Info, $"[S2F41] Sending Host Command: {rcmd}");
+                using (var reply = await _secsGem.SendAsync(remoteCmd))
+                {
+                    if (reply.S == 2 && reply.F == 42 && reply.SecsItem != null)
+                    {
+                        byte hcack = reply.SecsItem.Items[0].FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F42] Host Command Ack: {hcack}");
+                        return hcack == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S2F41] Send Remote Command Error: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task<bool> SendTraceInitializeAsync(uint trid, uint dsper, uint tots, List<string> svids)
+        {
+            if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
+            try
+            {
+                var svidItems = new List<Item>();
+                if (svids != null)
+                {
+                    foreach (var svid in svids)
+                    {
+                        if (uint.TryParse(svid, out uint numericSvid))
+                        {
+                            svidItems.Add(Item.U4(numericSvid));
+                        }
+                        else
+                        {
+                            svidItems.Add(Item.A(svid));
+                        }
+                    }
+                }
+
+                string dsperStr = dsper.ToString("D6"); // Formatted as YYYYMMDDhhmmss style 6-char width
+                var traceMsg = new SecsMessage(2, 23)
+                {
+                    SecsItem = Item.L(
+                        Item.U4(trid),
+                        Item.A(dsperStr),
+                        Item.U4(tots),
+                        Item.U4(1), // REPGSZ
+                        Item.L(svidItems)
+                    )
+                };
+
+                OnLogReceived(LogLevel.Info, $"[S2F23] Initializing Trace (TRID:{trid}, DSPER:{dsperStr}, TOTS:{tots})");
+                using (var reply = await _secsGem.SendAsync(traceMsg))
+                {
+                    if (reply.S == 2 && reply.F == 24 && reply.SecsItem != null)
+                    {
+                        byte checkVal = reply.SecsItem.FirstValue<byte>();
+                        OnLogReceived(LogLevel.Info, $"[S2F24] Trace Initialize Ack: {checkVal}");
+                        return checkVal == 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[S2F23] Send Trace Initialize Error: {ex.Message}");
+            }
+            return false;
+        }
+
+        private async Task SendMqttReplyAsync<T>(T replyMsg) where T : BaseMessage
+        {
+            if (_mqttBus == null || !_mqttBus.IsConnected || string.IsNullOrEmpty(_reportTopic)) return;
+            replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
+            replyMsg.Machine = Id;
+            if (string.IsNullOrEmpty(replyMsg.TransactionID))
+            {
+                replyMsg.TransactionID = Guid.NewGuid().ToString("N");
+            }
+            await _mqttBus.PublishAsync(_reportTopic, replyMsg);
+            OnLogReceived(LogLevel.Info, $"[MQTT_SEND] Reply sent: {replyMsg.CMD} (TxID: {replyMsg.TransactionID})");
         }
 
         private string GetVidByLogicalName(string logicalName)
@@ -219,7 +635,6 @@ namespace EAPDashboard.Models
                     return EquipmentState.Idle;
             }
 
-            // Fallback to legacy numeric mapping if applicable
             if (int.TryParse(stateStr, out int code) && SecsStatusMap.TryGetValue(code, out var ms))
             {
                 return ms;
@@ -242,6 +657,7 @@ namespace EAPDashboard.Models
                     default: return string.Empty;
                 }
             }
+            if (string.IsNullOrEmpty(vid)) return string.Empty;
             foreach (var item in root.Items) {
                 var f = ExtractVidValue(item, vid);
                 if (!string.IsNullOrEmpty(f)) return f;
@@ -254,14 +670,39 @@ namespace EAPDashboard.Models
             try {
                 var root = message.PrimaryMessage.SecsItem;
                 if (root != null && root.Count >= 3) {
-                    byte alcd = root.Items[0].FirstValue<byte>(); string altx = root.Items[2].GetString();
+                    byte alcd = root.Items[0].FirstValue<byte>();
+                    string alid = root.Items[1].FirstValue<uint>().ToString();
+                    string altx = root.Items[2].GetString();
                     bool isSet = (alcd & 0x80) != 0 || alcd == 1;
-                    string mc = TransformAlarmCode(altx);
-                    if (isSet) { State = EquipmentState.Alarm; HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); }
-                    else { if (State == EquipmentState.Alarm) State = EquipmentState.Idle; HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); }
+
+                    string mc = TransformAlarmCode(alid);
+                    if (mc == alid || alid == "0")
+                    {
+                        mc = TransformAlarmCode(altx);
+                    }
+
+                    if (isSet) { 
+                        State = EquipmentState.Alarm; 
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); 
+                    }
+                    else { 
+                        if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
+                    }
+
+                    var alarmMsg = new AlarmMessage
+                    {
+                        CMD = CommandType.AlarmReport,
+                        AlarmCode = mc,
+                        AlarmStatus = isSet ? "Start" : "End",
+                        AlarmMsg = altx
+                    };
+                    await SendMqttReplyAsync(alarmMsg);
                 }
                 await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
-            } catch { }
+            } catch (Exception ex) {
+                OnLogReceived(LogLevel.Error, $"[S5F1] Error processing Alarm: {ex.Message}");
+            }
         }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) { Task.Run(() => { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); } catch { _statusBuffer.Enqueue(req); } }); }
@@ -275,9 +716,34 @@ namespace EAPDashboard.Models
             }
         }
 
-        private async Task SendS1F13(ISecsGem gem) { try { using (var reply = await gem.SendAsync(new SecsMessage(1, 13) { SecsItem = Item.L() })) { if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) Connection = ConnectionStatus.Connected; } } catch { } }
+        private async Task SendS1F13(ISecsGem gem) 
+        { 
+            try { 
+                using (var reply = await gem.SendAsync(new SecsMessage(1, 13) { SecsItem = Item.L() })) { 
+                    if (reply.S == 1 && reply.F == 14 && reply.SecsItem.Items[0].FirstValue<byte>() == 0) {
+                        Connection = ConnectionStatus.Connected; 
+                        OnLogReceived(LogLevel.Info, "[HSMS] Communication Established. Running Trace initialization cleanup...");
+                        
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(500); // 延遲 500ms 保護舊機台佇列
+                            await SendTraceInitializeAsync(1, 0, 0, new List<string>());
+                        });
+                    }
+                } 
+            } catch { } 
+        }
+
         public override async Task SendTimeCalibration() { if (Connection == ConnectionStatus.Connected && _secsGem != null) await _secsGem.SendAsync(new SecsMessage(2, 31) { SecsItem = Item.A(DateTime.Now.ToString("yyyyMMddHHmmss")) }); }
-        public override void Stop() { _retryTimer?.Stop(); _linkedCts?.Cancel(); }
+        
+        public override void Stop() 
+        { 
+            _retryTimer?.Stop(); 
+            _retryTimer?.Dispose();
+            _aliveCheckTimer?.Stop();
+            _aliveCheckTimer?.Dispose();
+            _linkedCts?.Cancel(); 
+        }
 
         private class SecsLogger : ISecsGemLogger {
             private readonly SecsEquipment _eq; public SecsLogger(SecsEquipment eq) => _eq = eq;
