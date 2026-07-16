@@ -21,31 +21,15 @@ namespace EAPDashboard.Models
         }
 
         /// <summary>
-        /// S1F13: Establish Communications Request
+        /// S1F2: Are You There Reply
         /// </summary>
-        public static SecsMessage S1F13()
+        public static SecsMessage S1F2(string eqpName, string eqpId)
         {
-            return new SecsMessage(1, 13) 
-            { 
-                Name = "Establish Communications Request", 
-                SecsItem = Item.L() 
+            return new SecsMessage(1, 2)
+            {
+                Name = "Are You There Reply",
+                SecsItem = Item.L(Item.A(eqpName), Item.A(eqpId))
             };
-        }
-
-        /// <summary>
-        /// S1F15: Request OFF-LINE
-        /// </summary>
-        public static SecsMessage S1F15()
-        {
-            return new SecsMessage(1, 15) { Name = "Request OFF-LINE" };
-        }
-
-        /// <summary>
-        /// S1F17: Request ON-LINE
-        /// </summary>
-        public static SecsMessage S1F17()
-        {
-            return new SecsMessage(1, 17) { Name = "Request ON-LINE" };
         }
 
         /// <summary>
@@ -69,14 +53,34 @@ namespace EAPDashboard.Models
         }
 
         /// <summary>
-        /// S1F2: Are You There Reply
+        /// S1F11: Status Variable Namelist Request
         /// </summary>
-        public static SecsMessage S1F2(string eqpName, string eqpId)
+        public static SecsMessage S1F11(List<uint> svids = null)
         {
-            return new SecsMessage(1, 2)
+            var svidItems = new List<Item>();
+            if (svids != null)
             {
-                Name = "Are You There Reply",
-                SecsItem = Item.L(Item.A(eqpName), Item.A(eqpId))
+                foreach (var svid in svids)
+                {
+                    svidItems.Add(Item.U4(svid));
+                }
+            }
+            return new SecsMessage(1, 11)
+            {
+                Name = "Status Variable Namelist Request",
+                SecsItem = Item.L(svidItems)
+            };
+        }
+
+        /// <summary>
+        /// S1F13: Establish Communications Request
+        /// </summary>
+        public static SecsMessage S1F13()
+        {
+            return new SecsMessage(1, 13) 
+            { 
+                Name = "Establish Communications Request", 
+                SecsItem = Item.L() 
             };
         }
 
@@ -89,6 +93,42 @@ namespace EAPDashboard.Models
             {
                 Name = "Establish Communications Reply",
                 SecsItem = Item.B(commack)
+            };
+        }
+
+        /// <summary>
+        /// S1F15: Request OFF-LINE
+        /// </summary>
+        public static SecsMessage S1F15()
+        {
+            return new SecsMessage(1, 15) { Name = "Request OFF-LINE" };
+        }
+
+        /// <summary>
+        /// S1F17: Request ON-LINE
+        /// </summary>
+        public static SecsMessage S1F17()
+        {
+            return new SecsMessage(1, 17) { Name = "Request ON-LINE" };
+        }
+
+        /// <summary>
+        /// S1F21: Equipment Constant Namelist Request
+        /// </summary>
+        public static SecsMessage S1F21(List<uint> ecids = null)
+        {
+            var ecidItems = new List<Item>();
+            if (ecids != null)
+            {
+                foreach (var ecid in ecids)
+                {
+                    ecidItems.Add(Item.U4(ecid));
+                }
+            }
+            return new SecsMessage(1, 21)
+            {
+                Name = "Equipment Constant Namelist Request",
+                SecsItem = Item.L(ecidItems)
             };
         }
 
@@ -137,6 +177,14 @@ namespace EAPDashboard.Models
                 Name = "New Equipment Constant Send",
                 SecsItem = Item.L(ecList)
             };
+        }
+
+        /// <summary>
+        /// S2F17: Date and Time Request
+        /// </summary>
+        public static SecsMessage S2F17()
+        {
+            return new SecsMessage(2, 17) { Name = "Date and Time Request" };
         }
 
         /// <summary>
@@ -283,6 +331,14 @@ namespace EAPDashboard.Models
             };
         }
 
+        /// <summary>
+        /// S2F43: Reset Spooling Data Request
+        /// </summary>
+        public static SecsMessage S2F43()
+        {
+            return new SecsMessage(2, 43) { Name = "Reset Spooling Data Request" };
+        }
+
         #endregion
 
         #region Stream 5: Alarms
@@ -300,6 +356,26 @@ namespace EAPDashboard.Models
                     Item.B(aled),
                     Item.U4(0) // 0 means ALL ALIDs
                 )
+            };
+        }
+
+        /// <summary>
+        /// S5F5: List Alarms Request
+        /// </summary>
+        public static SecsMessage S5F5(List<uint> alids = null)
+        {
+            var alidItems = new List<Item>();
+            if (alids != null)
+            {
+                foreach (var alid in alids)
+                {
+                    alidItems.Add(Item.U4(alid));
+                }
+            }
+            return new SecsMessage(5, 5)
+            {
+                Name = "List Alarms Request",
+                SecsItem = Item.L(alidItems)
             };
         }
 
@@ -394,15 +470,57 @@ namespace EAPDashboard.Models
             };
         }
 
+        /// <summary>
+        /// S7F19: Current EPID Request (Recipe List Request)
+        /// </summary>
+        public static SecsMessage S7F19()
+        {
+            return new SecsMessage(7, 19) { Name = "Current EPID Request" };
+        }
+
         #endregion
     }
 
     #region Decoded Receive Data Carriers
 
     /// <summary>
+    /// S1F12: Status Variable Namelist Item
+    /// </summary>
+    public class S1F12Item
+    {
+        public uint Svid { get; set; }
+        public string Name { get; set; }
+        public string Units { get; set; }
+    }
+
+    /// <summary>
+    /// S1F22: Equipment Constant Namelist Item
+    /// </summary>
+    public class S1F22Item
+    {
+        public uint Ecid { get; set; }
+        public string Name { get; set; }
+        public string MinValue { get; set; }
+        public string MaxValue { get; set; }
+        public string DefValue { get; set; }
+        public string Units { get; set; }
+    }
+
+    /// <summary>
     /// S5F1: Alarm Report Send 解包資料
     /// </summary>
     public class S5F1Data
+    {
+        public byte Alcd { get; set; }
+        public uint Alid { get; set; }
+        public string Altx { get; set; }
+        public bool IsSet => (Alcd & 0x80) != 0 || Alcd == 1;
+    }
+
+    /// <summary>
+    /// S5F6: List Alarm Item
+    /// </summary>
+    public class S5F6Item
     {
         public byte Alcd { get; set; }
         public uint Alid { get; set; }
@@ -438,6 +556,89 @@ namespace EAPDashboard.Models
     public static class SecsMessageExtensions
     {
         /// <summary>
+        /// 解包 S1F12: Status Variable Namelist Reply
+        /// </summary>
+        public static List<S1F12Item> ParseS1F12(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            var result = new List<S1F12Item>();
+            if (root == null || root.Format != SecsFormat.List) return result;
+
+            foreach (var item in root.Items)
+            {
+                if (item.Format == SecsFormat.List && item.Count >= 3)
+                {
+                    result.Add(new S1F12Item
+                    {
+                        Svid = item.Items[0].FirstValue<uint>(),
+                        Name = item.Items[1].GetString(),
+                        Units = item.Items[2].GetString()
+                    });
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 解包 S1F22: Equipment Constant Namelist Reply
+        /// </summary>
+        public static List<S1F22Item> ParseS1F22(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            var result = new List<S1F22Item>();
+            if (root == null || root.Format != SecsFormat.List) return result;
+
+            foreach (var item in root.Items)
+            {
+                if (item.Format == SecsFormat.List && item.Count >= 6)
+                {
+                    result.Add(new S1F22Item
+                    {
+                        Ecid = item.Items[0].FirstValue<uint>(),
+                        Name = item.Items[1].GetString(),
+                        MinValue = ExtractSingleValue(item.Items[2]),
+                        MaxValue = ExtractSingleValue(item.Items[3]),
+                        DefValue = ExtractSingleValue(item.Items[4]),
+                        Units = item.Items[5].GetString()
+                    });
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 解包 S1F4: Selected Equipment Status Data (VID values list)
+        /// </summary>
+        public static List<string> ParseS1F4(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            var result = new List<string>();
+            if (root == null) return result;
+            if (root.Format == SecsFormat.List)
+            {
+                foreach (var item in root.Items)
+                {
+                    result.Add(ExtractSingleValue(item));
+                }
+            }
+            else
+            {
+                result.Add(ExtractSingleValue(root));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 解包 S2F18: Date and Time Reply
+        /// </summary>
+        public static string ParseS2F18(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            if (root == null) return string.Empty;
+            return root.GetString();
+        }
+
+        /// <summary>
         /// 解包 S5F1: Alarm Report Send
         /// </summary>
         public static S5F1Data ParseS5F1(this SecsMessage msg)
@@ -450,6 +651,30 @@ namespace EAPDashboard.Models
                 Alid = root.Items[1].FirstValue<uint>(),
                 Altx = root.Items[2].GetString()
             };
+        }
+
+        /// <summary>
+        /// 解包 S5F6: List Alarm Data
+        /// </summary>
+        public static List<S5F6Item> ParseS5F6(this SecsMessage msg)
+        {
+            var root = msg.SecsItem;
+            var result = new List<S5F6Item>();
+            if (root == null || root.Format != SecsFormat.List) return result;
+
+            foreach (var item in root.Items)
+            {
+                if (item.Format == SecsFormat.List && item.Count >= 3)
+                {
+                    result.Add(new S5F6Item
+                    {
+                        Alcd = item.Items[0].FirstValue<byte>(),
+                        Alid = item.Items[1].FirstValue<uint>(),
+                        Altx = item.Items[2].GetString()
+                    });
+                }
+            }
+            return result;
         }
 
         /// <summary>
@@ -484,9 +709,9 @@ namespace EAPDashboard.Models
         }
 
         /// <summary>
-        /// 解包 S1F4: Selected Equipment Status Data (VID values list)
+        /// 解包 S7F20: Current EPID Data (Recipe List)
         /// </summary>
-        public static List<string> ParseS1F4(this SecsMessage msg)
+        public static List<string> ParseS7F20(this SecsMessage msg)
         {
             var root = msg.SecsItem;
             var result = new List<string>();
@@ -495,12 +720,12 @@ namespace EAPDashboard.Models
             {
                 foreach (var item in root.Items)
                 {
-                    result.Add(ExtractSingleValue(item));
+                    result.Add(item.GetString());
                 }
             }
             else
             {
-                result.Add(ExtractSingleValue(root));
+                result.Add(root.GetString());
             }
             return result;
         }
