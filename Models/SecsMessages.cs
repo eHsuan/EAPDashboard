@@ -208,13 +208,20 @@ namespace EAPDashboard.Models
                 }
             }
 
+            // 強制將 TRID 格式化為 A[2] (例如 "01")
+            string tridStr = (trid ?? "01").PadLeft(2, '0');
+            if (tridStr.Length > 2)
+            {
+                tridStr = tridStr.Substring(tridStr.Length - 2);
+            }
+
             TimeSpan ts = TimeSpan.FromSeconds(dsper);
             string dsperStr = $"{(int)ts.TotalHours:D2}{ts.Minutes:D2}{ts.Seconds:D2}";
             return new SecsMessage(2, 23)
             {
                 Name = "Trace Initialize Request",
                 SecsItem = Item.L(
-                    Item.A(trid),
+                    Item.A(tridStr),
                     Item.A(dsperStr),
                     Item.U4(tots),
                     Item.U4(1), // REPGSZ

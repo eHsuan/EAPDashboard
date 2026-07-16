@@ -1,13 +1,65 @@
-以目前的程式架構來看
-var msg = new SecsMessage(5, 3)
-{
-    SecsItem = Item.L(
-        Item.B(aled),
-        Item.U4(0) // 0 means ALL ALIDs
-    )
-};
-若不懂SECS的人要新增SxFy會非常的麻煩
-他得先看懂SEMI Standard才知道SxFy的結構
-有辦法將每個SxFy做成class，並預設好裡面各個物件
-要新增的人比如說要新增S2F15只要call S2F15他就能看到底下的物件有哪些
-這樣做可行嗎?
+52:37.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:37.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:37.3	Info	[Secs4Net] T6 Timeout[id=0x2B7A5158]: 5 sec.
+52:37.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:37.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:37.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:37.6	Info	[Secs4Net] T6 Timeout[id=0x2B7A5159]: 5 sec.
+52:37.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:37.6	Info	[Secs4Net] Connection Exhaust.
+52:37.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:37.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:38.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:38.6	Info	[Secs4Net] Connection Exhaust.
+52:38.9	Info	[Secs4Net] T6 Timeout[id=0x2B7A515B]: 5 sec.
+52:38.9	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:38.9	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:39.3	Info	[Secs4Net] T6 Timeout[id=0x2B7A515D]: 5 sec.
+52:39.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:39.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:39.3	Info	[Secs4Net] T6 Timeout[id=0x2B7A515E]: 5 sec.
+52:39.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:39.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:39.4	Info	[Secs4Net] T6 Timeout[id=0x2B7A5160]: 5 sec.
+52:39.4	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:39.4	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:39.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:39.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:39.6	Info	[Secs4Net] Connection Exhaust.
+52:39.6	Info	[Secs4Net] T6 Timeout[id=0x2B7A5161]: 5 sec.
+52:39.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:39.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:39.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:40.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:40.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:40.6	Info	[Secs4Net] Connection Exhaust.
+52:40.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:40.6	Info	[Secs4Net] T6 Timeout[id=0x2B7A5165]: 5 sec.
+52:40.7	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:40.7	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:41.6	Info	[Secs4Net] T6 Timeout[id=0x2B7A5166]: 5 sec.
+52:41.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:41.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:41.6	Info	[Secs4Net] Connection Exhaust.
+52:41.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:42.3	Info	[Secs4Net] T6 Timeout[id=0x2B7A5168]: 5 sec.
+52:42.3	Info	[Secs4Net] T6 Timeout[id=0x2B7A5169]: 5 sec.
+52:42.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:42.3	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:42.4	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:42.4	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:42.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:42.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:42.6	Info	[Secs4Net] Connection Exhaust.
+52:42.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+52:43.6	Info	[Secs4Net] Receive Control message: SelectResponse
+52:43.6	Info	[Secs4Net] Start T7 Timer: 10 sec.
+52:43.6	Info	[Secs4Net] Connection Exhaust.
+52:43.6	Info	[Secs4Net] Sent Control Message: SelectRequest
+53:13.8	Info	[START] SECS module initialized for TOWA01.
+53:14.1	Info	[HSMS] State: Connecting
+53:14.1	Info	[Secs4Net] Start T7 Timer: 10 sec.
+53:14.3	Info	[Secs4Net] Sent Control Message: SelectRequest
+53:14.3	Info	[Secs4Net] Receive Control message: SelectResponse
+53:14.3	Info	[Secs4Net] Stop T7 Timer
+53:15.1	Info	[HSMS] State: Selected
