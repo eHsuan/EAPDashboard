@@ -1,0 +1,22 @@
+1. 存活檢測 (S1F1 / S1F2 vs HSMS Linktest)
+🎯 建議：選擇【方案 B】（在應用層定期發送 S1F1）。
+原因分析：
+HSMS Linktest 屬於「通訊層 (Session Layer)」的保活機制。它只能證明設備端的網路卡、作業系統 TCP 堆疊以及底層通訊模組還活著。如果設備的「主程式 (應用層)」當機或陷入無窮迴圈，Linktest 依然會正常回覆，但機台實際上已經無法處理業務邏輯了。
+S1F1 (Are You There) 屬於「應用層 (Application Layer)」的交握。設備必須透過其主程式去解析並回覆 S1F2，這能真實反映「設備軟體是否處於可工作狀態」。
+根據您的 MQTT 規範 (2.7 節)，系統要求回覆 IamHere。為了確保狀態真實性，收到 MQTT Alive Check 時，轉換為 S1F1 詢問設備是最穩妥的做法。
+2. 警報代碼對映 (S5F1 / S5F2)
+🎯 建議：強烈建議修改為使用 ALID (警報 ID) 作為對映的 Key。
+原因分析：
+以 ALTX（文字）作 Key 是業界實作 SECS 的大忌。設備機台在更新軟體、切換語系（中/英文）、甚至是工程師打錯字（多一個空白、全形半形差異）時，都會造成 EAP 警報對映失敗，導致嚴重的漏報或誤判。
+ALID 在 SECS 規範中是由設備商定義好的固定整數或字串格式，具備唯一性與穩定性。將 ALID 對接 MQTT 規範的 AlarmCode 才是標準且強健的做法。
+3. 製程資料收集的欄位對映 (S6F11 - Process Data)
+🎯 提問：JSON檔中本來就有Variables不是嗎?
+4. Trace Data 的 Context 管理 (S2F23 / S6F1)
+🎯 建議：完全正確，必須實作 TraceManager 並加入初始化清理機制。
+關於 TraceManager：
+SECS 規範中，S6F1 的回傳值陣列順序，完全對應 S2F23 下發時的 SVID 順序。EAP 必須在記憶體中維護一個快取（例如 Dictionary<int, List<string>>，Key 是 TRID，Value 是 ParameterName 列表）。解包 S6F1 時，透過比對 Index 來還原該數值是哪個參數。
+關於初始化清理 (TOTS = 0)：
+這是一個非常高級且必備的防呆機制 (Defensive Programming)。機台斷線重連後，可能還在執行前一次的 Trace 任務，不斷把舊資料倒給 EAP。
+EAP 在建鏈完成後（或收到 S1F14 後），主動對常用的 TRID 發送 S2F23 且 TOTS=0（或 DSPER=0，視機台實作而定）來終止殘留的 Trace，確保後續下發的收集任務是乾淨且正確的。
+5. 遠端指令控制 (S2F41 - START/STOP)
+🎯 建議：先全部實作

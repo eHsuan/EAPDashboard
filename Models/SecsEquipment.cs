@@ -125,16 +125,29 @@ namespace EAPDashboard.Models
                 var root = message.PrimaryMessage.SecsItem;
                 if (root == null || root.Count < 3) return;
                 string ceid = root.Items[1].FirstValue<uint>().ToString();
-                OnLogReceived(LogLevel.Info, $"[EVENT] {_dictionary?.GetEventName(ceid) ?? ceid} (CEID:{ceid})");
+                string logicalEvent = _dictionary?.GetEventName(ceid) ?? ceid;
+                OnLogReceived(LogLevel.Info, $"[EVENT] {logicalEvent} (CEID:{ceid})");
 
-                string statusCode = ExtractVidValue(root.Items[2], "102");
-                if (int.TryParse(statusCode, out int code) && SecsStatusMap.TryGetValue(code, out var ms)) {
-                    if (State != EquipmentState.Alarm) State = ms;
+                string statusVid = GetVidByLogicalName("Status") ?? GetVidByLogicalName("NewStatus") ?? "102";
+                string statusCode = ExtractVidValue(root.Items[2], statusVid);
+                
+                if (!string.IsNullOrEmpty(statusCode)) {
+                    string mappedStatusStr = _dictionary?.MapStatus(statusCode) ?? statusCode;
+                    if (State != EquipmentState.Alarm) {
+                        State = ParseStateString(mappedStatusStr);
+                    }
                 }
 
-                if (ceid == "200") await HandleTrackInEvent(root);
-                else if (ceid == "206") await HandleTrackOutEvent(root);
-                else if (new[] { "50", "51", "52", "53" }.Contains(ceid)) HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
+                string upperEvent = logicalEvent.ToUpper();
+                if (upperEvent == "TRACK_IN" || ceid == "200") {
+                    await HandleTrackInEvent(root);
+                }
+                else if (upperEvent == "TRACK_OUT" || ceid == "206") {
+                    await HandleTrackOutEvent(root);
+                }
+                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
+                    HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
+                }
 
                 await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
             } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
@@ -142,7 +155,12 @@ namespace EAPDashboard.Models
 
         private async Task HandleTrackInEvent(Item root)
         {
-            string cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
+            string cassetteVid = GetVidByLogicalName("CassetteID") ?? "300";
+            string cid = ExtractVidValue(root, cassetteVid);
+            if (string.IsNullOrEmpty(cid)) {
+                cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
+            }
+
             var info = QueryBindingFromGateway(cid);
             string wo = info?.WorkOrder;
             List<string> panels = info?.Panels ?? new List<string>();
@@ -162,9 +180,52 @@ namespace EAPDashboard.Models
 
         private async Task HandleTrackOutEvent(Item root)
         {
-            string rid = ExtractVidValue(root, "111") ?? "UNKNOWN";
+            string woVid = GetVidByLogicalName("WorkOrder") ?? GetVidByLogicalName("RecipeID") ?? "111";
+            string rid = ExtractVidValue(root, woVid);
+            if (string.IsNullOrEmpty(rid)) {
+                rid = "UNKNOWN";
+            }
+
             string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
             OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
+        }
+
+        private string GetVidByLogicalName(string logicalName)
+        {
+            if (_dictionary?.Variables == null) return null;
+            foreach (var kvp in _dictionary.Variables)
+            {
+                if (kvp.Value.Equals(logicalName, StringComparison.OrdinalIgnoreCase))
+                    return kvp.Key;
+            }
+            return null;
+        }
+
+        private EquipmentState ParseStateString(string stateStr)
+        {
+            if (string.IsNullOrEmpty(stateStr)) return EquipmentState.Idle;
+            switch (stateStr.ToUpper())
+            {
+                case "RUN":
+                case "RUNNING":
+                    return EquipmentState.Running;
+                case "ALARM":
+                case "DOWN":
+                    return EquipmentState.Down;
+                case "PAUSE":
+                case "PAUSED":
+                    return EquipmentState.Paused;
+                case "IDLE":
+                    return EquipmentState.Idle;
+            }
+
+            // Fallback to legacy numeric mapping if applicable
+            if (int.TryParse(stateStr, out int code) && SecsStatusMap.TryGetValue(code, out var ms))
+            {
+                return ms;
+            }
+
+            return EquipmentState.Idle;
         }
 
         private string ExtractVidValue(Item root, string vid)
