@@ -157,139 +157,63 @@ namespace EAPDashboard.Models
             OnLogReceived(LogLevel.Info, $"[RECV] S{s}F{f}");
             switch (s) {
                 case 1:
-                    if (f == 1) await message.TryReplyAsync(new SecsMessage(1, 2) { SecsItem = Item.L(Item.A(Name), Item.A(Id)) });
-                    else if (f == 13) await message.TryReplyAsync(new SecsMessage(1, 14) { SecsItem = Item.B(0) });
-                    break;
-                case 6: 
-                    if (f == 11) await HandleS6F11(message); 
-                    else if (f == 1) await HandleS6F1(message);
+                    if (f == 1) await HandleS1F1(message);
+                    else if (f == 13) await HandleS1F13(message);
                     break;
                 case 5: 
                     if (f == 1) await HandleS5F1(message); 
                     break;
+                case 6: 
+                    if (f == 1) await HandleS6F1(message);
+                    else if (f == 11) await HandleS6F11(message); 
+                    break;
             }
         }
 
-        private async Task HandleS6F11(PrimaryMessageWrapper message)
+        private async Task HandleS1F1(PrimaryMessageWrapper message)
+        {
+            await message.TryReplyAsync(new SecsMessage(1, 2) 
+            { 
+                SecsItem = Item.L(Item.A(Name), Item.A(Id)) 
+            });
+        }
+
+        private async Task HandleS1F13(PrimaryMessageWrapper message)
+        {
+            await message.TryReplyAsync(new SecsMessage(1, 14) 
+            { 
+                SecsItem = Item.B(0) 
+            });
+        }
+
+        private async Task HandleS5F1(PrimaryMessageWrapper message)
         {
             try {
                 var root = message.PrimaryMessage.SecsItem;
-                if (root == null || root.Count < 3) return;
-                string ceid = root.Items[1].FirstValue<uint>().ToString();
-                string logicalEvent = _dictionary?.GetEventName(ceid) ?? ceid;
-                OnLogReceived(LogLevel.Info, $"[EVENT] {logicalEvent} (CEID:{ceid})");
+                if (root != null && root.Count >= 3) {
+                    byte alcd = root.Items[0].FirstValue<byte>();
+                    string alid = root.Items[1].FirstValue<uint>().ToString();
+                    string altx = root.Items[2].GetString();
+                    bool isSet = (alcd & 0x80) != 0 || alcd == 1;
 
-                string statusVid = GetVidByLogicalName("Status") ?? GetVidByLogicalName("NewStatus") ?? "102";
-                string statusCode = ExtractVidValue(root.Items[2], statusVid);
-                
-                if (!string.IsNullOrEmpty(statusCode)) {
-                    string mappedStatusStr = _dictionary?.MapStatus(statusCode) ?? statusCode;
-                    if (State != EquipmentState.Alarm) {
-                        State = ParseStateString(mappedStatusStr);
-                    }
-                }
-
-                string upperEvent = logicalEvent.ToUpper();
-                if (upperEvent == "TRACK_IN" || ceid == "200") {
-                    await HandleTrackInEvent(root);
-                }
-                else if (upperEvent == "TRACK_OUT" || ceid == "206") {
-                    await HandleTrackOutEvent(root);
-                }
-                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceid == "102") {
-                    await HandleProcessDataEvent(root, ceid, logicalEvent);
-                }
-                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
-                    HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
-                }
-
-                await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
-            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
-        }
-
-        private async Task HandleTrackInEvent(Item root)
-        {
-            string cassetteVid = GetVidByLogicalName("CassetteID") ?? "300";
-            string cid = ExtractVidValue(root, cassetteVid);
-            if (string.IsNullOrEmpty(cid)) {
-                cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
-            }
-
-            var info = QueryBindingFromGateway(cid);
-            string wo = info?.WorkOrder;
-            List<string> panels = info?.Panels ?? new List<string>();
-
-            string res = await ProcessTrackInAsync(cid, wo, panels, "UNKNOWN");
-            if (res.StartsWith("PP-SELECT")) {
-                string[] p = res.Split('|');
-                
-                var parameters = new Dictionary<string, string>();
-                parameters["PPID"] = p[2];
-                
-                bool cmdSuccess = await SendRemoteCommandAsync("PP-SELECT", parameters);
-                if (cmdSuccess) {
-                    string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
-                    OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
-                } else {
-                    OnLogReceived(LogLevel.Error, $"[AUTO] PP-SELECT command rejected by equipment. TrackIn aborted.");
-                }
-            }
-        }
-
-        private async Task HandleTrackOutEvent(Item root)
-        {
-            string woVid = GetVidByLogicalName("WorkOrder") ?? GetVidByLogicalName("RecipeID") ?? "111";
-            string rid = ExtractVidValue(root, woVid);
-            if (string.IsNullOrEmpty(rid)) {
-                rid = "UNKNOWN";
-            }
-
-            string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
-            OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
-        }
-
-        private async Task HandleProcessDataEvent(Item root, string ceid, string logicalEvent)
-        {
-            try
-            {
-                var extractedData = new Dictionary<string, string>();
-                var parameterResults = new List<ParameterResultItem>();
-
-                if (_dictionary?.Variables != null)
-                {
-                    foreach (var kvp in _dictionary.Variables)
+                    string mc = TransformAlarmCode(alid);
+                    if (mc == alid || alid == "0")
                     {
-                        string vid = kvp.Key;
-                        string varName = kvp.Value;
-                        string val = ExtractVidValue(root, vid);
-                        if (!string.IsNullOrEmpty(val))
-                        {
-                            extractedData[varName] = val;
+                        mc = TransformAlarmCode(altx);
+                    }
 
-                            double.TryParse(val, out double doubleVal);
-                            parameterResults.Add(new ParameterResultItem
-                            {
-                                Parameter = varName,
-                                Value = doubleVal
-                            });
-                        }
+                    if (isSet) { 
+                        State = EquipmentState.Alarm; 
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); 
+                    }
+                    else { 
+                        if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
                     }
                 }
-
-                // 儲存至本地資料庫及日誌檔
-                await SaveProductionDataAsync(logicalEvent, "", extractedData);
-
-                // 報工給 MES
-                if (parameterResults.Count > 0)
-                {
-                    await ProcessKeyParametersReportAsync(parameterResults);
-                }
-
-                OnLogReceived(LogLevel.Info, $"[ProcessData] Dynamic extraction complete. Extracted {extractedData.Count} parameter(s) for event {logicalEvent} and reported to MES.");
-            }
-            catch (Exception ex)
-            {
-                OnLogReceived(LogLevel.Error, $"[ProcessData] Error processing Event S6F11: {ex.Message}");
+                await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
+            } catch (Exception ex) {
+                OnLogReceived(LogLevel.Error, $"[S5F1] Error processing Alarm: {ex.Message}");
             }
         }
 
@@ -365,16 +289,139 @@ namespace EAPDashboard.Models
             }
         }
 
-        public async Task<bool> SendTraceInitializeAsync(uint trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
+        private async Task HandleS6F11(PrimaryMessageWrapper message)
+        {
+            try {
+                var root = message.PrimaryMessage.SecsItem;
+                if (root == null || root.Count < 3) return;
+                string ceid = root.Items[1].FirstValue<uint>().ToString();
+                string logicalEvent = _dictionary?.GetEventName(ceid) ?? ceid;
+                OnLogReceived(LogLevel.Info, $"[EVENT] {logicalEvent} (CEID:{ceid})");
+
+                string statusVid = GetVidByLogicalName("Status") ?? GetVidByLogicalName("NewStatus") ?? "102";
+                string statusCode = ExtractVidValue(root.Items[2], statusVid);
+                
+                if (!string.IsNullOrEmpty(statusCode)) {
+                    string mappedStatusStr = _dictionary?.MapStatus(statusCode) ?? statusCode;
+                    if (State != EquipmentState.Alarm) {
+                        State = ParseStateString(mappedStatusStr);
+                    }
+                }
+
+                string upperEvent = logicalEvent.ToUpper();
+                if (upperEvent == "TRACK_IN" || ceid == "200") {
+                    await HandleS6F11TrackIn(root);
+                }
+                else if (upperEvent == "TRACK_OUT" || ceid == "206") {
+                    await HandleS6F11TrackOut(root);
+                }
+                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceid == "102") {
+                    await HandleS6F11ProcessData(root, ceid, logicalEvent);
+                }
+                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceid)) {
+                    HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
+                }
+
+                await message.TryReplyAsync(new SecsMessage(6, 12) { SecsItem = Item.B(0) });
+            } catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[ERROR] S6F11: {ex.Message}"); }
+        }
+
+        private async Task HandleS6F11TrackIn(Item root)
+        {
+            string cassetteVid = GetVidByLogicalName("CassetteID") ?? "300";
+            string cid = ExtractVidValue(root, cassetteVid);
+            if (string.IsNullOrEmpty(cid)) {
+                cid = ExtractVidValue(root, "300") ?? ExtractVidValue(root, "320") ?? "UNKNOWN";
+            }
+
+            var info = QueryBindingFromGateway(cid);
+            string wo = info?.WorkOrder;
+            List<string> panels = info?.Panels ?? new List<string>();
+
+            string res = await ProcessTrackInAsync(cid, wo, panels, "UNKNOWN");
+            if (res.StartsWith("PP-SELECT")) {
+                string[] p = res.Split('|');
+                
+                var parameters = new Dictionary<string, string>();
+                parameters["PPID"] = p[2];
+                
+                bool cmdSuccess = await SendS2F41("PP-SELECT", parameters);
+                if (cmdSuccess) {
+                    string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
+                    OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
+                } else {
+                    OnLogReceived(LogLevel.Error, $"[AUTO] PP-SELECT command rejected by equipment. TrackIn aborted.");
+                }
+            }
+        }
+
+        private async Task HandleS6F11TrackOut(Item root)
+        {
+            string woVid = GetVidByLogicalName("WorkOrder") ?? GetVidByLogicalName("RecipeID") ?? "111";
+            string rid = ExtractVidValue(root, woVid);
+            if (string.IsNullOrEmpty(rid)) {
+                rid = "UNKNOWN";
+            }
+
+            string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
+            OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
+        }
+
+        private async Task HandleS6F11ProcessData(Item root, string ceid, string logicalEvent)
+        {
+            try
+            {
+                var extractedData = new Dictionary<string, string>();
+                var parameterResults = new List<ParameterResultItem>();
+
+                if (_dictionary?.Variables != null)
+                {
+                    foreach (var kvp in _dictionary.Variables)
+                    {
+                        string vid = kvp.Key;
+                        string varName = kvp.Value;
+                        string val = ExtractVidValue(root, vid);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            extractedData[varName] = val;
+
+                            double.TryParse(val, out double doubleVal);
+                            parameterResults.Add(new ParameterResultItem
+                            {
+                                Parameter = varName,
+                                Value = doubleVal
+                            });
+                        }
+                    }
+                }
+
+                // 儲存至本地資料庫及日誌檔
+                await SaveProductionDataAsync(logicalEvent, "", extractedData);
+
+                // 報工給 MES
+                if (parameterResults.Count > 0)
+                {
+                    await ProcessKeyParametersReportAsync(parameterResults);
+                }
+
+                OnLogReceived(LogLevel.Info, $"[ProcessData] Dynamic extraction complete. Extracted {extractedData.Count} parameter(s) for event {logicalEvent} and reported to MES.");
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[ProcessData] Error processing Event S6F11: {ex.Message}");
+            }
+        }
+
+        public async Task<bool> SendS2F23(uint trid, uint dsper, uint tots, List<string> svids, List<string> paramNames)
         {
             lock (_traceLock)
             {
                 _activeTraceParameters = paramNames ?? new List<string>();
             }
-            return await SendTraceInitializeInternalAsync(trid, dsper, tots, svids);
+            return await SendS2F23Internal(trid, dsper, tots, svids);
         }
 
-        private async Task<bool> SendTraceInitializeInternalAsync(uint trid, uint dsper, uint tots, List<string> svids)
+        private async Task<bool> SendS2F23Internal(uint trid, uint dsper, uint tots, List<string> svids)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
@@ -425,7 +472,7 @@ namespace EAPDashboard.Models
             return false;
         }
 
-        public async Task<bool> SendRemoteCommandAsync(string rcmd, Dictionary<string, string> parameters = null)
+        public async Task<bool> SendS2F41(string rcmd, Dictionary<string, string> parameters = null)
         {
             if (Connection != ConnectionStatus.Connected || _secsGem == null) return false;
             try
@@ -463,6 +510,22 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Error, $"[S2F41] Send Remote Command Error: {ex.Message}");
             }
             return false;
+        }
+
+        private async Task SendS2F31()
+        {
+            if (Connection == ConnectionStatus.Connected && _secsGem != null)
+            {
+                await _secsGem.SendAsync(new SecsMessage(2, 31) 
+                { 
+                    SecsItem = Item.A(DateTime.Now.ToString("yyyyMMddHHmmss")) 
+                });
+            }
+        }
+
+        public override async Task SendTimeCalibration()
+        {
+            await SendS2F31();
         }
 
         private string GetVidByLogicalName(string logicalName)
@@ -524,37 +587,6 @@ namespace EAPDashboard.Models
             return null;
         }
 
-        private async Task HandleS5F1(PrimaryMessageWrapper message)
-        {
-            try {
-                var root = message.PrimaryMessage.SecsItem;
-                if (root != null && root.Count >= 3) {
-                    byte alcd = root.Items[0].FirstValue<byte>();
-                    string alid = root.Items[1].FirstValue<uint>().ToString();
-                    string altx = root.Items[2].GetString();
-                    bool isSet = (alcd & 0x80) != 0 || alcd == 1;
-
-                    string mc = TransformAlarmCode(alid);
-                    if (mc == alid || alid == "0")
-                    {
-                        mc = TransformAlarmCode(altx);
-                    }
-
-                    if (isSet) { 
-                        State = EquipmentState.Alarm; 
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc }); 
-                    }
-                    else { 
-                        if (State == EquipmentState.Alarm) State = EquipmentState.Idle; 
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc }); 
-                    }
-                }
-                await message.TryReplyAsync(new SecsMessage(5, 2) { SecsItem = Item.B(0) });
-            } catch (Exception ex) {
-                OnLogReceived(LogLevel.Error, $"[S5F1] Error processing Alarm: {ex.Message}");
-            }
-        }
-
         private void HandleEqpStatusCall(EQPSTATUSRequest req) { Task.Run(() => { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); } catch { _statusBuffer.Enqueue(req); } }); }
         private async Task StartStatusBufferProcessor(CancellationToken ct) {
             while (!ct.IsCancellationRequested) {
@@ -577,14 +609,12 @@ namespace EAPDashboard.Models
                         _ = Task.Run(async () =>
                         {
                             await Task.Delay(500); // 延遲 500ms 保護舊機台佇列
-                            await SendTraceInitializeInternalAsync(1, 0, 0, new List<string>());
+                            await SendS2F23Internal(1, 0, 0, new List<string>());
                         });
                     }
                 } 
             } catch { } 
         }
-
-        public override async Task SendTimeCalibration() { if (Connection == ConnectionStatus.Connected && _secsGem != null) await _secsGem.SendAsync(new SecsMessage(2, 31) { SecsItem = Item.A(DateTime.Now.ToString("yyyyMMddHHmmss")) }); }
         
         public override void Stop() 
         { 
