@@ -1,0 +1,34 @@
+{
+  "Model": "TOWA_YPM",
+  "Events": {
+    "50": "ControlState_Online",
+    "51": "ControlState_Offline",
+    "52": "ControlMode_Remote",
+    "53": "ControlMode_Local",
+    "23": "ReadyOn",
+    "9": "EquipmentStop",
+    "30": "ShotEnd_HF1",
+    "31": "ShotEnd_HF2",
+    "32": "ShotEnd_HF3",
+    "33": "ShotEnd_HF4",
+    "200": "AutoFrameLoading_Start",
+    "206": "AutoUnloading_Start"
+  },
+  "Variables": {
+    "1": "MachineNo",
+    "100": "LineSwitch",
+    "101": "ControlSwitch",
+    "102": "EquipmentStatus",
+    "111": "RecipeID",
+    "120": "CurrentDateTime"
+  },
+  "StatusMapping": {
+    "0": "Down",
+    "1": "Ready",
+    "2": "Idle",
+    "3": "Running",
+    "4": "Paused",
+    "5": "Mainte",
+    "6": "ReadyOff"
+  }
+}

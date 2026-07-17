@@ -47,6 +47,9 @@
     <Reference Include="Protocol.Core">
       <HintPath>dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
     </Reference>
+    <Reference Include="Protocol.Drivers.Secs">
+      <HintPath>dll\Protocol.Drivers.Secs.dll</HintPath>
+    </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Net.Http" />
   </ItemGroup>
@@ -67,10 +70,6 @@
     <None Update="Dictionaries\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="Protocol.Drivers.Secs\Protocol.Drivers.Secs.csproj" />
   </ItemGroup>
 
 </Project>
