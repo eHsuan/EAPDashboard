@@ -14,6 +14,7 @@ using Protocol.MES.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Linq;
+using Protocol.Drivers.Secs;
 
 namespace EAPDashboard.Models
 {

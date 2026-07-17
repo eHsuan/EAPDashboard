@@ -21,11 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
     <Compile Remove="dll\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
     <EmbeddedResource Remove="dll\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**" />
     <None Remove="dll\**" />
   </ItemGroup>
 
@@ -67,6 +67,10 @@
     <None Update="Dictionaries\*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Protocol.Drivers.Secs\Protocol.Drivers.Secs.csproj" />
   </ItemGroup>
 
 </Project>

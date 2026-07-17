@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 
-namespace EAPDashboard.Models
+namespace Protocol.Drivers.Secs
 {
     public class SecsDictionary
     {
-        public string Model { get; set; }
+        public string Model { get; set; } = string.Empty;
         public Dictionary<string, string> Events { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> StatusMapping { get; set; } = new Dictionary<string, string>();
@@ -17,7 +17,7 @@ namespace EAPDashboard.Models
                 return new SecsDictionary();
 
             string json = File.ReadAllText(filePath);
-            return JsonConvert.DeserializeObject<SecsDictionary>(json);
+            return JsonConvert.DeserializeObject<SecsDictionary>(json) ?? new SecsDictionary();
         }
 
         public string GetEventName(string ceid)

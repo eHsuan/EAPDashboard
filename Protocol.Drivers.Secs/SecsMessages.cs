@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Secs4Net;
 
-namespace EAPDashboard.Models
+namespace Protocol.Drivers.Secs
 {
     /// <summary>
     /// SECS-II 訊息強型別靜態工廠，預設好每個 SxFy 訊息的內部欄位結構，
@@ -535,8 +535,8 @@ namespace EAPDashboard.Models
     public class S1F12Item
     {
         public uint Svid { get; set; }
-        public string Name { get; set; }
-        public string Units { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Units { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -545,11 +545,11 @@ namespace EAPDashboard.Models
     public class S1F22Item
     {
         public uint Ecid { get; set; }
-        public string Name { get; set; }
-        public string MinValue { get; set; }
-        public string MaxValue { get; set; }
-        public string DefValue { get; set; }
-        public string Units { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string MinValue { get; set; } = string.Empty;
+        public string MaxValue { get; set; } = string.Empty;
+        public string DefValue { get; set; } = string.Empty;
+        public string Units { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -559,7 +559,7 @@ namespace EAPDashboard.Models
     {
         public byte Alcd { get; set; }
         public uint Alid { get; set; }
-        public string Altx { get; set; }
+        public string Altx { get; set; } = string.Empty;
         public bool IsSet => (Alcd & 0x80) != 0 || Alcd == 1;
     }
 
@@ -570,7 +570,7 @@ namespace EAPDashboard.Models
     {
         public byte Alcd { get; set; }
         public uint Alid { get; set; }
-        public string Altx { get; set; }
+        public string Altx { get; set; } = string.Empty;
         public bool IsSet => (Alcd & 0x80) != 0 || Alcd == 1;
     }
 
@@ -579,10 +579,10 @@ namespace EAPDashboard.Models
     /// </summary>
     public class S6F1Data
     {
-        public string Trid { get; set; }
+        public string Trid { get; set; } = string.Empty;
         public uint Smpln { get; set; }
-        public string Stime { get; set; }
-        public Item Values { get; set; }
+        public string Stime { get; set; } = string.Empty;
+        public Item? Values { get; set; }
     }
 
     /// <summary>
@@ -592,7 +592,7 @@ namespace EAPDashboard.Models
     {
         public uint Dataid { get; set; }
         public uint Ceid { get; set; }
-        public Item Reports { get; set; }
+        public Item? Reports { get; set; }
     }
 
     /// <summary>
@@ -601,7 +601,7 @@ namespace EAPDashboard.Models
     public class S10F3Data
     {
         public byte Tid { get; set; }
-        public string Text { get; set; }
+        public string Text { get; set; } = string.Empty;
     }
 
     #endregion
