@@ -27,6 +27,9 @@ namespace EAPDashboard.Models
         private System.Timers.Timer _aliveCheckTimer;
         private bool _aliveCheckAwaitingReply = false;
 
+        private readonly SemaphoreSlim _connLock = new SemaphoreSlim(1, 1);
+        private CancellationTokenSource _connectionCts;
+
         private List<string> _activeTraceParameters = new List<string>();
         private readonly object _traceLock = new object();
 
@@ -86,7 +89,7 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Error, "[ALIVE_CHECK] S1F1 response timeout (30s). Equipment software application frozen. Forcing reconnect...");
                 _aliveCheckAwaitingReply = false;
                 Connection = ConnectionStatus.Disconnected;
-                (_secsGem as IDisposable)?.Dispose(); // 強制觸發連線斷開
+                _connectionCts?.Cancel(); // 完美退出舊連線並銷毀其資源
                 return;
             }
 
@@ -111,8 +114,16 @@ namespace EAPDashboard.Models
 
         private async Task RunConnectionTask(CancellationToken token)
         {
-            if (Connection != ConnectionStatus.Disconnected) return;
+            if (!await _connLock.WaitAsync(0)) return;
             try {
+                if (Connection != ConnectionStatus.Disconnected) return;
+
+                // 1. 強行取消上一次連線，徹底關閉舊 Socket 與線程
+                _connectionCts?.Cancel();
+                _connectionCts?.Dispose();
+                _connectionCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                var localToken = _connectionCts.Token;
+
                 Connection = ConnectionStatus.Connecting;
                 var options = new SecsGemOptions { IpAddress = Ip, Port = Port, DeviceId = DeviceId, IsActive = IsActive, T3 = 45000, T5 = 10000, T6 = 5000, T7 = 10000, T8 = 5000 };
                 var optionsWrapper = Options.Create(options);
@@ -124,32 +135,43 @@ namespace EAPDashboard.Models
                     _secsGem = gem;
                     var commTask = Task.Run(async () => {
                         ConnectionState lastState = (ConnectionState)99;
-                        while (!token.IsCancellationRequested && _secsGem != null) {
+                        while (!localToken.IsCancellationRequested && _secsGem != null) {
                             if (connection.State != lastState) {
                                 OnLogReceived(LogLevel.Info, $"[HSMS] State: {connection.State}");
                                 lastState = connection.State;
                                 if (connection.State == ConnectionState.Selected) await SendS1F13(gem);
-                                else if ((int)connection.State == 0) Connection = ConnectionStatus.Disconnected;
+                                else if ((int)connection.State == 0) 
+                                {
+                                    Connection = ConnectionStatus.Disconnected;
+                                    _connectionCts?.Cancel(); 
+                                }
                             }
-                            await Task.Delay(1000, token);
+                            await Task.Delay(1000, localToken);
                         }
-                    }, token);
+                    }, localToken);
 
                     _ = Task.Run(async () => {
                         try {
-                            await foreach (var wrapper in gem.GetPrimaryMessageAsync(token)) {
+                            await foreach (var wrapper in gem.GetPrimaryMessageAsync(localToken)) {
                                 using (wrapper.PrimaryMessage) {
                                     if (Connection != ConnectionStatus.Connected) Connection = ConnectionStatus.Connected;
                                     await HandlePrimaryMessage(wrapper);
                                 }
                             }
                         } catch { }
-                    }, token);
+                    }, localToken);
 
-                    connection.Start(token);
-                    await Task.Delay(-1, token);
+                    connection.Start(localToken);
+                    await Task.Delay(-1, localToken);
                 }
-            } catch { Connection = ConnectionStatus.Disconnected; }
+            } 
+            catch (OperationCanceledException) { }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"[HSMS] Connection task error: {ex.Message}"); }
+            finally {
+                Connection = ConnectionStatus.Disconnected;
+                _secsGem = null;
+                _connLock.Release();
+            }
         }
 
         private async Task HandlePrimaryMessage(PrimaryMessageWrapper message)
@@ -773,6 +795,8 @@ namespace EAPDashboard.Models
             _aliveCheckTimer?.Stop();
             _aliveCheckTimer?.Dispose();
             _linkedCts?.Cancel(); 
+            _connectionCts?.Cancel();
+            _connectionCts?.Dispose();
         }
 
         private class SecsLogger : ISecsGemLogger {
