@@ -30,5 +30,10 @@
     "4": "Paused",
     "5": "Mainte",
     "6": "ReadyOff"
+  },
+  "AlarmMapping": {
+    "E004": "ALM_EMERGENCY_STOP",
+    "E001": "ALM_SAFETY_DOOR_OPEN",
+    "E002": "ALM_AIR_PRESSURE_LOW"
   }
 }

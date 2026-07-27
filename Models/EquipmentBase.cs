@@ -68,6 +68,7 @@ namespace EAPDashboard.Models
         public bool IsMesSimulator { get; set; } 
         public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
+        public string DictionaryPath { get; set; } = string.Empty;
 
         public event PropertyChangedEventHandler PropertyChanged;
         public event Action<DateTime, LogLevel, string> LogReceived;
@@ -87,29 +88,42 @@ namespace EAPDashboard.Models
             _resiliencePolicy = Policy.WrapAsync<HttpResponseMessage>(fallbackPolicy, timeoutPolicy);
         }
 
-        public void LoadAlarmMappings()
+        public void LoadAlarmMappings(string path = null)
         {
             try
             {
                 _alarmMappings.Clear();
-                using (var conn = DatabaseHelper.GetConnection())
+                string dictPath = !string.IsNullOrEmpty(path) ? path : this.DictionaryPath;
+                if (string.IsNullOrEmpty(dictPath)) return;
+
+                string fullPath = Path.IsPathRooted(dictPath) 
+                    ? dictPath 
+                    : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dictPath);
+
+                if (!File.Exists(fullPath))
                 {
-                    conn.Open();
-                    string sql = "SELECT RawCode, MappedCode FROM Alarm_Mapping WHERE EqpId = @eqid";
-                    using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn))
+                    OnLogReceived(LogLevel.Warn, $"[Dictionary] Dictionary file not found for Alarm Mapping: {fullPath}");
+                    return;
+                }
+
+                string json = File.ReadAllText(fullPath);
+                var jObj = JObject.Parse(json);
+                
+                var alarmToken = jObj["AlarmMapping"] ?? jObj["Alarms"];
+                if (alarmToken != null && alarmToken.Type == JTokenType.Object)
+                {
+                    foreach (var prop in ((JObject)alarmToken).Properties())
                     {
-                        cmd.Parameters.AddWithValue("@eqid", this.Id);
-                        using (var reader = cmd.ExecuteReader())
-                        {
-                            while (reader.Read())
-                            {
-                                _alarmMappings[reader["RawCode"].ToString()] = reader["MappedCode"].ToString();
-                            }
-                        }
+                        _alarmMappings[prop.Name] = prop.Value.ToString();
                     }
+                    OnLogReceived(LogLevel.Info, $"[Dictionary] Loaded {_alarmMappings.Count} alarm mappings from {Path.GetFileName(fullPath)} for {Id}.");
+                }
+                else
+                {
+                    OnLogReceived(LogLevel.Info, $"[Dictionary] No 'AlarmMapping' node found in {Path.GetFileName(fullPath)} for {Id}.");
                 }
             }
-            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Load Alarm Mapping Failed: {ex.Message}"); }
+            catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Load Alarm Mapping Failed for {Id}: {ex.Message}"); }
         }
 
         protected string TransformAlarmCode(string rawCode)
