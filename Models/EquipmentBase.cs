@@ -181,14 +181,20 @@ namespace EAPDashboard.Models
                         return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed for WO {wo}: {qryReply.Message}|[]";
 
                     string r = ExtractRecipeFromMes(qryReply.InputParamListDT);
-                    if (!string.IsNullOrEmpty(r) && !recipes.Contains(r)) recipes.Add(r);
+                    if (!string.IsNullOrEmpty(r)) recipes.Add(r);
                     lastResultCode = qryReply.ResultCode;
                     lastMessage = qryReply.Message;
                     lastInputParam = qryReply.InputParamListDT;
                 }
 
+                if (recipes.Distinct().Count() > 1)
+                {
+                    OnLogReceived(LogLevel.Warn, $"[TrackIn] Inconsistent RecipeIDs across WorkOrders: [{string.Join(",", recipes.Distinct())}]");
+                    return $"FAIL|R002|Inconsistent RecipeIDs across WorkOrders ({string.Join(",", recipes.Distinct())}). Recipe must be uniform across all WOs.|[]";
+                }
+
                 string combinedWo = string.Join(",", wos);
-                string combinedRecipe = string.Join(",", recipes);
+                string combinedRecipe = recipes.FirstOrDefault() ?? "";
                 string panelsJson = JsonConvert.SerializeObject(currentPanels);
                 return $"PP-SELECT|{combinedWo}|{combinedRecipe}|{lastResultCode}|{lastMessage}|{lastInputParam}|{panelsJson}";
             }
