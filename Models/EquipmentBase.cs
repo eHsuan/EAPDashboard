@@ -153,30 +153,54 @@ namespace EAPDashboard.Models
             catch (Exception ex) { return $"ERROR|UNKNOWN|Verify Failed: {ex.Message}"; }
         }
 
-        public async Task<string> ProcessTrackInAsync(string cassetteId, string workOrder, List<string> panels, string userId, string reportEqpId = null)
+        public async Task<string> ProcessTrackInAsync(List<string> cassetteIds, List<string> workOrders, List<string> panels, string userId, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                string wo = workOrder;
+                List<string> wos = workOrders ?? new List<string>();
+                List<string> cids = cassetteIds ?? new List<string>();
                 List<string> currentPanels = panels ?? new List<string>();
 
-                if (string.IsNullOrEmpty(wo)) return "FAIL|W001|Cassette Not Bound to WO|[]";
+                if (wos.Count == 0 || wos.All(string.IsNullOrEmpty)) return "FAIL|W001|Cassette Not Bound to WO|[]";
 
-                var qryReq = new WOQRYRequest { WONO = wo, EqpNo = eid, UserID = userId };
-                var qryTask = Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
-                if (await Task.WhenAny(qryTask, Task.Delay(25000)) != qryTask)
-                    return "FAIL|T001|MES WOQRY Timeout (25s)|[]";
+                List<string> recipes = new List<string>();
+                string lastResultCode = "0";
+                string lastMessage = "Success";
+                string lastInputParam = "";
 
-                var qryReply = await qryTask;
-                if (qryReply.Result != "success") 
-                    return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed: {qryReply.Message}|[]";
+                foreach (var wo in wos.Where(w => !string.IsNullOrEmpty(w)))
+                {
+                    var qryReq = new WOQRYRequest { WONO = wo, EqpNo = eid, UserID = userId };
+                    var qryTask = Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
+                    if (await Task.WhenAny(qryTask, Task.Delay(25000)) != qryTask)
+                        return $"FAIL|T001|MES WOQRY Timeout (25s) for WO: {wo}|[]";
 
-                string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT);
+                    var qryReply = await qryTask;
+                    if (qryReply.Result != "success") 
+                        return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed for WO {wo}: {qryReply.Message}|[]";
+
+                    string r = ExtractRecipeFromMes(qryReply.InputParamListDT);
+                    if (!string.IsNullOrEmpty(r) && !recipes.Contains(r)) recipes.Add(r);
+                    lastResultCode = qryReply.ResultCode;
+                    lastMessage = qryReply.Message;
+                    lastInputParam = qryReply.InputParamListDT;
+                }
+
+                string combinedWo = string.Join(",", wos);
+                string combinedRecipe = string.Join(",", recipes);
                 string panelsJson = JsonConvert.SerializeObject(currentPanels);
-                return $"PP-SELECT|{wo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelsJson}";
+                return $"PP-SELECT|{combinedWo}|{combinedRecipe}|{lastResultCode}|{lastMessage}|{lastInputParam}|{panelsJson}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|TrackIn Error: {ex.Message}|[]"; }
+        }
+
+        public Task<string> ProcessTrackInAsync(string cassetteId, string workOrder, List<string> panels, string userId, string reportEqpId = null)
+        {
+            return ProcessTrackInAsync(
+                string.IsNullOrEmpty(cassetteId) ? new List<string>() : new List<string> { cassetteId },
+                string.IsNullOrEmpty(workOrder) ? new List<string>() : new List<string> { workOrder },
+                panels, userId, reportEqpId);
         }
 
         protected string GetMesParamValue(string inputParamListDt, string paramName)
@@ -192,56 +216,104 @@ namespace EAPDashboard.Models
             catch { return null; }
         }
 
-        public async Task<string> ProcessTrackInFinalAsync(string workOrder, string userId, string cassetteId, string reportEqpId = null)
+        public async Task<string> ProcessTrackInFinalAsync(List<string> workOrders, string userId, List<string> cassetteIds, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                var req = new WOCHECKINRequest { WONO = workOrder, EqpNo = eid, UserID = userId };
-                
-                var checkinTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
-                if (await Task.WhenAny(checkinTask, Task.Delay(25000)) != checkinTask)
-                    return "FAIL|T001|MES WOCHECKIN Timeout (25s)|";
+                List<string> wos = workOrders ?? new List<string>();
+                List<string> cids = cassetteIds ?? new List<string>();
 
-                var reply = await checkinTask;
-                string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
-                
-                if (resPrefix == "PASS" && !string.IsNullOrEmpty(cassetteId))
+                string lastCode = "0";
+                string lastMsg = "Success";
+
+                foreach (var wo in wos.Where(w => !string.IsNullOrEmpty(w)))
                 {
-                    bool ok = await UnbindFromDbAsync(cassetteId);
-                    if (!ok) await SavePendingUnbindingAsync(cassetteId);
+                    var req = new WOCHECKINRequest { WONO = wo, EqpNo = eid, UserID = userId };
+                    var checkinTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
+                    if (await Task.WhenAny(checkinTask, Task.Delay(25000)) != checkinTask)
+                        return $"FAIL|T001|MES WOCHECKIN Timeout (25s) for WO: {wo}|";
+
+                    var reply = await checkinTask;
+                    string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
+                    if (resPrefix != "PASS")
+                    {
+                        return $"{resPrefix}|{reply.ResultCode}|MES WOCHECKIN Failed for WO {wo}: {reply.Message}";
+                    }
+                    lastCode = reply.ResultCode;
+                    lastMsg = reply.Message;
                 }
 
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
+                foreach (var cid in cids.Where(c => !string.IsNullOrEmpty(c)))
+                {
+                    bool ok = await UnbindFromDbAsync(cid);
+                    if (!ok) await SavePendingUnbindingAsync(cid);
+                }
+
+                return $"PASS|{lastCode}|{lastMsg}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|Report Failed: {ex.Message}"; }
         }
 
-        public async Task<string> ProcessTrackOutAsync(string workOrder, string qty, string userId, string cassetteId, List<string> panels, string reportEqpId = null)
+        public Task<string> ProcessTrackInFinalAsync(string workOrder, string userId, string cassetteId, string reportEqpId = null)
+        {
+            return ProcessTrackInFinalAsync(
+                string.IsNullOrEmpty(workOrder) ? new List<string>() : new List<string> { workOrder },
+                userId,
+                string.IsNullOrEmpty(cassetteId) ? new List<string>() : new List<string> { cassetteId },
+                reportEqpId);
+        }
+
+        public async Task<string> ProcessTrackOutAsync(List<string> workOrders, string qty, string userId, List<string> cassetteIds, List<string> panels, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WO: {workOrder}, Qty: {qty}, CID: {cassetteId}");
-                
-                var req = new WOCHECKOUTRequest { WONO = workOrder, EqpNo = eid, UserID = userId, OutPut = qty };
-                
-                var checkoutTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
-                if (await Task.WhenAny(checkoutTask, Task.Delay(25000)) != checkoutTask)
-                    return "FAIL|T001|MES WOCHECKOUT Timeout (25s)|";
+                List<string> wos = workOrders ?? new List<string>();
+                List<string> cids = cassetteIds ?? new List<string>();
 
-                var reply = await checkoutTask;
-                string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
-                
-                if (resPrefix == "PASS")
+                OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {string.Join(",", wos)}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
+
+                string lastCode = "0";
+                string lastMsg = "Success";
+
+                foreach (var wo in wos.Where(w => !string.IsNullOrEmpty(w)))
                 {
-                    bool dbOk = await UpdateBindingInDbAsync(cassetteId, workOrder, panels);
-                    if (!dbOk) await SavePendingBindingAsync(cassetteId, workOrder, panels);
+                    var req = new WOCHECKOUTRequest { WONO = wo, EqpNo = eid, UserID = userId, OutPut = qty };
+                    var checkoutTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
+                    if (await Task.WhenAny(checkoutTask, Task.Delay(25000)) != checkoutTask)
+                        return $"FAIL|T001|MES WOCHECKOUT Timeout (25s) for WO: {wo}|";
+
+                    var reply = await checkoutTask;
+                    string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
+                    if (resPrefix != "PASS")
+                    {
+                        return $"{resPrefix}|{reply.ResultCode}|MES WOCHECKOUT Failed for WO {wo}: {reply.Message}";
+                    }
+                    lastCode = reply.ResultCode;
+                    lastMsg = reply.Message;
                 }
 
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}";
+                for (int i = 0; i < Math.Max(cids.Count, wos.Count); i++)
+                {
+                    string cid = i < cids.Count ? cids[i] : (cids.FirstOrDefault() ?? "UNKNOWN");
+                    string wo = i < wos.Count ? wos[i] : (wos.FirstOrDefault() ?? "");
+                    bool dbOk = await UpdateBindingInDbAsync(cid, wo, panels);
+                    if (!dbOk) await SavePendingBindingAsync(cid, wo, panels);
+                }
+
+                return $"PASS|{lastCode}|{lastMsg}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|TrackOut Failed: {ex.Message}"; }
+        }
+
+        public Task<string> ProcessTrackOutAsync(string workOrder, string qty, string userId, string cassetteId, List<string> panels, string reportEqpId = null)
+        {
+            return ProcessTrackOutAsync(
+                string.IsNullOrEmpty(workOrder) ? new List<string>() : new List<string> { workOrder },
+                qty, userId,
+                string.IsNullOrEmpty(cassetteId) ? new List<string>() : new List<string> { cassetteId },
+                panels, reportEqpId);
         }
 
         protected BindingInfo QueryBindingFromGateway(string cassetteId)

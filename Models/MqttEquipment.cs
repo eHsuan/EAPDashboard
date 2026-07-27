@@ -34,10 +34,10 @@ namespace EAPDashboard.Models
 
         private class TrackInContext
         {
-            public string WorkOrder { get; set; }
+            public List<string> WorkOrder { get; set; } = new List<string>();
             public string RecipeID { get; set; }
             public string UserID { get; set; }
-            public string CassetteID { get; set; }
+            public List<string> CassetteID { get; set; } = new List<string>();
             public DateTime Timestamp { get; set; }
             public List<string> Panels { get; set; }
             public string TransactionID { get; set; }
@@ -212,27 +212,34 @@ namespace EAPDashboard.Models
                     case CommandType.IamHere: break;
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
-                        if (StatusMap.TryGetValue(rs.CurrentStatus, out var st)) 
+                        int currentStatusInt = int.TryParse(rs.CurrentStatus?.ToString(), out int sval) ? sval : 0;
+                        if (StatusMap.TryGetValue(currentStatusInt, out var st)) 
                         {
                             State = st;
                             string errorCode = (st == EquipmentState.Alarm) ? TransformAlarmCode(rs.AlarmCode) : "0";
-                            HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = rs.CurrentStatus.ToString(), ErrorCode = errorCode });
+                            HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = currentStatusInt.ToString(), ErrorCode = errorCode });
                         }
                         OnLogReceived(LogLevel.Info, string.Format("Status Reply Recv: {0}, Status: {1}, Alarm: {2}", Id, rs.CurrentStatus, rs.AlarmCode ?? "None"));
                         break;
                     case CommandType.TrackInReq:
                         var ti = (TrackInReqMessage)msg;
-                        var info = QueryBindingFromGateway(ti.CassetteID);
-                        string wo = info?.WorkOrder ?? ti.WorkOrder;
+                        List<string> tiCassettes = ti.CassetteID ?? new List<string>();
+                        List<string> tiWos = ti.WorkOrder ?? new List<string>();
+                        
+                        var info = QueryBindingFromGateway(tiCassettes.FirstOrDefault());
+                        if (info != null && !string.IsNullOrEmpty(info.WorkOrder))
+                        {
+                            tiWos = new List<string> { info.WorkOrder };
+                        }
                         List<string> panels = info?.Panels ?? new List<string>();
-                        string tir = await ProcessTrackInAsync(ti.CassetteID, wo, panels, ti.UserID);
+                        string tir = await ProcessTrackInAsync(tiCassettes, tiWos, panels, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');
                             _pendingTrackIn[Id] = new TrackInContext { 
-                                WorkOrder = tp[1], 
+                                WorkOrder = tiWos, 
                                 RecipeID = tp[2], 
                                 UserID = ti.UserID, 
-                                CassetteID = ti.CassetteID,
+                                CassetteID = tiCassettes,
                                 Timestamp = DateTime.Now,
                                 Panels = panels,
                                 TransactionID = ti.TransactionID
@@ -308,7 +315,9 @@ namespace EAPDashboard.Models
                                 }
                             } catch { toPanels.Add(rawPanelId); }
                         }
-                        string tor = await ProcessTrackOutAsync(to.WorkOrder, to.Qty.ToString(), to.UserID, to.CassetteID, toPanels);
+                        List<string> toWos = to.WorkOrder ?? new List<string>();
+                        List<string> toCassettes = to.CassetteID ?? new List<string>();
+                        string tor = await ProcessTrackOutAsync(toWos, to.Qty.ToString(), to.UserID, toCassettes, toPanels);
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() }, msg);
                         break;
                     case CommandType.AlarmReport:
@@ -333,8 +342,9 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
-                        if (StatusMap.TryGetValue(scm.NewStatus, out var nst)) State = nst;
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = scm.NewStatus.ToString() });
+                        int newStatusInt = int.TryParse(scm.NewStatus?.ToString(), out int nval) ? nval : 0;
+                        if (StatusMap.TryGetValue(newStatusInt, out var nst)) State = nst;
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = newStatusInt.ToString() });
                         await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.ProcessDataReport:

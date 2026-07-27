@@ -174,29 +174,33 @@ namespace EQSimulator
 
         private void BtnTrackIn_Click(object sender, EventArgs e)
         {
+            var wos = (_txtWorkOrder.Text ?? "").Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToList();
+            var cids = (_txtCassetteId.Text ?? "").Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToList();
             SendMessage(new TrackInReqMessage 
             { 
                 CMD = CommandType.TrackInReq, 
-                WorkOrder = _txtWorkOrder.Text, 
+                WorkOrder = wos, 
                 MaterialID = _txtMaterialId.Text, 
-                CassetteID = _txtCassetteId.Text,
+                CassetteID = cids,
                 ToolingID = _txtToolingId.Text,
                 UserID = _txtUserId.Text,
-                Qty = 1
+                Qty = "1"
             });
         }
 
         private void BtnTrackOut_Click(object sender, EventArgs e)
         {
             int qty = 0; int.TryParse(_txtQty.Text, out qty);
+            var wos = (_txtWorkOrder.Text ?? "").Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToList();
+            var cids = (_txtCassetteId.Text ?? "").Split(',').Select(x => x.Trim()).Where(x => !string.IsNullOrEmpty(x)).ToList();
             SendMessage(new TrackOutReqMessage 
             { 
                 CMD = CommandType.TrackOutReq, 
-                WorkOrder = _txtWorkOrder.Text, 
+                WorkOrder = wos, 
                 MaterialID = _txtMaterialId.Text, 
-                Qty = qty, 
+                Qty = qty.ToString(), 
                 UserID = _txtUserId.Text,
-                CassetteID = _txtCassetteId.Text,
+                CassetteID = cids,
                 ToolingID = _txtToolingId.Text,
                 PanelID = GetPanelListRaw(),
                 Result = "PASS"
@@ -231,7 +235,7 @@ namespace EQSimulator
         private void BtnReportStatus_Click(object sender, EventArgs e)
         {
             int status = Convert.ToInt32(_cmbStatus.SelectedValue);
-            SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = status, OldStatus = 0 });
+            SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = status.ToString(), OldStatus = "0" });
         }
 
         private void HandleIncomingCommand(string json)
@@ -434,18 +438,18 @@ namespace EQSimulator
                         Status = _cmbStatus.SelectedValue.ToString(),
                         CycleTime = "12.5",
                         Availability = "98.5",
-                        Parameter = new List<Dictionary<string, double>>
+                        Parameter = new List<Dictionary<string, string>>
                         {
-                        new Dictionary<string, double> { { "Temperature", 25.4 } },
-                        new Dictionary<string, double> { { "Pressure", 101.3 } }
+                            new Dictionary<string, string> { { "Temperature", "25.4" } },
+                            new Dictionary<string, string> { { "Pressure", "101.3" } }
                         },
                         RecipeDATA = new RecipeDataContent
                         {
                             RecipeID = "RECIPE_001",
-                            RecipeParameter = new Dictionary<string, double>
+                            RecipeParameter = new Dictionary<string, string>
                             {
-                                { "TargetSpeed", 1500.0 },
-                                { "LimitTime", 60.0 }
+                                { "TargetSpeed", "1500.0" },
+                                { "LimitTime", "60.0" }
                             }
                         }
                         };

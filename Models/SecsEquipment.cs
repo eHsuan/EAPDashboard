@@ -214,11 +214,10 @@ namespace EAPDashboard.Models
 
                         traceParams.Add(new { ParameterName = paramName, Value = valStr });
 
-                        double.TryParse(valStr, out double doubleVal);
                         parameterResults.Add(new ParameterResultItem
                         {
                             Parameter = paramName,
-                            Value = doubleVal
+                            Value = valStr
                         });
                     }
                 }
@@ -355,11 +354,10 @@ namespace EAPDashboard.Models
                         {
                             extractedData[varName] = val;
 
-                            double.TryParse(val, out double doubleVal);
                             parameterResults.Add(new ParameterResultItem
                             {
                                 Parameter = varName,
-                                Value = doubleVal
+                                Value = val
                             });
                         }
                     }
