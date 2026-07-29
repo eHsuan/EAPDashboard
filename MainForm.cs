@@ -49,9 +49,10 @@ namespace EAPDashboard
         public string Ip { get; set; }
         public int Port { get; set; }
         public ushort DeviceId { get; set; }
-        public bool IsActive { get; set; }
+        public bool IsActive { get; set; } = true;
         public string DictionaryPath { get; set; }
         public string Topic { get; set; }
+        public string TimeFormat { get; set; } = "16";
     }
 
     public partial class MainForm : Form
@@ -110,8 +111,14 @@ namespace EAPDashboard
 
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {
+                        if (!config.IsActive) continue;
+
                         EquipmentBase eq = null;
                         var gConfig = _appConfig.GatewaySettings != null ? new GatewayConfig { PrimaryUrl = _appConfig.GatewaySettings.PrimaryUrl, SecondaryUrl = _appConfig.GatewaySettings.SecondaryUrl } : null;
+
+                        string dictPath = !string.IsNullOrEmpty(config.DictionaryPath)
+                            ? (Path.IsPathRooted(config.DictionaryPath) ? config.DictionaryPath : Path.Combine(Application.StartupPath, config.DictionaryPath))
+                            : null;
 
                         if (config.Protocol == "MQTT") {
                             eq = new MqttEquipment { 
@@ -123,7 +130,20 @@ namespace EAPDashboard
                                 IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
                             };
                         }
-                        else if (config.Protocol == "SECS") eq = new SecsEquipment { Id = config.Id, Name = config.Name, Ip = config.Ip, Port = config.Port, DeviceId = config.DeviceId, IsActive = config.IsActive, DictionaryPath = Path.Combine(Application.StartupPath, config.DictionaryPath), DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig };
+                        else if (config.Protocol == "SECS") {
+                            eq = new SecsEquipment { 
+                                Id = config.Id, 
+                                Name = config.Name, 
+                                Ip = config.Ip, 
+                                Port = config.Port, 
+                                DeviceId = config.DeviceId, 
+                                IsActive = config.IsActive, 
+                                DictionaryPath = dictPath, 
+                                DbConfig = _appConfig.DbSettings, 
+                                GatewayConfig = gConfig,
+                                TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat
+                            };
+                        }
                         
                         if (eq != null) {
                             eq.IsSimulator = isSim;
@@ -131,43 +151,8 @@ namespace EAPDashboard
                         }
                     }
                 }
-                LoadSQLiteEquipments(isSim);
                 foreach (var eq in _equipments) eq.LoadAlarmMappings();
             } catch (Exception ex) { MessageBox.Show("Load Error: " + ex.Message); }
-        }
-
-        private void LoadSQLiteEquipments(bool isSim)
-        {
-            try {
-                var gConfig = _appConfig.GatewaySettings != null ? new GatewayConfig { PrimaryUrl = _appConfig.GatewaySettings.PrimaryUrl, SecondaryUrl = _appConfig.GatewaySettings.SecondaryUrl } : null;
-                using (var conn = DatabaseHelper.GetConnection()) {
-                    conn.Open();
-                    using (var cmd = new System.Data.SQLite.SQLiteCommand("SELECT * FROM Equipment WHERE IsActive = 1", conn)) {
-                        using (var reader = cmd.ExecuteReader()) {
-                            while (reader.Read()) {
-                                string eqId = reader["EqpId"].ToString();
-                                string name = reader["Name"].ToString();
-                                string protocol = reader["Protocol"].ToString().ToUpper();
-                                List<string> missing = new List<string>();
-                                EquipmentBase eq = null;
-                                if (protocol == "MQTT") {
-                                    string topic = reader["Topic"].ToString();
-                                    if (string.IsNullOrEmpty(topic)) missing.Add("Topic");
-                                    else eq = new MqttEquipment { Id = eqId, Name = name, Topic = topic, DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig };
-                                } else if (protocol == "SECS") {
-                                    if (string.IsNullOrEmpty(reader["Ip"].ToString())) missing.Add("Ip");
-                                    else eq = new SecsEquipment { Id = eqId, Name = name, Ip = reader["Ip"].ToString(), Port = Convert.ToInt32(reader["Port"]), DeviceId = (ushort)Convert.ToInt32(reader["DeviceId"]), DictionaryPath = Path.Combine(Application.StartupPath, reader["DictionaryPath"].ToString()), DbConfig = _appConfig.DbSettings, GatewayConfig = gConfig, TimeFormat = reader["TimeFormat"]?.ToString() ?? "16" };
-                                }
-                                if (eq != null) {
-                                    eq.IsSimulator = isSim;
-                                    _equipments.Add(eq);
-                                }
-                                if (missing.Count > 0) System.Diagnostics.Debug.WriteLine($"[DB] {eqId} missing: {string.Join(",", missing)}");
-                            }
-                        }
-                    }
-                }
-            } catch { }
         }
 
         private void PopulateDashboard()

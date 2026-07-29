@@ -18,5 +18,25 @@
     "BindingTable": "EAP_CassetteBind",
     "CassetteColumn": "CassetteID",
     "WoColumn": "WorkOrder"
-  }
+  },
+  "Equipments": [
+    {
+      "Id": "ET0023",
+      "Name": "微蝕刻水平線",
+      "Protocol": "MQTT",
+      "Topic": "factory/LOCAL/machine/ET0023",
+      "IsActive": true
+    },
+    {
+      "Id": "EQ02",
+      "Name": "SECS Equipment 02",
+      "Protocol": "SECS",
+      "Ip": "127.0.0.1",
+      "Port": 5000,
+      "DeviceId": 1,
+      "DictionaryPath": "Dictionaries\\TOWA_YPM.json",
+      "TimeFormat": "16",
+      "IsActive": false
+    }
+  ]
 }
