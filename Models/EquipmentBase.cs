@@ -102,7 +102,7 @@ namespace EAPDashboard.Models
 
                 if (!File.Exists(fullPath))
                 {
-                    OnLogReceived(LogLevel.Warn, $"[Dictionary] Dictionary file not found for Alarm Mapping: {fullPath}");
+                    OnLogReceived(LogLevel.Debug, $"[Dictionary] Dictionary file not found for Alarm Mapping: {fullPath}");
                     return;
                 }
 

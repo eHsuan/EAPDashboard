@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CyntecMqttLib.Interfaces;
@@ -74,13 +75,15 @@ namespace EAPDashboard.Models
             string cleanId = Id?.Trim();
             if (string.IsNullOrEmpty(cleanId))
             {
-                OnLogReceived(LogLevel.Warn, "[MQTT] Cannot load dictionary: EqpId is NULL.");
                 EqpDictionary = new SecsDictionary();
                 return;
             }
 
-            string dictPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Dictionaries", $"{cleanId}.json");
-            if (System.IO.File.Exists(dictPath))
+            string dictPath = !string.IsNullOrEmpty(DictionaryPath)
+                ? (Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath))
+                : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Dictionaries", $"{cleanId}.json");
+
+            if (File.Exists(dictPath))
             {
                 EqpDictionary = SecsDictionary.Load(dictPath);
                 OnLogReceived(LogLevel.Info, $"[MQTT] Dictionary loaded for {cleanId} from {dictPath}");
@@ -88,7 +91,7 @@ namespace EAPDashboard.Models
             else
             {
                 EqpDictionary = new SecsDictionary();
-                OnLogReceived(LogLevel.Warn, $"[MQTT] Dictionary NOT FOUND for {cleanId}. Expected: {dictPath}");
+                // 非 SECS / MQTT 協定機台若無字典檔，採用預設空的字典並靜默處理
             }
         }
 
