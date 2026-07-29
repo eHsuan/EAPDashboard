@@ -106,7 +106,7 @@ namespace EAPDashboard.Models
             _commandTopic = $"{Topic?.TrimEnd('/')}/Command";
             _reportTopic = $"{Topic?.TrimEnd('/')}/Report";
 
-            OnLogReceived(LogLevel.Info, $"[START] MQTT module started for {Id}.");
+            OnLogReceived(LogLevel.Info, $"[START] MQTT module started for {Id}. Base Topic: {Topic}, Command Topic: {_commandTopic}, Report Topic: {_reportTopic}");
 
             _bus.SubscribeAsync(_reportTopic, (topic, payload) => HandleReport(payload));
 
