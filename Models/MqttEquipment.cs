@@ -46,6 +46,7 @@ namespace EAPDashboard.Models
         private readonly System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext> _pendingTrackIn = new System.Collections.Concurrent.ConcurrentDictionary<string, TrackInContext>();
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
 
+        private string _currentStatusCode = "3";
         public string Topic { get; set; }
         public string StatusType { get; set; } = "Delta";
         public SecsDictionary EqpDictionary { get; set; }
@@ -245,11 +246,12 @@ namespace EAPDashboard.Models
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
                         int currentStatusInt = int.TryParse(rs.CurrentStatus?.ToString(), out int sval) ? sval : 0;
+                        _currentStatusCode = currentStatusInt.ToString();
                         if (GetActiveStatusMap().TryGetValue(currentStatusInt, out var st)) 
                         {
                             State = st;
                             string errorCode = (st == EquipmentState.Alarm) ? TransformAlarmCode(rs.AlarmCode) : "0";
-                            HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = currentStatusInt.ToString(), ErrorCode = errorCode });
+                            HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = _currentStatusCode, ErrorCode = errorCode });
                         }
                         OnLogReceived(LogLevel.Info, string.Format("Status Reply Recv: {0}, Status: {1}, Alarm: {2}", Id, rs.CurrentStatus, rs.AlarmCode ?? "None"));
                         break;
@@ -375,8 +377,9 @@ namespace EAPDashboard.Models
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
                         int newStatusInt = int.TryParse(scm.NewStatus?.ToString(), out int nval) ? nval : 0;
+                        _currentStatusCode = newStatusInt.ToString();
                         if (GetActiveStatusMap().TryGetValue(newStatusInt, out var nst)) State = nst;
-                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = newStatusInt.ToString() });
+                        HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = _currentStatusCode });
                         await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.ProcessDataReport:
@@ -460,6 +463,73 @@ namespace EAPDashboard.Models
                 case "PANEL_OUT":
                 case "104":
                     await SaveProductionDataAsync("PanelOut", "", evm);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
+                    break;
+
+                case "KPIV_REPORT":
+                    if (evm.Data != null && evm.Data.Count > 0)
+                    {
+                        var groups = new Dictionary<string, ParameterItem>(StringComparer.OrdinalIgnoreCase);
+
+                        foreach (var item in evm.Data)
+                        {
+                            if (item == null || string.IsNullOrWhiteSpace(item.Parameter)) continue;
+
+                            string varName = EqpDictionary?.GetVariableName(item.Parameter) ?? item.Parameter;
+                            if (string.IsNullOrWhiteSpace(varName)) continue;
+
+                            string baseName = varName.Trim();
+                            string type = "VALUE";
+
+                            if (baseName.EndsWith("-U", StringComparison.OrdinalIgnoreCase))
+                            {
+                                baseName = baseName.Substring(0, baseName.Length - 2).Trim();
+                                type = "USL";
+                            }
+                            else if (baseName.EndsWith("-L", StringComparison.OrdinalIgnoreCase))
+                            {
+                                baseName = baseName.Substring(0, baseName.Length - 2).Trim();
+                                type = "LSL";
+                            }
+
+                            if (!groups.TryGetValue(baseName, out var paramItem))
+                            {
+                                paramItem = new ParameterItem
+                                {
+                                    P_Name = baseName,
+                                    P_Value = "",
+                                    P_LSL = "",
+                                    P_USL = ""
+                                };
+                                groups[baseName] = paramItem;
+                            }
+
+                            string valStr = item.Value ?? "";
+                            if (type == "USL")
+                            {
+                                paramItem.P_USL = valStr;
+                            }
+                            else if (type == "LSL")
+                            {
+                                paramItem.P_LSL = valStr;
+                            }
+                            else
+                            {
+                                paramItem.P_Value = valStr;
+                            }
+                        }
+
+                        var paramList = groups.Values.ToList();
+                        var statusReq = new EQPSTATUSRequest
+                        {
+                            EqpNo = Id,
+                            StatusCode = _currentStatusCode ?? "3",
+                            ParameterList = JsonConvert.SerializeObject(paramList)
+                        };
+
+                        OnLogReceived(LogLevel.Info, $"[KPIV] Reporting {paramList.Count} KPIV parameter(s) via EQPSTATUS for {Id}");
+                        HandleEqpStatusCall(statusReq);
+                    }
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 

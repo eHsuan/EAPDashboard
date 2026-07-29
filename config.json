@@ -25,6 +25,7 @@
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ET0023_TEST",
+      "DictionaryPath": "Dictionaries\\ET0023_TEST.json",
       "StatusType": "Cyntec",
       "IsActive": true
     },
