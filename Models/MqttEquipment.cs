@@ -179,11 +179,23 @@ namespace EAPDashboard.Models
             _lastResponseTime = DateTime.Now;
 
             try {
-                var envelope = JsonConvert.DeserializeObject<CyntecMqttLib.Contracts.MessageEnvelope>(json);
-                if (envelope == null) return;
-                
-                string messageId = envelope.MessageId;
-                string innerJson = envelope.Payload?.ToString();
+                if (string.IsNullOrWhiteSpace(json)) return;
+
+                string messageId = null;
+                string innerJson = null;
+
+                var jObj = JObject.Parse(json);
+                if (jObj.TryGetValue("Payload", StringComparison.OrdinalIgnoreCase, out var payloadToken) && payloadToken != null && payloadToken.Type != JTokenType.Null)
+                {
+                    messageId = jObj["MessageId"]?.ToString();
+                    innerJson = payloadToken.Type == JTokenType.String ? payloadToken.ToString() : payloadToken.ToString(Formatting.None);
+                }
+                else
+                {
+                    messageId = jObj["MessageId"]?.ToString();
+                    innerJson = json;
+                }
+
                 if (string.IsNullOrEmpty(innerJson)) return;
 
                 // Idempotency Filter

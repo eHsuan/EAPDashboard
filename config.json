@@ -25,7 +25,7 @@
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ET0023_TEST",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ZZ0304",
