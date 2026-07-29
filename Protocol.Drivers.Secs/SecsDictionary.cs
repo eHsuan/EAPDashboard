@@ -22,12 +22,20 @@ namespace Protocol.Drivers.Secs
 
         public string GetEventName(string ceid)
         {
-            return Events.TryGetValue(ceid, out var name) ? name : $"Unknown_CEID_{ceid}";
+            if (string.IsNullOrWhiteSpace(ceid)) return ceid ?? string.Empty;
+            string trimmed = ceid.Trim();
+            if (Events.TryGetValue(trimmed, out var name) && !string.IsNullOrEmpty(name))
+                return name;
+            return trimmed;
         }
 
         public string GetVariableName(string vid)
         {
-            return Variables.TryGetValue(vid, out var name) ? name : $"Unknown_VID_{vid}";
+            if (string.IsNullOrWhiteSpace(vid)) return vid ?? string.Empty;
+            string trimmed = vid.Trim();
+            if (Variables.TryGetValue(trimmed, out var name) && !string.IsNullOrEmpty(name))
+                return name;
+            return trimmed;
         }
 
         public string MapStatus(string value)

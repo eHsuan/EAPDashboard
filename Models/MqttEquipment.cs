@@ -408,21 +408,25 @@ namespace EAPDashboard.Models
 
         private async Task HandleEventReport(EventReportMessage evm, string rawJson)
         {
-            string eventId = evm.EventID;
-            string logicalEvent = EqpDictionary?.GetEventName(eventId) ?? eventId;
-            logicalEvent = logicalEvent.ToUpper();
+            string rawEventId = evm.EventID;
+            string logicalEvent = EqpDictionary?.GetEventName(rawEventId) ?? rawEventId;
+            string upperEvent = logicalEvent.ToUpper();
 
-            OnLogReceived(LogLevel.Info, $"[EVENT] {Id} EventID: {eventId} (Mapped: {logicalEvent})");
+            OnLogReceived(LogLevel.Info, $"[EVENT] {Id} EventID (CEID): {rawEventId} (Mapped: {logicalEvent})");
 
             string getValByLogicalName(string logicalName) 
             {
                 if (evm.Data == null) return null;
-                return evm.Data.FirstOrDefault(x => (EqpDictionary?.GetVariableName(x.Parameter) ?? x.Parameter).Equals(logicalName, StringComparison.OrdinalIgnoreCase))?.Value;
+                return evm.Data.FirstOrDefault(x => 
+                    x.Parameter.Equals(logicalName, StringComparison.OrdinalIgnoreCase) ||
+                    (EqpDictionary?.GetVariableName(x.Parameter) ?? x.Parameter).Equals(logicalName, StringComparison.OrdinalIgnoreCase)
+                )?.Value;
             }
 
-            switch (logicalEvent)
+            switch (upperEvent)
             {
                 case "USER_VERIFY":
+                case "500":
                 case "100":
                     string uid = getValByLogicalName("UserID");
                     string bcd = getValByLogicalName("Barcode") ?? uid;
