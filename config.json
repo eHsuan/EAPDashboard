@@ -25,6 +25,7 @@
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ET0023_TEST",
+      "StatusType": "Cyntec",
       "IsActive": true
     },
     {
@@ -32,6 +33,7 @@
       "Name": "ZZ0304",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ZZ0304",
+      "StatusType": "Delta",
       "IsActive": true
     },
     {

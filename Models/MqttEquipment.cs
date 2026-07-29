@@ -47,6 +47,7 @@ namespace EAPDashboard.Models
         private readonly System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest> _statusBuffer = new System.Collections.Concurrent.ConcurrentQueue<EQPSTATUSRequest>();
 
         public string Topic { get; set; }
+        public string StatusType { get; set; } = "Delta";
         public SecsDictionary EqpDictionary { get; set; }
 
         public MqttEquipment()
@@ -61,7 +62,7 @@ namespace EAPDashboard.Models
             Converters = { new Newtonsoft.Json.Converters.StringEnumConverter() }
         };
 
-        private static readonly Dictionary<int, EquipmentState> StatusMap = new Dictionary<int, EquipmentState>()
+        private static readonly Dictionary<int, EquipmentState> DeltaStatusMap = new Dictionary<int, EquipmentState>()
         {
            { 0, EquipmentState.Running }, { 6, EquipmentState.Running },
            { 1, EquipmentState.Alarm }, { 10, EquipmentState.Alarm }, { 11, EquipmentState.Alarm },
@@ -69,6 +70,22 @@ namespace EAPDashboard.Models
            { 5, EquipmentState.Paused }, { 7, EquipmentState.Paused }, { 8, EquipmentState.Paused },
            { 9, EquipmentState.Paused }, { 12, EquipmentState.Paused }
         };
+
+        private static readonly Dictionary<int, EquipmentState> CyntecStatusMap = new Dictionary<int, EquipmentState>()
+        {
+           { 1, EquipmentState.Running },
+           { 2, EquipmentState.Idle },
+           { 3, EquipmentState.Alarm }
+        };
+
+        public Dictionary<int, EquipmentState> GetActiveStatusMap()
+        {
+            if ("Cyntec".Equals(StatusType, StringComparison.OrdinalIgnoreCase))
+            {
+                return CyntecStatusMap;
+            }
+            return DeltaStatusMap;
+        }
 
         private void LoadDictionary()
         {
@@ -228,7 +245,7 @@ namespace EAPDashboard.Models
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
                         int currentStatusInt = int.TryParse(rs.CurrentStatus?.ToString(), out int sval) ? sval : 0;
-                        if (StatusMap.TryGetValue(currentStatusInt, out var st)) 
+                        if (GetActiveStatusMap().TryGetValue(currentStatusInt, out var st)) 
                         {
                             State = st;
                             string errorCode = (st == EquipmentState.Alarm) ? TransformAlarmCode(rs.AlarmCode) : "0";
@@ -358,7 +375,7 @@ namespace EAPDashboard.Models
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
                         int newStatusInt = int.TryParse(scm.NewStatus?.ToString(), out int nval) ? nval : 0;
-                        if (StatusMap.TryGetValue(newStatusInt, out var nst)) State = nst;
+                        if (GetActiveStatusMap().TryGetValue(newStatusInt, out var nst)) State = nst;
                         HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = newStatusInt.ToString() });
                         await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg);
                         break;

@@ -53,6 +53,7 @@ namespace EAPDashboard
         public string DictionaryPath { get; set; }
         public string Topic { get; set; }
         public string TimeFormat { get; set; } = "16";
+        public string StatusType { get; set; } = "Delta";
     }
 
     public partial class MainForm : Form
@@ -125,6 +126,7 @@ namespace EAPDashboard
                                 Id = config.Id, 
                                 Name = config.Name, 
                                 Topic = config.Topic, 
+                                StatusType = config.StatusType ?? "Delta",
                                 DbConfig = _appConfig.DbSettings,
                                 GatewayConfig = gConfig,
                                 IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
