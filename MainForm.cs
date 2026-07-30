@@ -22,6 +22,7 @@ namespace EAPDashboard
         public string MqttBrokerHost { get; set; }
         public int MqttBrokerPort { get; set; }
         public int HeartbeatIntervalSeconds { get; set; }
+        public bool EnableCassetteBinding { get; set; } = false;
         public MesSettings MesSettings { get; set; }
         public GatewaySettings GatewaySettings { get; set; }
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
@@ -54,6 +55,7 @@ namespace EAPDashboard
         public string Topic { get; set; }
         public string TimeFormat { get; set; } = "16";
         public string StatusType { get; set; } = "Delta";
+        public bool? EnableCassetteBinding { get; set; }
     }
 
     public partial class MainForm : Form
@@ -150,6 +152,7 @@ namespace EAPDashboard
                         
                         if (eq != null) {
                             eq.IsSimulator = isSim;
+                            eq.EnableCassetteBinding = config.EnableCassetteBinding ?? _appConfig.EnableCassetteBinding;
                             _equipments.Add(eq);
                         }
                     }

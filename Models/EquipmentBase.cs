@@ -64,8 +64,10 @@ namespace EAPDashboard.Models
         public string Id { get; set; }
         public string Name { get; set; }
         public string Protocol { get; set; }
-        public bool IsSimulator { get; set; }
-        public bool IsMesSimulator { get; set; } 
+        public bool IsActive { get; set; } = true;
+        public bool IsSimulator { get; set; } = false;
+        public bool IsMesSimulator { get; set; } = false;
+        public bool EnableCassetteBinding { get; set; } = false;
         public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
         public string DictionaryPath { get; set; } = string.Empty;
@@ -250,10 +252,13 @@ namespace EAPDashboard.Models
                     lastMsg = reply.Message;
                 }
 
-                foreach (var cid in cids.Where(c => !string.IsNullOrEmpty(c)))
+                if (EnableCassetteBinding)
                 {
-                    bool ok = await UnbindFromDbAsync(cid);
-                    if (!ok) await SavePendingUnbindingAsync(cid);
+                    foreach (var cid in cids.Where(c => !string.IsNullOrEmpty(c)))
+                    {
+                        bool ok = await UnbindFromDbAsync(cid);
+                        if (!ok) await SavePendingUnbindingAsync(cid);
+                    }
                 }
 
                 return $"PASS|{lastCode}|{lastMsg}";
@@ -300,12 +305,15 @@ namespace EAPDashboard.Models
                     lastMsg = reply.Message;
                 }
 
-                for (int i = 0; i < Math.Max(cids.Count, wos.Count); i++)
+                if (EnableCassetteBinding)
                 {
-                    string cid = i < cids.Count ? cids[i] : (cids.FirstOrDefault() ?? "UNKNOWN");
-                    string wo = i < wos.Count ? wos[i] : (wos.FirstOrDefault() ?? "");
-                    bool dbOk = await UpdateBindingInDbAsync(cid, wo, panels);
-                    if (!dbOk) await SavePendingBindingAsync(cid, wo, panels);
+                    for (int i = 0; i < Math.Max(cids.Count, wos.Count); i++)
+                    {
+                        string cid = i < cids.Count ? cids[i] : (cids.FirstOrDefault() ?? "UNKNOWN");
+                        string wo = i < wos.Count ? wos[i] : (wos.FirstOrDefault() ?? "");
+                        bool dbOk = await UpdateBindingInDbAsync(cid, wo, panels);
+                        if (!dbOk) await SavePendingBindingAsync(cid, wo, panels);
+                    }
                 }
 
                 return $"PASS|{lastCode}|{lastMsg}";
@@ -324,7 +332,7 @@ namespace EAPDashboard.Models
 
         protected BindingInfo QueryBindingFromGateway(string cassetteId)
         {
-            if (GatewayConfig == null) return null;
+            if (!EnableCassetteBinding || GatewayConfig == null) return null;
             try
             {
                 var queryPolicy = Policy<HttpResponseMessage>
