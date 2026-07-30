@@ -127,6 +127,7 @@ namespace EAPDashboard
                                 Name = config.Name, 
                                 Topic = config.Topic, 
                                 StatusType = config.StatusType ?? "Delta",
+                                DictionaryPath = dictPath,
                                 DbConfig = _appConfig.DbSettings,
                                 GatewayConfig = gConfig,
                                 IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
