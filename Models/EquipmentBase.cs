@@ -605,6 +605,7 @@ namespace EAPDashboard.Models
         protected virtual void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         public abstract void Start(CancellationToken externalCancellationToken, MqttBus bus = null, int heartbeatIntervalSeconds = 30);
         public abstract Task SendTimeCalibration();
+        public virtual Task SendTerminalDisplay(string message) => Task.CompletedTask;
         public virtual void Stop() { }
         public static Color GetColorForState(EquipmentState state) { switch (state) { case EquipmentState.Running: return Color.LimeGreen; case EquipmentState.Alarm: case EquipmentState.Down: return Color.Crimson; case EquipmentState.Paused: case EquipmentState.Idle: return Color.Gold; default: return Color.Black; } }
     }

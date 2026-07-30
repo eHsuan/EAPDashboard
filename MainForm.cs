@@ -331,6 +331,7 @@ namespace EAPDashboard
         private void MainForm_Resize(object sender, EventArgs e) => AdjustCardSize();
         private void MenuSettings_Click(object sender, EventArgs e) { using (var f = new SettingsForm()) f.ShowDialog(this); }
         private async void MenuTimeSync_Click(object sender, EventArgs e) { foreach (var eq in _equipments) if (eq.Connection == ConnectionStatus.Connected) await eq.SendTimeCalibration(); }
+        private void MenuTerminalDisplay_Click(object sender, EventArgs e) { using (var f = new TerminalDisplayForm(_equipments)) f.ShowDialog(this); }
 
         private void AdjustCardSize()
         {

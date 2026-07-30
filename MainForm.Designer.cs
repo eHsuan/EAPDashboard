@@ -21,6 +21,7 @@ namespace EAPDashboard
         private System.Windows.Forms.ToolStripMenuItem menuSettings;
         private System.Windows.Forms.ToolStripMenuItem menuCommand;
         private System.Windows.Forms.ToolStripMenuItem menuTimeSync;
+        private System.Windows.Forms.ToolStripMenuItem menuTerminalDisplay;
 
         private void InitializeComponent()
         {
@@ -32,6 +33,7 @@ namespace EAPDashboard
             this.menuSettings = new System.Windows.Forms.ToolStripMenuItem();
             this.menuCommand = new System.Windows.Forms.ToolStripMenuItem();
             this.menuTimeSync = new System.Windows.Forms.ToolStripMenuItem();
+            this.menuTerminalDisplay = new System.Windows.Forms.ToolStripMenuItem();
             this.pnlStatus.SuspendLayout();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -95,7 +97,8 @@ namespace EAPDashboard
             // menuCommand
             // 
             this.menuCommand.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.menuTimeSync});
+            this.menuTimeSync,
+            this.menuTerminalDisplay});
             this.menuCommand.Name = "menuCommand";
             this.menuCommand.Size = new System.Drawing.Size(43, 20);
             this.menuCommand.Text = "指令";
@@ -106,6 +109,13 @@ namespace EAPDashboard
             this.menuTimeSync.Size = new System.Drawing.Size(180, 22);
             this.menuTimeSync.Text = "時間校正";
             this.menuTimeSync.Click += new System.EventHandler(this.MenuTimeSync_Click);
+            // 
+            // menuTerminalDisplay
+            // 
+            this.menuTerminalDisplay.Name = "menuTerminalDisplay";
+            this.menuTerminalDisplay.Size = new System.Drawing.Size(180, 22);
+            this.menuTerminalDisplay.Text = "發送遠端訊息 (Terminal Display)";
+            this.menuTerminalDisplay.Click += new System.EventHandler(this.MenuTerminalDisplay_Click);
             // 
             // MainForm
             // 

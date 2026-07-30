@@ -568,7 +568,7 @@ namespace EAPDashboard.Models
         private async Task SendAreYouThere() => await SendCommand(new AreYouThereMessage { CMD = CommandType.AreYouThere, Machine = Id });
         private async Task SendStatusRequest() => await SendCommand(new StatusReqMessage { CMD = CommandType.StatusReq, Machine = Id });
         public override async Task SendTimeCalibration() => await SendCommand(new TimeCalibrateMessage { CMD = CommandType.TimeCalibrate, Machine = Id });
-        public async Task SendTerminalDisplay(string message) => await SendCommand(new TerminalDisplayMessage { CMD = CommandType.TerminalDisplay, Machine = Id, Message = message });
+        public override async Task SendTerminalDisplay(string message) => await SendCommand(new TerminalDisplayMessage { CMD = CommandType.TerminalDisplay, Machine = Id, Message = message });
 
         private async Task SendReply<T>(T replyMsg, BaseMessage requestMsg = null) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;

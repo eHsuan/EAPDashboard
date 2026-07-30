@@ -495,6 +495,11 @@ namespace EAPDashboard.Models
             }
         }
 
+        public override async Task SendTerminalDisplay(string message)
+        {
+            await SendS10F3(message);
+        }
+
         private string GetVidByLogicalName(string logicalName)
         {
             if (_dictionary?.Variables == null) return null;
