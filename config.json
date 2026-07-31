@@ -8,7 +8,7 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Test"
+    "ActiveEnvironment": "Production"
   },
   "GatewaySettings": {
     "PrimaryUrl": "http://127.0.0.1:5000",

@@ -108,7 +108,25 @@ namespace EAPDashboard
                 }
                 if (_appConfig.MesSettings != null) {
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";
-                    //Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
+                    string targetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
+                    if (!string.IsNullOrEmpty(targetUrl))
+                    {
+                        try {
+                            var asm = System.AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.GetName().Name == "Protocol.MES") 
+                                       ?? System.Reflection.Assembly.Load("Protocol.MES");
+                            var settingsType = asm?.GetType("Protocol.MES.Properties.Settings");
+                            if (settingsType != null)
+                            {
+                                var defaultProp = settingsType.GetProperty("Default", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+                                var defaultObj = defaultProp?.GetValue(null);
+                                if (defaultObj != null)
+                                {
+                                    var itemProp = settingsType.GetProperty("Item");
+                                    itemProp?.SetValue(defaultObj, targetUrl, new object[] { "Protocol_MES_corp_delta_twcynmes01_Eqp_Portal" });
+                                }
+                            }
+                        } catch { }
+                    }
                 }
                 bool isSim = !(_appConfig.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
 
