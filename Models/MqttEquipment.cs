@@ -540,15 +540,38 @@ namespace EAPDashboard.Models
         }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) {
-            Task.Run(() => { try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); } 
-            catch { _statusBuffer.Enqueue(req); } });
+            Task.Run(() => { 
+                try { 
+                    OnLogReceived(LogLevel.Info, $"[MES SEND] EQPSTATUS Request: EqpNo={req.EqpNo}, StatusCode={req.StatusCode}, ErrorCode={req.ErrorCode}");
+                    var reply = MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); 
+                    if (reply != null) {
+                        OnLogReceived(LogLevel.Info, $"[MES RECV] EQPSTATUS Reply: Result={reply.Result}, ResultCode={reply.ResultCode}, Message={reply.Message}");
+                    } else {
+                        OnLogReceived(LogLevel.Warn, $"[MES RECV] EQPSTATUS Reply is null.");
+                    }
+                } 
+                catch (Exception ex) { 
+                    OnLogReceived(LogLevel.Error, $"[MES ERROR] EQPSTATUS Failed (Enqueued for retry): {ex.Message}");
+                    _statusBuffer.Enqueue(req); 
+                } 
+            });
         }
 
         private async Task StartStatusBufferProcessor(CancellationToken ct) {
             while (!ct.IsCancellationRequested) {
                 if (!_statusBuffer.IsEmpty && _statusBuffer.TryPeek(out var req)) {
-                    try { await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req)); _statusBuffer.TryDequeue(out _); }
-                    catch { await Task.Delay(5000, ct); }
+                    try { 
+                        OnLogReceived(LogLevel.Info, $"[MES RETRY SEND] EQPSTATUS Request: EqpNo={req.EqpNo}, StatusCode={req.StatusCode}");
+                        var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req)); 
+                        if (reply != null) {
+                            OnLogReceived(LogLevel.Info, $"[MES RETRY RECV] EQPSTATUS Reply: Result={reply.Result}, Message={reply.Message}");
+                        }
+                        _statusBuffer.TryDequeue(out _); 
+                    }
+                    catch (Exception ex) { 
+                        OnLogReceived(LogLevel.Error, $"[MES RETRY ERROR] Retry EQPSTATUS Failed: {ex.Message}");
+                        await Task.Delay(5000, ct); 
+                    }
                 }
                 await Task.Delay(1000, ct);
             }

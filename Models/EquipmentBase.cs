@@ -462,13 +462,20 @@ namespace EAPDashboard.Models
                 
                 var statusTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 if (await Task.WhenAny(statusTask, Task.Delay(25000)) != statusTask)
+                {
+                    OnLogReceived(LogLevel.Error, $"[STATUS] {eid} MES EQPSTATUS Timeout (25s)");
                     return "FAIL|T001|MES EQPSTATUS Timeout (25s)";
+                }
 
                 var reply = await statusTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
+                OnLogReceived(LogLevel.Info, $"[STATUS] {eid} MES Reply: Result={reply.Result}, ResultCode={reply.ResultCode}, Message={reply.Message}");
                 return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
-            catch (Exception ex) { return string.Format("ERROR|UNKNOWN|Status Update Failed: {0}", ex.Message); }
+            catch (Exception ex) { 
+                OnLogReceived(LogLevel.Error, $"[STATUS] {reportEqpId ?? this.Id} Status Update Failed: {ex.Message}");
+                return string.Format("ERROR|UNKNOWN|Status Update Failed: {0}", ex.Message); 
+            }
         }
 
         public async Task<string> ProcessPanelInAsync(string panelId, string cassetteId, string reportEqpId = null)
@@ -507,10 +514,14 @@ namespace EAPDashboard.Models
                 
                 var alarmTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 if (await Task.WhenAny(alarmTask, Task.Delay(25000)) != alarmTask)
+                {
+                    OnLogReceived(LogLevel.Error, $"[ALARM] {eid} MES ALARM Timeout (25s)");
                     return "FAIL|T001|MES ALARM Timeout (25s)";
+                }
 
                 var reply = await alarmTask;
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
+                OnLogReceived(LogLevel.Info, $"[ALARM] {eid} MES Reply: Result={reply.Result}, ResultCode={reply.ResultCode}, Message={reply.Message}");
                 return string.Format("{0}|{1}|{2}", resPrefix, reply.ResultCode, reply.Message);
             }
             catch (Exception ex) 
