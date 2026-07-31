@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Protocol.MES</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemGroup />
+  <ItemGroup>
+    <Reference Include="System.ServiceModel.Primitives" />
+    <Reference Include="System.ServiceModel.Http" />
+    <Reference Include="System.Configuration.ConfigurationManager">
+      <HintPath>C:\Program Files\dotnet\shared\Microsoft.WindowsDesktop.App\8.0.29\System.Configuration.ConfigurationManager.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json" />
+  </ItemGroup>
+</Project>

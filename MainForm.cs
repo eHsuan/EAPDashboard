@@ -108,7 +108,7 @@ namespace EAPDashboard
                 }
                 if (_appConfig.MesSettings != null) {
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";
-                    Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
+                    //Protocol.MES.Factory.MESMessageFactory.TargetUrl = env.Equals("Production", StringComparison.OrdinalIgnoreCase) ? _appConfig.MesSettings.ProductionUrl : _appConfig.MesSettings.TestUrl;
                 }
                 bool isSim = !(_appConfig.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
 

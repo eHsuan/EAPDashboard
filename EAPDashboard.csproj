@@ -43,12 +43,14 @@
 
   <ItemGroup>
     <ProjectReference Include="CyntecMqttLib\CyntecMqttLib.csproj" />
-    <ProjectReference Include="Protocol.MES\Protocol.MES.csproj" />
     <Reference Include="Protocol.Core">
       <HintPath>dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
     </Reference>
     <Reference Include="Protocol.Drivers.Secs">
       <HintPath>dll\Protocol.Drivers.Secs.dll</HintPath>
+    </Reference>
+    <Reference Include="Protocol.MES">
+      <HintPath>dll\Protocol.MES\Protocol.MES.dll</HintPath>
     </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Net.Http" />
