@@ -137,6 +137,7 @@ namespace EAPDashboard.Models
             _ = MonitorTrackInTimeout(_linkedCts.Token);
             _ = SendAreYouThere();
             _ = SendStatusRequest();
+            _ = StartPeriodicStatusReportLoop(_linkedCts.Token);
         }
 
         private async Task MonitorTrackInTimeout(CancellationToken ct)
@@ -540,6 +541,7 @@ namespace EAPDashboard.Models
         }
 
         private void HandleEqpStatusCall(EQPSTATUSRequest req) {
+            SetLastStatus(req.StatusCode, req.ErrorCode);
             Task.Run(() => { 
                 try { 
                     OnLogReceived(LogLevel.Info, $"[MES SEND] EQPSTATUS Request: EqpNo={req.EqpNo}, StatusCode={req.StatusCode}, ErrorCode={req.ErrorCode}");

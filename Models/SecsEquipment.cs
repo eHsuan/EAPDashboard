@@ -90,6 +90,7 @@ namespace EAPDashboard.Models
 
                 // 啟動 DLL 的通訊元件
                 _secsClient.Start(_linkedCts.Token);
+                _ = StartPeriodicStatusReportLoop(_linkedCts.Token);
             }
             catch (Exception ex)
             {

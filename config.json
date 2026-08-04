@@ -4,6 +4,7 @@
   "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
   "HeartbeatIntervalSeconds": 10,
+  "EqpStatusReportIntervalSeconds": 60,
   "EnableCassetteBinding": false,
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
@@ -22,11 +23,11 @@
   },
   "Equipments": [
     {
-      "Id": "ET0023",
+      "Id": "AC3811",
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/ET0023_TEST",
-      "DictionaryPath": "Dictionaries/ET0023_TEST.json",
+      "Topic": "factory/LOCAL/machine/AC3811",
+      "DictionaryPath": "Dictionaries/AC3811.json",
       "StatusType": "Cyntec",
       "IsActive": true
     },

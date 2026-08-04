@@ -68,12 +68,70 @@ namespace EAPDashboard.Models
         public bool IsSimulator { get; set; } = false;
         public bool IsMesSimulator { get; set; } = false;
         public bool EnableCassetteBinding { get; set; } = false;
+        public int StatusReportIntervalSeconds { get; set; } = 60;
         public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
         public string DictionaryPath { get; set; } = string.Empty;
 
+        protected string _lastStatusCode = "0";
+        protected string _lastErrorCode = null;
+
         public event PropertyChangedEventHandler PropertyChanged;
         public event Action<DateTime, LogLevel, string> LogReceived;
+
+        public void SetLastStatus(string statusCode, string errorCode = null)
+        {
+            if (!string.IsNullOrEmpty(statusCode)) _lastStatusCode = statusCode;
+            if (errorCode != null) _lastErrorCode = errorCode;
+        }
+
+        protected async Task StartPeriodicStatusReportLoop(CancellationToken ct)
+        {
+            if (StatusReportIntervalSeconds <= 0) return;
+            OnLogReceived(LogLevel.Info, $"[MES PERIODIC] Started periodic EQPSTATUS report loop for {Id} (Interval: {StatusReportIntervalSeconds}s).");
+
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(StatusReportIntervalSeconds), ct);
+
+                    if (Connection == ConnectionStatus.Connected)
+                    {
+                        var req = new EQPSTATUSRequest
+                        {
+                            EqpNo = Id,
+                            StatusCode = _lastStatusCode ?? "0",
+                            ErrorCode = _lastErrorCode
+                        };
+
+                        OnLogReceived(LogLevel.Info, $"[MES PERIODIC SEND] Periodic EQPSTATUS Request for {Id}: StatusCode={req.StatusCode}, ErrorCode={req.ErrorCode}");
+
+                        var replyTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req), ct);
+                        if (await Task.WhenAny(replyTask, Task.Delay(25000, ct)) == replyTask)
+                        {
+                            var reply = await replyTask;
+                            if (reply != null)
+                            {
+                                OnLogReceived(LogLevel.Info, $"[MES PERIODIC RECV] EQPSTATUS Reply: Result={reply.Result}, ResultCode={reply.ResultCode}, Message={reply.Message}");
+                            }
+                        }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Warn, $"[MES PERIODIC] Periodic EQPSTATUS report timeout (25s) for {Id}.");
+                        }
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    OnLogReceived(LogLevel.Error, $"[MES PERIODIC ERROR] Periodic EQPSTATUS report error for {Id}: {ex.Message}");
+                }
+            }
+        }
 
         public EquipmentBase()
         {
@@ -449,6 +507,7 @@ namespace EAPDashboard.Models
             try
             {
                 string eid = reportEqpId ?? this.Id;
+                SetLastStatus(newStatus);
                 OnLogReceived(LogLevel.Info, string.Format("[STATUS] {0} Status Changed: {1} -> {2}", eid, oldStatus, newStatus));
 
                 if (int.TryParse(newStatus, out int sc))
