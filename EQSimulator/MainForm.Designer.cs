@@ -15,419 +15,458 @@ namespace EQSimulator
 
         private void InitializeComponent()
         {
-            this.panelTop = new System.Windows.Forms.Panel();
-            this.lblBroker = new System.Windows.Forms.Label();
-            this._txtBroker = new System.Windows.Forms.TextBox();
-            this.lblEqId = new System.Windows.Forms.Label();
-            this._txtEqId = new System.Windows.Forms.TextBox();
-            this.lblBaseTopic = new System.Windows.Forms.Label();
-            this._txtTopic = new System.Windows.Forms.TextBox();
-            this._btnConnect = new System.Windows.Forms.Button();
-            this.grpParams = new System.Windows.Forms.GroupBox();
-            this.lblBarcode = new System.Windows.Forms.Label();
-            this._txtBarcode = new System.Windows.Forms.TextBox();
-            this.lblQty = new System.Windows.Forms.Label();
-            this._txtQty = new System.Windows.Forms.TextBox();
-            this.lblToolingId = new System.Windows.Forms.Label();
-            this._txtToolingId = new System.Windows.Forms.TextBox();
-            this.lblCassetteId = new System.Windows.Forms.Label();
-            this._txtCassetteId = new System.Windows.Forms.TextBox();
-            this.lblMaterialId = new System.Windows.Forms.Label();
-            this._txtMaterialId = new System.Windows.Forms.TextBox();
-            this.lblWorkOrder = new System.Windows.Forms.Label();
-            this._txtWorkOrder = new System.Windows.Forms.TextBox();
-            this.lblUserId = new System.Windows.Forms.Label();
-            this._txtUserId = new System.Windows.Forms.TextBox();
-            this._grpActions = new System.Windows.Forms.GroupBox();
-            this.flowActions = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnUser = new System.Windows.Forms.Button();
-            this.btnTrackIn = new System.Windows.Forms.Button();
-            this.btnTrackOut = new System.Windows.Forms.Button();
-            this.btnPanelIn = new System.Windows.Forms.Button();
-            this.btnPanelOut = new System.Windows.Forms.Button();
-            this.btnRtnTraceData = new System.Windows.Forms.Button();
-            this.btnAlarm = new System.Windows.Forms.Button();
-            this.pnlStatusReport = new System.Windows.Forms.Panel();
-            this._cmbStatus = new System.Windows.Forms.ComboBox();
-            this.btnReportStatus = new System.Windows.Forms.Button();
-            this._txtLog = new System.Windows.Forms.TextBox();
-            this.panelTop.SuspendLayout();
-            this.grpParams.SuspendLayout();
-            this._grpActions.SuspendLayout();
-            this.flowActions.SuspendLayout();
-            this.pnlStatusReport.SuspendLayout();
-            this.SuspendLayout();
+            panelTop = new System.Windows.Forms.Panel();
+            lblBroker = new System.Windows.Forms.Label();
+            _txtBroker = new System.Windows.Forms.TextBox();
+            lblEqId = new System.Windows.Forms.Label();
+            _txtEqId = new System.Windows.Forms.TextBox();
+            lblBaseTopic = new System.Windows.Forms.Label();
+            _txtTopic = new System.Windows.Forms.TextBox();
+            _btnConnect = new System.Windows.Forms.Button();
+            grpParams = new System.Windows.Forms.GroupBox();
+            lblBarcode = new System.Windows.Forms.Label();
+            _txtBarcode = new System.Windows.Forms.TextBox();
+            lblQty = new System.Windows.Forms.Label();
+            _txtQty = new System.Windows.Forms.TextBox();
+            lblToolingId = new System.Windows.Forms.Label();
+            _txtToolingId = new System.Windows.Forms.TextBox();
+            lblCassetteId = new System.Windows.Forms.Label();
+            _txtCassetteId = new System.Windows.Forms.TextBox();
+            lblMaterialId = new System.Windows.Forms.Label();
+            _txtMaterialId = new System.Windows.Forms.TextBox();
+            lblWorkOrder = new System.Windows.Forms.Label();
+            _txtWorkOrder = new System.Windows.Forms.TextBox();
+            lblUserId = new System.Windows.Forms.Label();
+            _txtUserId = new System.Windows.Forms.TextBox();
+            _grpActions = new System.Windows.Forms.GroupBox();
+            flowActions = new System.Windows.Forms.FlowLayoutPanel();
+            btnUser = new System.Windows.Forms.Button();
+            btnTrackIn = new System.Windows.Forms.Button();
+            btnTrackOut = new System.Windows.Forms.Button();
+            btnPanelIn = new System.Windows.Forms.Button();
+            btnPanelOut = new System.Windows.Forms.Button();
+            btnRtnTraceData = new System.Windows.Forms.Button();
+            btnAlarm = new System.Windows.Forms.Button();
+            pnlStatusReport = new System.Windows.Forms.Panel();
+            _cmbStatus = new System.Windows.Forms.ComboBox();
+            btnReportStatus = new System.Windows.Forms.Button();
+            _txtLog = new System.Windows.Forms.TextBox();
+            panelTop.SuspendLayout();
+            grpParams.SuspendLayout();
+            _grpActions.SuspendLayout();
+            flowActions.SuspendLayout();
+            pnlStatusReport.SuspendLayout();
+            SuspendLayout();
             // 
             // panelTop
             // 
-            this.panelTop.Controls.Add(this.lblBroker);
-            this.panelTop.Controls.Add(this._txtBroker);
-            this.panelTop.Controls.Add(this.lblEqId);
-            this.panelTop.Controls.Add(this._txtEqId);
-            this.panelTop.Controls.Add(this.lblBaseTopic);
-            this.panelTop.Controls.Add(this._txtTopic);
-            this.panelTop.Controls.Add(this._btnConnect);
-            this.panelTop.Dock = System.Windows.Forms.DockStyle.Top;
-            this.panelTop.Location = new System.Drawing.Point(0, 0);
-            this.panelTop.Name = "panelTop";
-            this.panelTop.Padding = new System.Windows.Forms.Padding(10);
-            this.panelTop.Size = new System.Drawing.Size(784, 80);
-            this.panelTop.TabIndex = 0;
+            panelTop.Controls.Add(lblBroker);
+            panelTop.Controls.Add(_txtBroker);
+            panelTop.Controls.Add(lblEqId);
+            panelTop.Controls.Add(_txtEqId);
+            panelTop.Controls.Add(lblBaseTopic);
+            panelTop.Controls.Add(_txtTopic);
+            panelTop.Controls.Add(_btnConnect);
+            panelTop.Dock = System.Windows.Forms.DockStyle.Top;
+            panelTop.Location = new System.Drawing.Point(0, 0);
+            panelTop.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            panelTop.Name = "panelTop";
+            panelTop.Padding = new System.Windows.Forms.Padding(12, 12, 12, 12);
+            panelTop.Size = new System.Drawing.Size(915, 100);
+            panelTop.TabIndex = 0;
             // 
             // lblBroker
             // 
-            this.lblBroker.Location = new System.Drawing.Point(10, 15);
-            this.lblBroker.Name = "lblBroker";
-            this.lblBroker.Size = new System.Drawing.Size(50, 23);
-            this.lblBroker.TabIndex = 0;
-            this.lblBroker.Text = "Broker:";
+            lblBroker.Location = new System.Drawing.Point(12, 19);
+            lblBroker.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBroker.Name = "lblBroker";
+            lblBroker.Size = new System.Drawing.Size(58, 29);
+            lblBroker.TabIndex = 0;
+            lblBroker.Text = "Broker:";
             // 
             // _txtBroker
             // 
-            this._txtBroker.Location = new System.Drawing.Point(60, 12);
-            this._txtBroker.Name = "_txtBroker";
-            this._txtBroker.Size = new System.Drawing.Size(120, 22);
-            this._txtBroker.TabIndex = 1;
-            this._txtBroker.Text = "127.0.0.1";
+            _txtBroker.Location = new System.Drawing.Point(70, 15);
+            _txtBroker.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtBroker.Name = "_txtBroker";
+            _txtBroker.Size = new System.Drawing.Size(139, 23);
+            _txtBroker.TabIndex = 1;
+            _txtBroker.Text = "127.0.0.1";
             // 
             // lblEqId
             // 
-            this.lblEqId.Location = new System.Drawing.Point(200, 15);
-            this.lblEqId.Name = "lblEqId";
-            this.lblEqId.Size = new System.Drawing.Size(50, 23);
-            this.lblEqId.TabIndex = 2;
-            this.lblEqId.Text = "EQ ID:";
+            lblEqId.Location = new System.Drawing.Point(233, 19);
+            lblEqId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblEqId.Name = "lblEqId";
+            lblEqId.Size = new System.Drawing.Size(58, 29);
+            lblEqId.TabIndex = 2;
+            lblEqId.Text = "EQ ID:";
             // 
             // _txtEqId
             // 
-            this._txtEqId.Location = new System.Drawing.Point(250, 12);
-            this._txtEqId.Name = "_txtEqId";
-            this._txtEqId.Size = new System.Drawing.Size(100, 22);
-            this._txtEqId.TabIndex = 3;
-            this._txtEqId.Text = "ZZ0304";
+            _txtEqId.Location = new System.Drawing.Point(292, 15);
+            _txtEqId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtEqId.Name = "_txtEqId";
+            _txtEqId.Size = new System.Drawing.Size(116, 23);
+            _txtEqId.TabIndex = 3;
+            _txtEqId.Text = "ZZ0304";
             // 
             // lblBaseTopic
             // 
-            this.lblBaseTopic.Location = new System.Drawing.Point(10, 45);
-            this.lblBaseTopic.Name = "lblBaseTopic";
-            this.lblBaseTopic.Size = new System.Drawing.Size(80, 23);
-            this.lblBaseTopic.TabIndex = 4;
-            this.lblBaseTopic.Text = "Base Topic:";
+            lblBaseTopic.Location = new System.Drawing.Point(12, 56);
+            lblBaseTopic.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBaseTopic.Name = "lblBaseTopic";
+            lblBaseTopic.Size = new System.Drawing.Size(93, 29);
+            lblBaseTopic.TabIndex = 4;
+            lblBaseTopic.Text = "Base Topic:";
             // 
             // _txtTopic
             // 
-            this._txtTopic.Location = new System.Drawing.Point(90, 42);
-            this._txtTopic.Name = "_txtTopic";
-            this._txtTopic.Size = new System.Drawing.Size(260, 22);
-            this._txtTopic.TabIndex = 5;
-            this._txtTopic.Text = "TN2/Floor2/Yellow/ZZ0304/";
+            _txtTopic.Location = new System.Drawing.Point(105, 52);
+            _txtTopic.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtTopic.Name = "_txtTopic";
+            _txtTopic.Size = new System.Drawing.Size(303, 23);
+            _txtTopic.TabIndex = 5;
+            _txtTopic.Text = "TN2/Floor2/Yellow/ZZ0304/";
             // 
             // _btnConnect
             // 
-            this._btnConnect.Location = new System.Drawing.Point(370, 10);
-            this._btnConnect.Name = "_btnConnect";
-            this._btnConnect.Size = new System.Drawing.Size(100, 55);
-            this._btnConnect.TabIndex = 6;
-            this._btnConnect.Text = "Connect";
-            this._btnConnect.UseVisualStyleBackColor = true;
-            this._btnConnect.Click += new System.EventHandler(this.BtnConnect_Click);
+            _btnConnect.Location = new System.Drawing.Point(594, 13);
+            _btnConnect.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _btnConnect.Name = "_btnConnect";
+            _btnConnect.Size = new System.Drawing.Size(117, 69);
+            _btnConnect.TabIndex = 6;
+            _btnConnect.Text = "Connect";
+            _btnConnect.UseVisualStyleBackColor = true;
+            _btnConnect.Click += BtnConnect_Click;
             // 
             // grpParams
             // 
-            this.grpParams.Controls.Add(this.lblBarcode);
-            this.grpParams.Controls.Add(this._txtBarcode);
-            this.grpParams.Controls.Add(this.lblQty);
-            this.grpParams.Controls.Add(this._txtQty);
-            this.grpParams.Controls.Add(this.lblToolingId);
-            this.grpParams.Controls.Add(this._txtToolingId);
-            this.grpParams.Controls.Add(this.lblCassetteId);
-            this.grpParams.Controls.Add(this._txtCassetteId);
-            this.grpParams.Controls.Add(this.lblMaterialId);
-            this.grpParams.Controls.Add(this._txtMaterialId);
-            this.grpParams.Controls.Add(this.lblWorkOrder);
-            this.grpParams.Controls.Add(this._txtWorkOrder);
-            this.grpParams.Controls.Add(this.lblUserId);
-            this.grpParams.Controls.Add(this._txtUserId);
-            this.grpParams.Dock = System.Windows.Forms.DockStyle.Top;
-            this.grpParams.Location = new System.Drawing.Point(0, 80);
-            this.grpParams.Name = "grpParams";
-            this.grpParams.Size = new System.Drawing.Size(784, 130);
-            this.grpParams.TabIndex = 1;
-            this.grpParams.TabStop = false;
-            this.grpParams.Text = "Request Parameters";
+            grpParams.Controls.Add(lblBarcode);
+            grpParams.Controls.Add(_txtBarcode);
+            grpParams.Controls.Add(lblQty);
+            grpParams.Controls.Add(_txtQty);
+            grpParams.Controls.Add(lblToolingId);
+            grpParams.Controls.Add(_txtToolingId);
+            grpParams.Controls.Add(lblCassetteId);
+            grpParams.Controls.Add(_txtCassetteId);
+            grpParams.Controls.Add(lblMaterialId);
+            grpParams.Controls.Add(_txtMaterialId);
+            grpParams.Controls.Add(lblWorkOrder);
+            grpParams.Controls.Add(_txtWorkOrder);
+            grpParams.Controls.Add(lblUserId);
+            grpParams.Controls.Add(_txtUserId);
+            grpParams.Dock = System.Windows.Forms.DockStyle.Top;
+            grpParams.Location = new System.Drawing.Point(0, 100);
+            grpParams.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            grpParams.Name = "grpParams";
+            grpParams.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            grpParams.Size = new System.Drawing.Size(915, 162);
+            grpParams.TabIndex = 1;
+            grpParams.TabStop = false;
+            grpParams.Text = "Request Parameters";
             // 
             // lblBarcode
             // 
-            this.lblBarcode.Location = new System.Drawing.Point(180, 20);
-            this.lblBarcode.Name = "lblBarcode";
-            this.lblBarcode.Size = new System.Drawing.Size(60, 23);
-            this.lblBarcode.TabIndex = 13;
-            this.lblBarcode.Text = "Barcode:";
+            lblBarcode.Location = new System.Drawing.Point(210, 25);
+            lblBarcode.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBarcode.Name = "lblBarcode";
+            lblBarcode.Size = new System.Drawing.Size(70, 29);
+            lblBarcode.TabIndex = 13;
+            lblBarcode.Text = "Barcode:";
             // 
             // _txtBarcode
             // 
-            this._txtBarcode.Location = new System.Drawing.Point(240, 17);
-            this._txtBarcode.Name = "_txtBarcode";
-            this._txtBarcode.Size = new System.Drawing.Size(340, 22);
-            this._txtBarcode.TabIndex = 12;
-            this._txtBarcode.Text = "{{{{746092{A1{{{ed1fa5a22b55404697e96b698b66e498";
+            _txtBarcode.Location = new System.Drawing.Point(280, 21);
+            _txtBarcode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtBarcode.Name = "_txtBarcode";
+            _txtBarcode.Size = new System.Drawing.Size(396, 23);
+            _txtBarcode.TabIndex = 12;
+            _txtBarcode.Text = "{{{{746092{A1{{{ed1fa5a22b55404697e96b698b66e498";
             // 
             // lblQty
             // 
-            this.lblQty.Location = new System.Drawing.Point(400, 80);
-            this.lblQty.Name = "lblQty";
-            this.lblQty.Size = new System.Drawing.Size(80, 23);
-            this.lblQty.TabIndex = 11;
-            this.lblQty.Text = "Qty:";
+            lblQty.Location = new System.Drawing.Point(467, 100);
+            lblQty.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblQty.Name = "lblQty";
+            lblQty.Size = new System.Drawing.Size(93, 29);
+            lblQty.TabIndex = 11;
+            lblQty.Text = "Qty:";
             // 
             // _txtQty
             // 
-            this._txtQty.Location = new System.Drawing.Point(480, 77);
-            this._txtQty.Name = "_txtQty";
-            this._txtQty.Size = new System.Drawing.Size(100, 22);
-            this._txtQty.TabIndex = 10;
-            this._txtQty.Text = "100";
+            _txtQty.Location = new System.Drawing.Point(560, 96);
+            _txtQty.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtQty.Name = "_txtQty";
+            _txtQty.Size = new System.Drawing.Size(116, 23);
+            _txtQty.TabIndex = 10;
+            _txtQty.Text = "100";
             // 
             // lblToolingId
             // 
-            this.lblToolingId.Location = new System.Drawing.Point(200, 80);
-            this.lblToolingId.Name = "lblToolingId";
-            this.lblToolingId.Size = new System.Drawing.Size(80, 23);
-            this.lblToolingId.TabIndex = 9;
-            this.lblToolingId.Text = "Tooling ID:";
+            lblToolingId.Location = new System.Drawing.Point(233, 100);
+            lblToolingId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblToolingId.Name = "lblToolingId";
+            lblToolingId.Size = new System.Drawing.Size(93, 29);
+            lblToolingId.TabIndex = 9;
+            lblToolingId.Text = "Tooling ID:";
             // 
             // _txtToolingId
             // 
-            this._txtToolingId.Location = new System.Drawing.Point(280, 77);
-            this._txtToolingId.Name = "_txtToolingId";
-            this._txtToolingId.Size = new System.Drawing.Size(100, 22);
-            this._txtToolingId.TabIndex = 8;
-            this._txtToolingId.Text = "TOOL01";
+            _txtToolingId.Location = new System.Drawing.Point(327, 96);
+            _txtToolingId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtToolingId.Name = "_txtToolingId";
+            _txtToolingId.Size = new System.Drawing.Size(116, 23);
+            _txtToolingId.TabIndex = 8;
+            _txtToolingId.Text = "TOOL01";
             // 
             // lblCassetteId
             // 
-            this.lblCassetteId.Location = new System.Drawing.Point(10, 80);
-            this.lblCassetteId.Name = "lblCassetteId";
-            this.lblCassetteId.Size = new System.Drawing.Size(80, 23);
-            this.lblCassetteId.TabIndex = 7;
-            this.lblCassetteId.Text = "Cassette ID:";
+            lblCassetteId.Location = new System.Drawing.Point(12, 100);
+            lblCassetteId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblCassetteId.Name = "lblCassetteId";
+            lblCassetteId.Size = new System.Drawing.Size(93, 29);
+            lblCassetteId.TabIndex = 7;
+            lblCassetteId.Text = "Cassette ID:";
             // 
             // _txtCassetteId
             // 
-            this._txtCassetteId.Location = new System.Drawing.Point(90, 77);
-            this._txtCassetteId.Name = "_txtCassetteId";
-            this._txtCassetteId.Size = new System.Drawing.Size(100, 22);
-            this._txtCassetteId.TabIndex = 6;
-            this._txtCassetteId.Text = "C0000000000002";
+            _txtCassetteId.Location = new System.Drawing.Point(105, 96);
+            _txtCassetteId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtCassetteId.Name = "_txtCassetteId";
+            _txtCassetteId.Size = new System.Drawing.Size(116, 23);
+            _txtCassetteId.TabIndex = 6;
+            _txtCassetteId.Text = "C0000000000002";
             // 
             // lblMaterialId
             // 
-            this.lblMaterialId.Location = new System.Drawing.Point(400, 50);
-            this.lblMaterialId.Name = "lblMaterialId";
-            this.lblMaterialId.Size = new System.Drawing.Size(80, 23);
-            this.lblMaterialId.TabIndex = 5;
-            this.lblMaterialId.Text = "Material ID:";
+            lblMaterialId.Location = new System.Drawing.Point(467, 62);
+            lblMaterialId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblMaterialId.Name = "lblMaterialId";
+            lblMaterialId.Size = new System.Drawing.Size(93, 29);
+            lblMaterialId.TabIndex = 5;
+            lblMaterialId.Text = "Material ID:";
             // 
             // _txtMaterialId
             // 
-            this._txtMaterialId.Location = new System.Drawing.Point(480, 47);
-            this._txtMaterialId.Name = "_txtMaterialId";
-            this._txtMaterialId.Size = new System.Drawing.Size(100, 22);
-            this._txtMaterialId.TabIndex = 4;
-            this._txtMaterialId.Text = "MAT001";
+            _txtMaterialId.Location = new System.Drawing.Point(560, 59);
+            _txtMaterialId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtMaterialId.Name = "_txtMaterialId";
+            _txtMaterialId.Size = new System.Drawing.Size(116, 23);
+            _txtMaterialId.TabIndex = 4;
+            _txtMaterialId.Text = "MAT001";
             // 
             // lblWorkOrder
             // 
-            this.lblWorkOrder.Location = new System.Drawing.Point(200, 50);
-            this.lblWorkOrder.Name = "lblWorkOrder";
-            this.lblWorkOrder.Size = new System.Drawing.Size(80, 23);
-            this.lblWorkOrder.TabIndex = 3;
-            this.lblWorkOrder.Text = "Work Order:";
+            lblWorkOrder.Location = new System.Drawing.Point(233, 62);
+            lblWorkOrder.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblWorkOrder.Name = "lblWorkOrder";
+            lblWorkOrder.Size = new System.Drawing.Size(93, 29);
+            lblWorkOrder.TabIndex = 3;
+            lblWorkOrder.Text = "Work Order:";
             // 
             // _txtWorkOrder
             // 
-            this._txtWorkOrder.Location = new System.Drawing.Point(280, 47);
-            this._txtWorkOrder.Name = "_txtWorkOrder";
-            this._txtWorkOrder.Size = new System.Drawing.Size(100, 22);
-            this._txtWorkOrder.TabIndex = 2;
-            this._txtWorkOrder.Text = "W0000000000002";
+            _txtWorkOrder.Location = new System.Drawing.Point(327, 59);
+            _txtWorkOrder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtWorkOrder.Name = "_txtWorkOrder";
+            _txtWorkOrder.Size = new System.Drawing.Size(116, 23);
+            _txtWorkOrder.TabIndex = 2;
+            _txtWorkOrder.Text = "W0000000000002";
             // 
             // lblUserId
             // 
-            this.lblUserId.Location = new System.Drawing.Point(10, 20);
-            this.lblUserId.Name = "lblUserId";
-            this.lblUserId.Size = new System.Drawing.Size(60, 23);
-            this.lblUserId.TabIndex = 1;
-            this.lblUserId.Text = "User ID:";
+            lblUserId.Location = new System.Drawing.Point(12, 25);
+            lblUserId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblUserId.Name = "lblUserId";
+            lblUserId.Size = new System.Drawing.Size(70, 29);
+            lblUserId.TabIndex = 1;
+            lblUserId.Text = "User ID:";
             // 
             // _txtUserId
             // 
-            this._txtUserId.Location = new System.Drawing.Point(70, 17);
-            this._txtUserId.Name = "_txtUserId";
-            this._txtUserId.Size = new System.Drawing.Size(100, 22);
-            this._txtUserId.TabIndex = 0;
-            this._txtUserId.Text = "746092";
+            _txtUserId.Location = new System.Drawing.Point(82, 21);
+            _txtUserId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtUserId.Name = "_txtUserId";
+            _txtUserId.Size = new System.Drawing.Size(116, 23);
+            _txtUserId.TabIndex = 0;
+            _txtUserId.Text = "746092";
             // 
             // _grpActions
             // 
-            this._grpActions.Controls.Add(this.flowActions);
-            this._grpActions.Dock = System.Windows.Forms.DockStyle.Top;
-            this._grpActions.Enabled = false;
-            this._grpActions.Location = new System.Drawing.Point(0, 210);
-            this._grpActions.Name = "_grpActions";
-            this._grpActions.Size = new System.Drawing.Size(784, 100);
-            this._grpActions.TabIndex = 2;
-            this._grpActions.TabStop = false;
-            this._grpActions.Text = "Simulation Actions";
+            _grpActions.Controls.Add(flowActions);
+            _grpActions.Dock = System.Windows.Forms.DockStyle.Top;
+            _grpActions.Enabled = false;
+            _grpActions.Location = new System.Drawing.Point(0, 262);
+            _grpActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _grpActions.Name = "_grpActions";
+            _grpActions.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _grpActions.Size = new System.Drawing.Size(915, 125);
+            _grpActions.TabIndex = 2;
+            _grpActions.TabStop = false;
+            _grpActions.Text = "Simulation Actions";
             // 
             // flowActions
             // 
-            this.flowActions.Controls.Add(this.btnUser);
-            this.flowActions.Controls.Add(this.btnTrackIn);
-            this.flowActions.Controls.Add(this.btnTrackOut);
-            this.flowActions.Controls.Add(this.btnPanelIn);
-            this.flowActions.Controls.Add(this.btnPanelOut);
-            this.flowActions.Controls.Add(this.btnRtnTraceData);
-            this.flowActions.Controls.Add(this.btnAlarm);
-            this.flowActions.Controls.Add(this.pnlStatusReport);
-            this.flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.flowActions.Location = new System.Drawing.Point(3, 18);
-            this.flowActions.Name = "flowActions";
-            this.flowActions.Padding = new System.Windows.Forms.Padding(5);
-            this.flowActions.Size = new System.Drawing.Size(778, 79);
-            this.flowActions.TabIndex = 0;
+            flowActions.Controls.Add(btnUser);
+            flowActions.Controls.Add(btnTrackIn);
+            flowActions.Controls.Add(btnTrackOut);
+            flowActions.Controls.Add(btnPanelIn);
+            flowActions.Controls.Add(btnPanelOut);
+            flowActions.Controls.Add(btnRtnTraceData);
+            flowActions.Controls.Add(btnAlarm);
+            flowActions.Controls.Add(pnlStatusReport);
+            flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
+            flowActions.Location = new System.Drawing.Point(4, 20);
+            flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            flowActions.Name = "flowActions";
+            flowActions.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
+            flowActions.Size = new System.Drawing.Size(907, 101);
+            flowActions.TabIndex = 0;
             // 
             // btnUser
             // 
-            this.btnUser.Location = new System.Drawing.Point(8, 8);
-            this.btnUser.Name = "btnUser";
-            this.btnUser.Size = new System.Drawing.Size(120, 23);
-            this.btnUser.TabIndex = 0;
-            this.btnUser.Text = "Login (UserVerify)";
-            this.btnUser.UseVisualStyleBackColor = true;
-            this.btnUser.Click += new System.EventHandler(this.BtnUser_Click);
+            btnUser.Location = new System.Drawing.Point(10, 10);
+            btnUser.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnUser.Name = "btnUser";
+            btnUser.Size = new System.Drawing.Size(140, 29);
+            btnUser.TabIndex = 0;
+            btnUser.Text = "Login (UserVerify)";
+            btnUser.UseVisualStyleBackColor = true;
+            btnUser.Click += BtnUser_Click;
             // 
             // btnTrackIn
             // 
-            this.btnTrackIn.Location = new System.Drawing.Point(134, 8);
-            this.btnTrackIn.Name = "btnTrackIn";
-            this.btnTrackIn.Size = new System.Drawing.Size(120, 23);
-            this.btnTrackIn.TabIndex = 1;
-            this.btnTrackIn.Text = "Track In Request";
-            this.btnTrackIn.UseVisualStyleBackColor = true;
-            this.btnTrackIn.Click += new System.EventHandler(this.BtnTrackIn_Click);
+            btnTrackIn.Location = new System.Drawing.Point(158, 10);
+            btnTrackIn.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnTrackIn.Name = "btnTrackIn";
+            btnTrackIn.Size = new System.Drawing.Size(140, 29);
+            btnTrackIn.TabIndex = 1;
+            btnTrackIn.Text = "Track In Request";
+            btnTrackIn.UseVisualStyleBackColor = true;
+            btnTrackIn.Click += BtnTrackIn_Click;
             // 
             // btnTrackOut
             // 
-            this.btnTrackOut.Location = new System.Drawing.Point(260, 8);
-            this.btnTrackOut.Name = "btnTrackOut";
-            this.btnTrackOut.Size = new System.Drawing.Size(120, 23);
-            this.btnTrackOut.TabIndex = 2;
-            this.btnTrackOut.Text = "Track Out Request";
-            this.btnTrackOut.UseVisualStyleBackColor = true;
-            this.btnTrackOut.Click += new System.EventHandler(this.BtnTrackOut_Click);
+            btnTrackOut.Location = new System.Drawing.Point(306, 10);
+            btnTrackOut.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnTrackOut.Name = "btnTrackOut";
+            btnTrackOut.Size = new System.Drawing.Size(140, 29);
+            btnTrackOut.TabIndex = 2;
+            btnTrackOut.Text = "Track Out Request";
+            btnTrackOut.UseVisualStyleBackColor = true;
+            btnTrackOut.Click += BtnTrackOut_Click;
             // 
             // btnPanelIn
             // 
-            this.btnPanelIn.Location = new System.Drawing.Point(386, 8);
-            this.btnPanelIn.Name = "btnPanelIn";
-            this.btnPanelIn.Size = new System.Drawing.Size(90, 23);
-            this.btnPanelIn.TabIndex = 3;
-            this.btnPanelIn.Text = "Panel In";
-            this.btnPanelIn.UseVisualStyleBackColor = true;
-            this.btnPanelIn.Click += new System.EventHandler(this.BtnPanelIn_Click);
+            btnPanelIn.Location = new System.Drawing.Point(454, 10);
+            btnPanelIn.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnPanelIn.Name = "btnPanelIn";
+            btnPanelIn.Size = new System.Drawing.Size(105, 29);
+            btnPanelIn.TabIndex = 3;
+            btnPanelIn.Text = "Panel In";
+            btnPanelIn.UseVisualStyleBackColor = true;
+            btnPanelIn.Click += BtnPanelIn_Click;
             // 
             // btnPanelOut
             // 
-            this.btnPanelOut.Location = new System.Drawing.Point(482, 8);
-            this.btnPanelOut.Name = "btnPanelOut";
-            this.btnPanelOut.Size = new System.Drawing.Size(90, 23);
-            this.btnPanelOut.TabIndex = 4;
-            this.btnPanelOut.Text = "Panel Out";
-            this.btnPanelOut.UseVisualStyleBackColor = true;
-            this.btnPanelOut.Click += new System.EventHandler(this.BtnPanelOut_Click);
+            btnPanelOut.Location = new System.Drawing.Point(567, 10);
+            btnPanelOut.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnPanelOut.Name = "btnPanelOut";
+            btnPanelOut.Size = new System.Drawing.Size(105, 29);
+            btnPanelOut.TabIndex = 4;
+            btnPanelOut.Text = "Panel Out";
+            btnPanelOut.UseVisualStyleBackColor = true;
+            btnPanelOut.Click += BtnPanelOut_Click;
             // 
             // btnRtnTraceData
             // 
-            this.btnRtnTraceData.Location = new System.Drawing.Point(578, 8);
-            this.btnRtnTraceData.Name = "btnRtnTraceData";
-            this.btnRtnTraceData.Size = new System.Drawing.Size(100, 23);
-            this.btnRtnTraceData.TabIndex = 5;
-            this.btnRtnTraceData.Text = "Trace Data";
-            this.btnRtnTraceData.UseVisualStyleBackColor = true;
-            this.btnRtnTraceData.Click += new System.EventHandler(this.BtnRtnTraceData_Click);
+            btnRtnTraceData.Location = new System.Drawing.Point(680, 10);
+            btnRtnTraceData.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnRtnTraceData.Name = "btnRtnTraceData";
+            btnRtnTraceData.Size = new System.Drawing.Size(117, 29);
+            btnRtnTraceData.TabIndex = 5;
+            btnRtnTraceData.Text = "Trace Data";
+            btnRtnTraceData.UseVisualStyleBackColor = true;
+            btnRtnTraceData.Click += BtnRtnTraceData_Click;
             // 
             // btnAlarm
             // 
-            this.btnAlarm.Location = new System.Drawing.Point(8, 37);
-            this.btnAlarm.Name = "btnAlarm";
-            this.btnAlarm.Size = new System.Drawing.Size(120, 23);
-            this.btnAlarm.TabIndex = 6;
-            this.btnAlarm.Text = "Trigger ALARM";
-            this.btnAlarm.UseVisualStyleBackColor = true;
-            this.btnAlarm.Click += new System.EventHandler(this.BtnAlarm_Click);
+            btnAlarm.Location = new System.Drawing.Point(10, 47);
+            btnAlarm.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnAlarm.Name = "btnAlarm";
+            btnAlarm.Size = new System.Drawing.Size(140, 29);
+            btnAlarm.TabIndex = 6;
+            btnAlarm.Text = "Trigger ALARM";
+            btnAlarm.UseVisualStyleBackColor = true;
+            btnAlarm.Click += BtnAlarm_Click;
             // 
             // pnlStatusReport
             // 
-            this.pnlStatusReport.Controls.Add(this._cmbStatus);
-            this.pnlStatusReport.Controls.Add(this.btnReportStatus);
-            this.pnlStatusReport.Location = new System.Drawing.Point(134, 37);
-            this.pnlStatusReport.Name = "pnlStatusReport";
-            this.pnlStatusReport.Size = new System.Drawing.Size(250, 30);
-            this.pnlStatusReport.TabIndex = 7;
+            pnlStatusReport.Controls.Add(_cmbStatus);
+            pnlStatusReport.Controls.Add(btnReportStatus);
+            pnlStatusReport.Location = new System.Drawing.Point(158, 47);
+            pnlStatusReport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            pnlStatusReport.Name = "pnlStatusReport";
+            pnlStatusReport.Size = new System.Drawing.Size(292, 38);
+            pnlStatusReport.TabIndex = 7;
             // 
             // _cmbStatus
             // 
-            this._cmbStatus.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this._cmbStatus.FormattingEnabled = true;
-            this._cmbStatus.Location = new System.Drawing.Point(3, 3);
-            this._cmbStatus.Name = "_cmbStatus";
-            this._cmbStatus.Size = new System.Drawing.Size(120, 20);
-            this._cmbStatus.TabIndex = 0;
+            _cmbStatus.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            _cmbStatus.FormattingEnabled = true;
+            _cmbStatus.Location = new System.Drawing.Point(4, 4);
+            _cmbStatus.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _cmbStatus.Name = "_cmbStatus";
+            _cmbStatus.Size = new System.Drawing.Size(139, 23);
+            _cmbStatus.TabIndex = 0;
             // 
             // btnReportStatus
             // 
-            this.btnReportStatus.Location = new System.Drawing.Point(129, 1);
-            this.btnReportStatus.Name = "btnReportStatus";
-            this.btnReportStatus.Size = new System.Drawing.Size(110, 23);
-            this.btnReportStatus.TabIndex = 1;
-            this.btnReportStatus.Text = "Report Status";
-            this.btnReportStatus.UseVisualStyleBackColor = true;
-            this.btnReportStatus.Click += new System.EventHandler(this.BtnReportStatus_Click);
+            btnReportStatus.Location = new System.Drawing.Point(150, 1);
+            btnReportStatus.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            btnReportStatus.Name = "btnReportStatus";
+            btnReportStatus.Size = new System.Drawing.Size(128, 29);
+            btnReportStatus.TabIndex = 1;
+            btnReportStatus.Text = "Report Status";
+            btnReportStatus.UseVisualStyleBackColor = true;
+            btnReportStatus.Click += BtnReportStatus_Click;
             // 
             // _txtLog
             // 
-            this._txtLog.BackColor = System.Drawing.Color.Black;
-            this._txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
-            this._txtLog.Font = new System.Drawing.Font("Consolas", 10F);
-            this._txtLog.ForeColor = System.Drawing.Color.Lime;
-            this._txtLog.Location = new System.Drawing.Point(0, 310);
-            this._txtLog.Multiline = true;
-            this._txtLog.Name = "_txtLog";
-            this._txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this._txtLog.Size = new System.Drawing.Size(784, 251);
-            this._txtLog.TabIndex = 3;
+            _txtLog.BackColor = System.Drawing.Color.Black;
+            _txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
+            _txtLog.Font = new System.Drawing.Font("Consolas", 10F);
+            _txtLog.ForeColor = System.Drawing.Color.Lime;
+            _txtLog.Location = new System.Drawing.Point(0, 387);
+            _txtLog.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtLog.Multiline = true;
+            _txtLog.Name = "_txtLog";
+            _txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            _txtLog.Size = new System.Drawing.Size(915, 314);
+            _txtLog.TabIndex = 3;
             // 
             // MainForm
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(784, 561);
-            this.Controls.Add(this._txtLog);
-            this.Controls.Add(this._grpActions);
-            this.Controls.Add(this.grpParams);
-            this.Controls.Add(this.panelTop);
-            this.Name = "MainForm";
-            this.Text = "EQ Protocol Simulator v1.0.3";
-            this.panelTop.ResumeLayout(false);
-            this.panelTop.PerformLayout();
-            this.grpParams.ResumeLayout(false);
-            this.grpParams.PerformLayout();
-            this._grpActions.ResumeLayout(false);
-            this.flowActions.ResumeLayout(false);
-            this.pnlStatusReport.ResumeLayout(false);
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            ClientSize = new System.Drawing.Size(915, 701);
+            Controls.Add(_txtLog);
+            Controls.Add(_grpActions);
+            Controls.Add(grpParams);
+            Controls.Add(panelTop);
+            Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            Name = "MainForm";
+            Text = "EQ Protocol Simulator v1.0.3";
+            panelTop.ResumeLayout(false);
+            panelTop.PerformLayout();
+            grpParams.ResumeLayout(false);
+            grpParams.PerformLayout();
+            _grpActions.ResumeLayout(false);
+            flowActions.ResumeLayout(false);
+            pnlStatusReport.ResumeLayout(false);
+            ResumeLayout(false);
+            PerformLayout();
 
         }
 
