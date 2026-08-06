@@ -602,7 +602,7 @@ namespace EAPDashboard.Models
 
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
 
-                var req = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, OutPut = qty };
+                var req = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, Operator = userId, OutPut = qty };
 
                 // 比對第二次 WOQRY 保存之 TrackOutRequireInputCodes 與字典 ManagementItems
                 if (_trackOutRequireInputMap.TryGetValue(combinedWo, out var reqCodes) && reqCodes != null && reqCodes.Count > 0)
