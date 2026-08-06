@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,6 +19,9 @@ namespace MESSimulator
     {
         private HttpListener _listener;
         private bool _isRunning = false;
+
+        private readonly ConcurrentDictionary<string, bool> _woAlreadyInMap = new ConcurrentDictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, List<string>> _woRequiredCodesMap = new ConcurrentDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         public MainForm()
         {
@@ -164,6 +170,9 @@ namespace MESSimulator
                         break;
 
                     case "WOQRY":
+                        string wonoQry = req["WONO"]?.ToString() ?? "";
+                        bool alreadyIn = _woAlreadyInMap.TryGetValue(wonoQry, out bool isIn) && isIn;
+
                         reply["Result"] = "success";
                         reply["ResultCode"] = "W001";
                         reply["Message"] = "";
@@ -174,7 +183,7 @@ namespace MESSimulator
                         reply["MatClassCode"] = "01005D";
                         reply["WorkCenterNo"] = "CLEX0008";
                         reply["FlowID"] = "100";
-                        reply["AlreadyInFlag"] = "N"; // 設為 N 允許進站
+                        reply["AlreadyInFlag"] = alreadyIn ? "Y" : "N";
                         reply["SToPcs"] = "1";
                         reply["WToPcs"] = "5";
                         reply["ProductStage"] = "MP";
@@ -198,27 +207,117 @@ namespace MESSimulator
                         });
                         reply["InputParamListDT"] = paramDt.ToString(Newtonsoft.Json.Formatting.None);
 
-                        string reqCodeStr = txtRequireInputCode != null ? txtRequireInputCode.Text : "TE004";
+                        // 根據已經進站與否判斷是 1st WOQRY 還是 2nd WOQRY
+                        string reqCodeStr = alreadyIn 
+                            ? (txtOutRequireInputCode != null ? txtOutRequireInputCode.Text : "EX001")
+                            : (txtInRequireInputCode != null ? txtInRequireInputCode.Text : "");
+
                         var codeDt = new JArray();
-                        if (!string.IsNullOrWhiteSpace(reqCodeStr))
+                        var requiredList = new List<string>();
+                        if (!string.IsNullOrWhiteSpace(reqCodeStr) && !reqCodeStr.Equals("無", StringComparison.OrdinalIgnoreCase) && !reqCodeStr.Equals("NONE", StringComparison.OrdinalIgnoreCase))
                         {
                             var codes = reqCodeStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                             foreach (var c in codes)
                             {
-                                codeDt.Add(new JObject {
-                                    ["InputCode"] = c.Trim(),
-                                    ["InputCodeName"] = $"管理項目{c.Trim()}",
-                                    ["RequireInput"] = "Y",
-                                    ["DataListItem"] = "",
-                                    ["DefaultValue"] = ""
-                                });
+                                string cleanCode = c.Trim();
+                                if (!string.IsNullOrEmpty(cleanCode))
+                                {
+                                    requiredList.Add(cleanCode);
+                                    codeDt.Add(new JObject {
+                                        ["InputCode"] = cleanCode,
+                                        ["InputCodeName"] = $"管理項目{cleanCode}",
+                                        ["RequireInput"] = "Y",
+                                        ["DataListItem"] = "",
+                                        ["DefaultValue"] = ""
+                                    });
+                                }
                             }
                         }
                         reply["InputCodeListDT"] = codeDt.ToString(Newtonsoft.Json.Formatting.None);
+                        _woRequiredCodesMap[wonoQry] = requiredList;
                         break;
 
                     case "WOCHECKIN":
+                        string wonoIn = req["WONO"]?.ToString() ?? "";
+                        if (_woRequiredCodesMap.TryGetValue(wonoIn, out var reqInCodes) && reqInCodes != null && reqInCodes.Count > 0)
+                        {
+                            string inputListJson = req["InputListDt"]?.ToString();
+                            var providedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            if (!string.IsNullOrEmpty(inputListJson))
+                            {
+                                try
+                                {
+                                    var arr = JArray.Parse(inputListJson);
+                                    foreach (JObject item in arr)
+                                    {
+                                        string code = item["InputCode"]?.ToString();
+                                        string val = item["InputValue"]?.ToString();
+                                        if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(val))
+                                        {
+                                            providedCodes.Add(code.Trim());
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            foreach (var reqCode in reqInCodes)
+                            {
+                                if (!providedCodes.Contains(reqCode))
+                                {
+                                    reply["Result"] = "FAIL";
+                                    reply["ResultCode"] = "ERR_MISSING_INPUT";
+                                    reply["Message"] = $"[WOCHECKIN] Missing required InputCode: {reqCode}";
+                                    return reply.ToString(Newtonsoft.Json.Formatting.None);
+                                }
+                            }
+                        }
+                        _woAlreadyInMap[wonoIn] = true;
+                        reply["Result"] = "success";
+                        reply["Message"] = "Simulation Success";
+                        break;
+
                     case "WOCHECKOUT":
+                        string wonoOut = req["WONO"]?.ToString() ?? "";
+                        if (_woRequiredCodesMap.TryGetValue(wonoOut, out var reqOutCodes) && reqOutCodes != null && reqOutCodes.Count > 0)
+                        {
+                            string inputListJson = req["InputListDt"]?.ToString();
+                            var providedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                            if (!string.IsNullOrEmpty(inputListJson))
+                            {
+                                try
+                                {
+                                    var arr = JArray.Parse(inputListJson);
+                                    foreach (JObject item in arr)
+                                    {
+                                        string code = item["InputCode"]?.ToString();
+                                        string val = item["InputValue"]?.ToString();
+                                        if (!string.IsNullOrEmpty(code) && !string.IsNullOrEmpty(val))
+                                        {
+                                            providedCodes.Add(code.Trim());
+                                        }
+                                    }
+                                }
+                                catch { }
+                            }
+
+                            foreach (var reqCode in reqOutCodes)
+                            {
+                                if (!providedCodes.Contains(reqCode))
+                                {
+                                    reply["Result"] = "FAIL";
+                                    reply["ResultCode"] = "ERR_MISSING_INPUT";
+                                    reply["Message"] = $"[WOCHECKOUT] Missing required InputCode: {reqCode}";
+                                    return reply.ToString(Newtonsoft.Json.Formatting.None);
+                                }
+                            }
+                        }
+                        _woAlreadyInMap[wonoOut] = false;
+                        _woRequiredCodesMap.TryRemove(wonoOut, out _);
+                        reply["Result"] = "success";
+                        reply["Message"] = "Simulation Success";
+                        break;
+
                     case "EQPSTATUS":
                         reply["Result"] = "success";
                         reply["Message"] = "Simulation Success";
