@@ -549,7 +549,7 @@ namespace EAPDashboard.Models
             Task.Run(() => { 
                 try { 
                     OnLogReceived(LogLevel.Info, $"[MES SEND] EQPSTATUS Request: EqpNo={req.EqpNo}, StatusCode={req.StatusCode}, ErrorCode={req.ErrorCode}");
-                    var reply = MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); 
+                    var reply = CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(req); 
                     if (reply != null) {
                         OnLogReceived(LogLevel.Info, $"[MES RECV] EQPSTATUS Reply: Result={reply.Result}, ResultCode={reply.ResultCode}, Message={reply.Message}");
                     } else {
@@ -568,7 +568,7 @@ namespace EAPDashboard.Models
                 if (!_statusBuffer.IsEmpty && _statusBuffer.TryPeek(out var req)) {
                     try { 
                         OnLogReceived(LogLevel.Info, $"[MES RETRY SEND] EQPSTATUS Request: EqpNo={req.EqpNo}, StatusCode={req.StatusCode}");
-                        var reply = await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req)); 
+                        var reply = await Task.Run(() => CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(req)); 
                         if (reply != null) {
                             OnLogReceived(LogLevel.Info, $"[MES RETRY RECV] EQPSTATUS Reply: Result={reply.Result}, Message={reply.Message}");
                         }

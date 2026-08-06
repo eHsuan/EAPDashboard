@@ -568,7 +568,7 @@ namespace EAPDashboard.Models
         {
             Task.Run(() =>
             {
-                try { MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req); }
+                try { CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(req); }
                 catch { _statusBuffer.Enqueue(req); }
             });
         }
@@ -581,7 +581,7 @@ namespace EAPDashboard.Models
                 {
                     try
                     {
-                        await Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req));
+                        await Task.Run(() => CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(req));
                         _statusBuffer.TryDequeue(out _);
                     }
                     catch

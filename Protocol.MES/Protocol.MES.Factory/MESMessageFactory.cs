@@ -20,6 +20,8 @@ public static class MESMessageFactory
     
     public static string TargetUrl { get; set; }
 
+    public static Action<string, string> OnLog { get; set; }
+
     public static MESBaseMessage Create(string json)
     {
         dynamic tmp = JsonConvert.DeserializeObject(json);
@@ -46,6 +48,18 @@ public static class MESMessageFactory
             throw new ArgumentNullException(nameof(request));
         }
         string jsonReq = MESJsonHelper.Serialize(request);
+
+        try
+        {
+            var reqObj = JsonConvert.DeserializeObject(jsonReq);
+            string prettyReq = JsonConvert.SerializeObject(reqObj, Formatting.Indented);
+            OnLog?.Invoke("Info", $"[SEND] MES {request.TransactionName}:\n{prettyReq}");
+        }
+        catch
+        {
+            OnLog?.Invoke("Info", $"[SEND] MES {request.TransactionName}:\n{jsonReq}");
+        }
+
         string jsonReply;
         try
         {
@@ -85,12 +99,32 @@ $@"<?xml version=""1.0"" encoding=""utf-8""?>
         }
         catch (TaskCanceledException ex) when (!ex.CancellationToken.IsCancellationRequested)
         {
+            OnLog?.Invoke("Error", $"[RECV] MES {request.TransactionName} Failed: 呼叫超時 (15s)");
             throw new Exception("MES 呼叫超時 (15s)");
         }
         catch (Exception ex)
         {
+            OnLog?.Invoke("Error", $"[RECV] MES {request.TransactionName} Failed: {ex.Message}");
             throw new Exception("Call MES WebService failed: " + ex.Message, ex);
         }
+
+        try
+        {
+            var replyObj = JsonConvert.DeserializeObject(jsonReply);
+            string prettyReply = JsonConvert.SerializeObject(replyObj, Formatting.Indented);
+            
+            dynamic dReply = replyObj;
+            string resStr = dReply?.Result?.ToString() ?? "";
+            string logLevel = (resStr.Equals("success", StringComparison.OrdinalIgnoreCase) || resStr.Equals("PASS", StringComparison.OrdinalIgnoreCase)) 
+                ? "Info" : "Error";
+
+            OnLog?.Invoke(logLevel, $"[RECV] MES {request.TransactionName}:\n{prettyReply}");
+        }
+        catch
+        {
+            OnLog?.Invoke("Info", $"[RECV] MES {request.TransactionName}:\n{jsonReply}");
+        }
+
         return MESJsonHelper.Deserialize<TReply>(jsonReply);
     }
 }

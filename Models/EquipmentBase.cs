@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Protocol.MES.Factory;
 using Protocol.MES.Messages;
+using Protocol.MES.Base;
 using Protocol.MES.Enums;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -61,6 +62,41 @@ namespace EAPDashboard.Models
         private static readonly object _logLock = new object();
         private static readonly HttpClient _httpClient = new HttpClient();
         private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
+
+        protected TReply CallMesWithLog<TRequest, TReply>(TRequest request) where TRequest : MESBaseMessage where TReply : MESBaseMessage
+        {
+            if (request == null) throw new ArgumentNullException(nameof(request));
+
+            try
+            {
+                string prettyReq = JsonConvert.SerializeObject((object)request, Newtonsoft.Json.Formatting.Indented);
+                OnLogReceived(LogLevel.Info, $"[SEND] MES {request.TransactionName}:\n{prettyReq}");
+            }
+            catch
+            {
+                OnLogReceived(LogLevel.Info, $"[SEND] MES {request.TransactionName}");
+            }
+
+            TReply reply = MESMessageFactory.CallMes<TRequest, TReply>(request);
+
+            if (reply != null)
+            {
+                try
+                {
+                    string prettyReply = JsonConvert.SerializeObject((object)reply, Newtonsoft.Json.Formatting.Indented);
+                    dynamic dReply = reply;
+                    string resStr = dReply?.Result?.ToString() ?? "";
+                    LogLevel level = (resStr.Equals("success", StringComparison.OrdinalIgnoreCase) || resStr.Equals("PASS", StringComparison.OrdinalIgnoreCase)) ? LogLevel.Info : LogLevel.Error;
+                    OnLogReceived(level, $"[RECV] MES {request.TransactionName}:\n{prettyReply}");
+                }
+                catch
+                {
+                    OnLogReceived(LogLevel.Info, $"[RECV] MES {request.TransactionName}");
+                }
+            }
+
+            return reply;
+        }
         
         protected string _lastOperator = "UNKNOWN";
         protected DateTimeOffset _statusStartTime = DateTimeOffset.UtcNow;
@@ -116,7 +152,7 @@ namespace EAPDashboard.Models
 
                         OnLogReceived(LogLevel.Info, $"[MES PERIODIC SEND] Periodic EQPSTATUS Request for {Id}: StatusCode={req.StatusCode}, ErrorCode={req.ErrorCode}");
 
-                        var replyTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(req), ct);
+                        var replyTask = Task.Run(() => CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(req), ct);
                         if (await Task.WhenAny(replyTask, Task.Delay(25000, ct)) == replyTask)
                         {
                             var reply = await replyTask;
@@ -372,7 +408,7 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Info, $"[Business] {eid} User Verify: Barcode={barcode}, UserID={userId}");
                 var req = new UserVerifyRequest { EqpNo = eid, User2DBarCode = barcode, UserID = userId };
                 
-                var replyTask = Task.Run(() => MESMessageFactory.CallMes<UserVerifyRequest, UserVerifyReply>(req));
+                var replyTask = Task.Run(() => CallMesWithLog<UserVerifyRequest, UserVerifyReply>(req));
                 if (await Task.WhenAny(replyTask, Task.Delay(25000)) != replyTask)
                     return "FAIL|T001|MES Call Timeout (25s)|";
 
@@ -427,7 +463,7 @@ namespace EAPDashboard.Models
 
                 string combinedWo = string.Join(",", validWos);
                 var qryReq = new WOQRYRequest { WONO = combinedWo, EqpNo = eid, UserID = userId };
-                var qryTask = Task.Run(() => MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq));
+                var qryTask = Task.Run(() => CallMesWithLog<WOQRYRequest, WOQRYReply>(qryReq));
                 if (await Task.WhenAny(qryTask, Task.Delay(25000)) != qryTask)
                     return $"FAIL|T001|MES WOQRY Timeout (25s) for WOs: {combinedWo}|[]";
 
@@ -518,7 +554,7 @@ namespace EAPDashboard.Models
                     }
                 }
 
-                var checkinTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
+                var checkinTask = Task.Run(() => CallMesWithLog<WOCHECKINRequest, WOCHECKINReply>(req));
                 if (await Task.WhenAny(checkinTask, Task.Delay(25000)) != checkinTask)
                     return $"FAIL|T001|MES WOCHECKIN Timeout (25s) for WOs: {combinedWo}|";
 
@@ -547,7 +583,7 @@ namespace EAPDashboard.Models
                     try
                     {
                         var qryReq2 = new WOQRYRequest { WONO = combinedWo, EqpNo = eid, UserID = userId };
-                        var qryReply2 = MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq2);
+                        var qryReply2 = CallMesWithLog<WOQRYRequest, WOQRYReply>(qryReq2);
                         if (qryReply2?.Result != "success")
                         {
                             OnLogReceived(LogLevel.Error, $"[TrackIn] Second WOQRY failed for WO {combinedWo}: {qryReply2?.Message}");
@@ -627,7 +663,7 @@ namespace EAPDashboard.Models
                     }
                 }
 
-                var checkoutTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
+                var checkoutTask = Task.Run(() => CallMesWithLog<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
                 if (await Task.WhenAny(checkoutTask, Task.Delay(25000)) != checkoutTask)
                     return $"FAIL|T001|MES WOCHECKOUT Timeout (25s) for WOs: {combinedWo}|";
 
@@ -828,7 +864,7 @@ namespace EAPDashboard.Models
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = newStatus };
                 
-                var statusTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
+                var statusTask = Task.Run(() => CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 if (await Task.WhenAny(statusTask, Task.Delay(25000)) != statusTask)
                 {
                     OnLogReceived(LogLevel.Error, $"[STATUS] {eid} MES EQPSTATUS Timeout (25s)");
@@ -890,7 +926,7 @@ namespace EAPDashboard.Models
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = isSet ? "1" : "2", ErrorCode = mc };
                 
-                var alarmTask = Task.Run(() => MESMessageFactory.CallMes<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
+                var alarmTask = Task.Run(() => CallMesWithLog<EQPSTATUSRequest, EQPSTATUSReply>(statusReq));
                 if (await Task.WhenAny(alarmTask, Task.Delay(25000)) != alarmTask)
                 {
                     OnLogReceived(LogLevel.Error, $"[ALARM] {eid} MES ALARM Timeout (25s)");
