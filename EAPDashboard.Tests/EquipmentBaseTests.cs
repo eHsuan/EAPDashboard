@@ -113,5 +113,39 @@ namespace EAPDashboard.Tests
             // Assert
             result.Should().NotBeNullOrEmpty();
         }
+
+        [Fact]
+        public void GetManagementItemValue_WithValidDictionary_ShouldBeCaseInsensitive()
+        {
+            // Arrange
+            var eq = new TestableEquipment("TS0003")
+            {
+                DictionaryPath = "Dictionaries/TS0003.json"
+            };
+
+            // Act
+            string valUppercase = eq.GetManagementItemValue("TE004");
+            string valLowercase = eq.GetManagementItemValue("te004");
+
+            // Assert
+            valUppercase.Should().Be("Y");
+            valLowercase.Should().Be("Y");
+        }
+
+        [Fact]
+        public void GetManagementItemValue_NonExistentCode_ShouldReturnNull()
+        {
+            // Arrange
+            var eq = new TestableEquipment("TS0003")
+            {
+                DictionaryPath = "Dictionaries/TS0003.json"
+            };
+
+            // Act
+            string val = eq.GetManagementItemValue("NON_EXISTENT_CODE");
+
+            // Assert
+            val.Should().BeNull();
+        }
     }
 }
