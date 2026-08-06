@@ -363,13 +363,9 @@ namespace EAPDashboard.Models
                         bool isAlarmSet = string.IsNullOrEmpty(alm.AlarmStatus) || alm.AlarmStatus == "Start" || alm.AlarmStatus == "1";
                         
                         if (isAlarmSet) {
-                            State = EquipmentState.Alarm;
                             string alarmText = !string.IsNullOrEmpty(alm.AlarmMsg) ? alm.AlarmMsg : $"Alarm {alm.AlarmCode}";
                             RaiseAlarmLocalDb(alm.AlarmCode, alarmText);
                         } else {
-                            if (State == EquipmentState.Alarm) {
-                                State = EquipmentState.Idle;
-                            }
                             ClearAlarmLocalDb(alm.AlarmCode);
                         }
 

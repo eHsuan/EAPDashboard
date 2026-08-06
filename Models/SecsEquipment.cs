@@ -170,12 +170,12 @@ namespace EAPDashboard.Models
 
                 if (data.IsSet)
                 {
-                    State = EquipmentState.Alarm;
+                    RaiseAlarmLocalDb(alidStr, data.Altx);
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "1", ErrorCode = mc });
                 }
                 else
                 {
-                    if (State == EquipmentState.Alarm) State = EquipmentState.Idle;
+                    ClearAlarmLocalDb(alidStr);
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = "2", ErrorCode = mc });
                 }
                 await message.TryReplyAsync(SecsMessages.S5F2());
