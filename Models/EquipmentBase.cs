@@ -15,6 +15,8 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Polly;
 using System.Net.Http;
+using System.Collections.Concurrent;
+using Protocol.Drivers.Secs;
 using Protocol.LocalData;
 
 namespace EAPDashboard.Models
@@ -381,6 +383,36 @@ namespace EAPDashboard.Models
             catch (Exception ex) { return $"ERROR|UNKNOWN|Verify Failed: {ex.Message}"; }
         }
 
+        private readonly ConcurrentDictionary<string, List<string>> _trackInRequireInputMap = new ConcurrentDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        private readonly ConcurrentDictionary<string, List<string>> _trackOutRequireInputMap = new ConcurrentDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+        public virtual string GetManagementItemValue(string inputCode)
+        {
+            if (string.IsNullOrEmpty(DictionaryPath) || string.IsNullOrEmpty(inputCode)) return null;
+            try
+            {
+                string fullDictPath = Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath);
+                if (File.Exists(fullDictPath))
+                {
+                    string json = File.ReadAllText(fullDictPath);
+                    var jsonObj = JObject.Parse(json);
+                    var mgmtObj = jsonObj["ManagementItems"] as JObject;
+                    if (mgmtObj != null)
+                    {
+                        foreach (var prop in mgmtObj.Properties())
+                        {
+                            if (prop.Name.Equals(inputCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                            {
+                                return prop.Value?.ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         public async Task<string> ProcessTrackInAsync(List<string> cassetteIds, List<string> workOrders, List<string> panels, string userId, string reportEqpId = null)
         {
             try
@@ -404,6 +436,21 @@ namespace EAPDashboard.Models
                     return $"FAIL|{qryReply.ResultCode}|MES WOQRY Failed for WOs {combinedWo}: {qryReply.Message}|[]";
 
                 string recipe = ExtractRecipeFromMes(qryReply.InputParamListDT) ?? "";
+
+                // 解析 InputCodeList，收集 RequireInput == "Y" 的 InputCode (以工單號為 Key 記錄)
+                var reqInputCodes = new List<string>();
+                if (qryReply.InputCodeList != null && qryReply.InputCodeList.Count > 0)
+                {
+                    foreach (var item in qryReply.InputCodeList)
+                    {
+                        if ("Y".Equals(item.RequireInput, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.InputCode))
+                        {
+                            reqInputCodes.Add(item.InputCode.Trim());
+                        }
+                    }
+                }
+                _trackInRequireInputMap[combinedWo] = reqInputCodes;
+
                 string panelsJson = JsonConvert.SerializeObject(currentPanels);
                 return $"PP-SELECT|{combinedWo}|{recipe}|{qryReply.ResultCode}|{qryReply.Message}|{qryReply.InputParamListDT}|{panelsJson}";
             }
@@ -449,6 +496,28 @@ namespace EAPDashboard.Models
                     req.WOCarrierDt = JsonConvert.SerializeObject(validCids.Select(c => new CarrierItem { CarrierNo = c }).ToList());
                 }
 
+                // 檢查 _trackInRequireInputMap 中該工單 RequireInput == "Y" 的 InputCode，比對設備字典 ManagementItems
+                if (_trackInRequireInputMap.TryGetValue(combinedWo, out var reqCodes) && reqCodes != null && reqCodes.Count > 0)
+                {
+                    var inputItems = new List<InputItem>();
+                    foreach (var code in reqCodes)
+                    {
+                        string val = GetManagementItemValue(code);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            inputItems.Add(new InputItem { InputCode = code, InputValue = val });
+                        }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Error, $"[TrackIn] Management Item Code '{code}' required by MES was not found in Equipment Dictionary for {Id}.");
+                        }
+                    }
+                    if (inputItems.Count > 0)
+                    {
+                        req.InputListDt = JsonConvert.SerializeObject(inputItems);
+                    }
+                }
+
                 var checkinTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKINRequest, WOCHECKINReply>(req));
                 if (await Task.WhenAny(checkinTask, Task.Delay(25000)) != checkinTask)
                     return $"FAIL|T001|MES WOCHECKIN Timeout (25s) for WOs: {combinedWo}|";
@@ -470,6 +539,41 @@ namespace EAPDashboard.Models
                 }
 
                 SetCurrentWorkOrderLocalDb(combinedWo);
+
+                // 進站成功後，發送第二次工單查詢 (WOQRYRequest)
+                _ = Task.Run(() =>
+                {
+                    try
+                    {
+                        var qryReq2 = new WOQRYRequest { WONO = combinedWo, EqpNo = eid, UserID = userId };
+                        var qryReply2 = MESMessageFactory.CallMes<WOQRYRequest, WOQRYReply>(qryReq2);
+                        if (qryReply2?.Result != "success")
+                        {
+                            OnLogReceived(LogLevel.Error, $"[TrackIn] Second WOQRY failed for WO {combinedWo}: {qryReply2?.Message}");
+                            _trackOutRequireInputMap[combinedWo] = new List<string>();
+                            return;
+                        }
+
+                        var reqTrackOutCodes = new List<string>();
+                        if (qryReply2.InputCodeList != null && qryReply2.InputCodeList.Count > 0)
+                        {
+                            foreach (var item in qryReply2.InputCodeList)
+                            {
+                                if ("Y".Equals(item.RequireInput, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(item.InputCode))
+                                {
+                                    reqTrackOutCodes.Add(item.InputCode.Trim());
+                                }
+                            }
+                        }
+                        _trackOutRequireInputMap[combinedWo] = reqTrackOutCodes;
+                        OnLogReceived(LogLevel.Info, $"[TrackIn] Second WOQRY success for WO {combinedWo}. RequireInput codes for TrackOut: {string.Join(",", reqTrackOutCodes)}");
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Error, $"[TrackIn] Second WOQRY exception for WO {combinedWo}: {ex.Message}");
+                        _trackOutRequireInputMap[combinedWo] = new List<string>();
+                    }
+                });
 
                 return $"PASS|{reply.ResultCode}|{reply.Message}";
             }
@@ -499,6 +603,29 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
 
                 var req = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, OutPut = qty };
+
+                // 比對第二次 WOQRY 保存之 TrackOutRequireInputCodes 與字典 ManagementItems
+                if (_trackOutRequireInputMap.TryGetValue(combinedWo, out var reqCodes) && reqCodes != null && reqCodes.Count > 0)
+                {
+                    var inputItems = new List<InputItem>();
+                    foreach (var code in reqCodes)
+                    {
+                        string val = GetManagementItemValue(code);
+                        if (!string.IsNullOrEmpty(val))
+                        {
+                            inputItems.Add(new InputItem { InputCode = code, InputValue = val });
+                        }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Error, $"[TrackOut] Management Item Code '{code}' required by MES was not found in Equipment Dictionary for {Id}.");
+                        }
+                    }
+                    if (inputItems.Count > 0)
+                    {
+                        req.InputListDt = JsonConvert.SerializeObject(inputItems);
+                    }
+                }
+
                 var checkoutTask = Task.Run(() => MESMessageFactory.CallMes<WOCHECKOUTRequest, WOCHECKOUTReply>(req));
                 if (await Task.WhenAny(checkoutTask, Task.Delay(25000)) != checkoutTask)
                     return $"FAIL|T001|MES WOCHECKOUT Timeout (25s) for WOs: {combinedWo}|";
@@ -509,6 +636,10 @@ namespace EAPDashboard.Models
                 {
                     return $"{resPrefix}|{reply.ResultCode}|MES WOCHECKOUT Failed for WOs {combinedWo}: {reply.Message}";
                 }
+
+                // 清理此工單快取
+                _trackInRequireInputMap.TryRemove(combinedWo, out _);
+                _trackOutRequireInputMap.TryRemove(combinedWo, out _);
 
                 if (EnableCassetteBinding)
                 {

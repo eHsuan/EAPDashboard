@@ -35,5 +35,8 @@
     "E004": "ALM_EMERGENCY_STOP",
     "E001": "ALM_SAFETY_DOOR_OPEN",
     "E002": "ALM_AIR_PRESSURE_LOW"
+  },
+  "ManagementItems": {
+    "TE004": "Y"
   }
 }

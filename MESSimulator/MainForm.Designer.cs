@@ -21,6 +21,8 @@ namespace MESSimulator
             this.txtPort = new System.Windows.Forms.TextBox();
             this.lblPort = new System.Windows.Forms.Label();
             this.lblStatus = new System.Windows.Forms.Label();
+            this.lblRequireInputCode = new System.Windows.Forms.Label();
+            this.txtRequireInputCode = new System.Windows.Forms.TextBox();
             this.splitContainer = new System.Windows.Forms.SplitContainer();
             this.grpRequest = new System.Windows.Forms.GroupBox();
             this.txtRequest = new System.Windows.Forms.TextBox();
@@ -37,6 +39,8 @@ namespace MESSimulator
             // 
             // panelTop
             // 
+            this.panelTop.Controls.Add(this.lblRequireInputCode);
+            this.panelTop.Controls.Add(this.txtRequireInputCode);
             this.panelTop.Controls.Add(this.btnStop);
             this.panelTop.Controls.Add(this.btnStart);
             this.panelTop.Controls.Add(this.txtPort);
@@ -47,6 +51,23 @@ namespace MESSimulator
             this.panelTop.Name = "panelTop";
             this.panelTop.Size = new System.Drawing.Size(1008, 60);
             this.panelTop.TabIndex = 0;
+            // 
+            // lblRequireInputCode
+            // 
+            this.lblRequireInputCode.AutoSize = true;
+            this.lblRequireInputCode.Location = new System.Drawing.Point(360, 23);
+            this.lblRequireInputCode.Name = "lblRequireInputCode";
+            this.lblRequireInputCode.Size = new System.Drawing.Size(100, 12);
+            this.lblRequireInputCode.TabIndex = 5;
+            this.lblRequireInputCode.Text = "Require InputCode:";
+            // 
+            // txtRequireInputCode
+            // 
+            this.txtRequireInputCode.Location = new System.Drawing.Point(465, 20);
+            this.txtRequireInputCode.Name = "txtRequireInputCode";
+            this.txtRequireInputCode.Size = new System.Drawing.Size(150, 22);
+            this.txtRequireInputCode.TabIndex = 6;
+            this.txtRequireInputCode.Text = "TE004";
             // 
             // btnStop
             // 
@@ -193,6 +214,8 @@ namespace MESSimulator
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblPort;
         private System.Windows.Forms.TextBox txtPort;
+        private System.Windows.Forms.Label lblRequireInputCode;
+        private System.Windows.Forms.TextBox txtRequireInputCode;
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.Button btnStop;
         private System.Windows.Forms.SplitContainer splitContainer;

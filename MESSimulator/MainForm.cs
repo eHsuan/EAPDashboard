@@ -197,6 +197,24 @@ namespace MESSimulator
                             ["Showable"] = "Y"
                         });
                         reply["InputParamListDT"] = paramDt.ToString(Newtonsoft.Json.Formatting.None);
+
+                        string reqCodeStr = txtRequireInputCode != null ? txtRequireInputCode.Text : "TE004";
+                        var codeDt = new JArray();
+                        if (!string.IsNullOrWhiteSpace(reqCodeStr))
+                        {
+                            var codes = reqCodeStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            foreach (var c in codes)
+                            {
+                                codeDt.Add(new JObject {
+                                    ["InputCode"] = c.Trim(),
+                                    ["InputCodeName"] = $"管理項目{c.Trim()}",
+                                    ["RequireInput"] = "Y",
+                                    ["DataListItem"] = "",
+                                    ["DefaultValue"] = ""
+                                });
+                            }
+                        }
+                        reply["InputCodeListDT"] = codeDt.ToString(Newtonsoft.Json.Formatting.None);
                         break;
 
                     case "WOCHECKIN":

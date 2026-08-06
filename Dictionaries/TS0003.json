@@ -24,5 +24,8 @@
   "AlarmMapping": {
     "E004": "ALM_EMERGENCY_STOP",
     "1001": "ALM_MOTOR_OVERLOAD"
+  },
+  "ManagementItems": {
+    "TE004": "Y"
   }
 }

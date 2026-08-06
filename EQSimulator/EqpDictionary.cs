@@ -10,6 +10,19 @@ namespace EQSimulator
         public string Model { get; set; }
         public Dictionary<string, string> Events { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> ManagementItems { get; set; } = new Dictionary<string, string>();
+
+        public string GetManagementItemValue(string inputCode)
+        {
+            if (string.IsNullOrWhiteSpace(inputCode) || ManagementItems == null) return null;
+            string trimmed = inputCode.Trim();
+            foreach (var kvp in ManagementItems)
+            {
+                if (kvp.Key.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
+                    return kvp.Value;
+            }
+            return null;
+        }
 
         public static EqpDictionary Load(string eqId)
         {

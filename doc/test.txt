@@ -1,0 +1,83 @@
+MES Reply 1st WOQRY
+{
+  "MatGroupNo": "UP",
+  "LineCode": "UP01",
+  "MatNo": "MHUN12AD03SEC",
+  "WIPQty": 14759.000,
+  "CurrentWorkCenterNo": "UPEX028",
+  "CreateDate": "2026-07-24T13:24:08",
+  "MatClassCode": "UP022",
+  "UnitQty": 2000,
+  "WToPcs": 1860,
+  "SToPcs": 0,
+  "WorkCenterNo": "UPEX028",
+  "WorkCenterName": "(R)B-SM-B面曝光",
+  "FlowID": 11700,
+  "AlreadyInFlag": "N",
+  "RefInputQty": "8.000",
+  "BatchNo": "",
+  "NGCodeListDT": "[{\"NGCode\":\"UPNG501\",\"NGName\":\"機台卡片\"},{\"NGCode\":\"UPNG502\",\"NGName\":\"人為疏失折片\"},{\"NGCode\":\"UPNG503\",\"NGName\":\"工程驗證抽片\"}]",
+  "InputParamListDT": "[{\"ParamCode\":\"000032875\",\"ParamName\":\"RECIPEID\",\"RequireInput\":\"N\",\"DataListItem\":\"\",\"DefaultValue\":\"103-MHUN12AD03SEC_BSM\",\"RefFieldCode\":\"RECIPE ID\",\"UpperValue\":\"\",\"LowerValue\":\"\",\"Showable\":\"Y\"}]",
+  "WOGroupDT": "[]",
+  "WOGroupTotalWIPQty": "0",
+  "WOGroupTotalLotCount": "0",
+  "Result": "success",
+  "ResultCode": "",
+  "Message": ""
+}
+EAP SEND WOCHECKIN
+{
+  "TransactionName": "WOCHECKIN",
+  "EqpNo": "EX0044",
+  "WONO": "071226000542",
+  "UserID": "765391",
+  "EqpListDt": "[{\"EqpNo\":\"EX0044\"}]",
+  "ModifyDate": "2026-08-06 13:39:28.748",
+  "MacID": "12345",
+  "ReceivedTime": "2026/08/06 13:39.29.670",
+  "ProcessedTotalSeconds": "0.8503693"
+}
+MES Reply 2nd WOQRY
+{
+  "MatGroupNo": "UP",
+  "LineCode": "UP01",
+  "MatNo": "MHUN12AD03SEC",
+  "WIPQty": 14759.000,
+  "CurrentWorkCenterNo": "UPEX028",
+  "CreateDate": "2026-07-24T13:24:08",
+  "MatClassCode": "UP022",
+  "UnitQty": 2000,
+  "WToPcs": 1860,
+  "SToPcs": 0,
+  "WorkCenterNo": "UPEX028",
+  "WorkCenterName": "(R)B-SM-B面曝光",
+  "FlowID": 11700,
+  "AlreadyInFlag": "Y",
+  "RefInputQty": "8.000",
+  "BatchNo": "",
+  "NGCodeListDT": "[{\"NGCode\":\"UPNG501\",\"NGName\":\"機台卡片\"},{\"NGCode\":\"UPNG502\",\"NGName\":\"人為疏失折片\"},{\"NGCode\":\"UPNG503\",\"NGName\":\"工程驗證抽片\"}]",
+  "InputCodeListDT": "[{\"InputCode\":\"EX001\",\"InputCodeName\":\"首件圖形檢查\",\"RequireInput\":\"Y\",\"DataListItem\":\"OK;NG\",\"DefaultValue\":\"\"}]",
+  "InputParamListDT": "[{\"ParamCode\":\"000032875\",\"ParamName\":\"RECIPEID\",\"RequireInput\":\"N\",\"DataListItem\":\"\",\"DefaultValue\":\"103-MHUN12AD03SEC_BSM\",\"RefFieldCode\":\"RECIPE ID\",\"UpperValue\":\"\",\"LowerValue\":\"\",\"Showable\":\"Y\"}]",
+  "WOGroupDT": "[]",
+  "WOGroupTotalWIPQty": "0",
+  "WOGroupTotalLotCount": "0",
+  "Result": "success",
+  "ResultCode": "",
+  "Message": ""
+}
+EAP SEND WOCHECKOUT
+{
+  "TransactionName": "WOCHECKOUT",
+  "EqpNo": "EX0044",
+  "UserID": "765391",
+  "Operator": "765391",
+  "WONO": "071226000542",
+  "OutPut": "4",
+  "File": "",
+  "InputListDt": "[{\"InputCode\":\"EX001\",\"InputValue\":\"OK\"}]",
+  "ModifyDate": "2026-08-06 13:48:18.186",
+  "MacID": "12345",
+  "RefInputQty": "8.0",
+  "ReceivedTime": "2026/08/06 13:48.19.137",
+  "ProcessedTotalSeconds": "0.503003"
+}

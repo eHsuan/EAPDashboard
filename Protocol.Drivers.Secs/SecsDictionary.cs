@@ -10,6 +10,7 @@ namespace Protocol.Drivers.Secs
         public Dictionary<string, string> Events { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> Variables { get; set; } = new Dictionary<string, string>();
         public Dictionary<string, string> StatusMapping { get; set; } = new Dictionary<string, string>();
+        public Dictionary<string, string> ManagementItems { get; set; } = new Dictionary<string, string>();
 
         public static SecsDictionary Load(string filePath)
         {
@@ -41,6 +42,18 @@ namespace Protocol.Drivers.Secs
         public string MapStatus(string value)
         {
             return StatusMapping.TryGetValue(value, out var status) ? status : value;
+        }
+
+        public string GetManagementItemValue(string inputCode)
+        {
+            if (string.IsNullOrWhiteSpace(inputCode) || ManagementItems == null) return null;
+            string trimmed = inputCode.Trim();
+            foreach (var kvp in ManagementItems)
+            {
+                if (kvp.Key.Equals(trimmed, System.StringComparison.OrdinalIgnoreCase))
+                    return kvp.Value;
+            }
+            return null;
         }
     }
 }
