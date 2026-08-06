@@ -21,14 +21,10 @@ namespace EQSimulator
         private string _baseTopic = "TN2/Floor2/Yellow/TS0003/";
         private EqpDictionary _dictionary = new EqpDictionary();
 
-        // Custom Variables for Auto Test & Panel List
-        private Label lblPanelList;
-        private TextBox _txtPanelList;
-        private Button _btnAutoTest;
+        // Custom Variables for Auto Test
         private bool _isAutoTesting = false;
         private TaskCompletionSource<bool> _currentEventTcs;
         private System.Threading.CancellationTokenSource _autoCts;
-        private Button _btnSaveSettings;
 
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
@@ -51,44 +47,6 @@ namespace EQSimulator
 
         private void InitializeCustomComponents()
         {
-            // 調整 grpParams 高度與大小以容納 Panel List 欄位
-            this.grpParams.Height = 160;
-
-            // 初始化 lblPanelList
-            this.lblPanelList = new Label();
-            this.lblPanelList.Location = new Point(10, 110);
-            this.lblPanelList.Name = "lblPanelList";
-            this.lblPanelList.Size = new Size(80, 23);
-            this.lblPanelList.Text = "Panel List:";
-            this.grpParams.Controls.Add(this.lblPanelList);
-
-            // 初始化 _txtPanelList
-            this._txtPanelList = new TextBox();
-            this._txtPanelList.Location = new Point(90, 107);
-            this._txtPanelList.Name = "_txtPanelList";
-            this._txtPanelList.Size = new Size(490, 22);
-            this._txtPanelList.Text = "P0000000000011,P0000000000012,P0000000000013,P0000000000014,P0000000000015,P0000000000016,P0000000000017,P0000000000018,P0000000000019,P0000000000020";
-            this.grpParams.Controls.Add(this._txtPanelList);
-
-            // 初始化 _btnAutoTest
-            this._btnAutoTest = new Button();
-            this._btnAutoTest.Name = "_btnAutoTest";
-            this._btnAutoTest.Size = new Size(120, 23);
-            this._btnAutoTest.Text = "Start Auto Test";
-            this._btnAutoTest.UseVisualStyleBackColor = true;
-            this._btnAutoTest.Click += new EventHandler(this.BtnAutoTest_Click);
-            this.flowActions.Controls.Add(this._btnAutoTest);
-
-            // 初始化 _btnSaveSettings
-            this._btnSaveSettings = new Button();
-            this._btnSaveSettings.Location = new Point(480, 10);
-            this._btnSaveSettings.Name = "_btnSaveSettings";
-            this._btnSaveSettings.Size = new Size(100, 55);
-            this._btnSaveSettings.Text = "記憶設定";
-            this._btnSaveSettings.UseVisualStyleBackColor = true;
-            this._btnSaveSettings.Click += new EventHandler(this.BtnSaveSettings_Click);
-            this.panelTop.Controls.Add(this._btnSaveSettings);
-
             // 自動載入設定
             LoadSettings();
         }

@@ -22,6 +22,7 @@ namespace EQSimulator
             _txtEqId = new System.Windows.Forms.TextBox();
             lblBaseTopic = new System.Windows.Forms.Label();
             _txtTopic = new System.Windows.Forms.TextBox();
+            _btnSaveSettings = new System.Windows.Forms.Button();
             _btnConnect = new System.Windows.Forms.Button();
             grpParams = new System.Windows.Forms.GroupBox();
             lblBarcode = new System.Windows.Forms.Label();
@@ -38,6 +39,8 @@ namespace EQSimulator
             _txtWorkOrder = new System.Windows.Forms.TextBox();
             lblUserId = new System.Windows.Forms.Label();
             _txtUserId = new System.Windows.Forms.TextBox();
+            lblPanelList = new System.Windows.Forms.Label();
+            _txtPanelList = new System.Windows.Forms.TextBox();
             _grpActions = new System.Windows.Forms.GroupBox();
             flowActions = new System.Windows.Forms.FlowLayoutPanel();
             btnUser = new System.Windows.Forms.Button();
@@ -47,6 +50,7 @@ namespace EQSimulator
             btnPanelOut = new System.Windows.Forms.Button();
             btnRtnTraceData = new System.Windows.Forms.Button();
             btnAlarm = new System.Windows.Forms.Button();
+            _btnAutoTest = new System.Windows.Forms.Button();
             pnlStatusReport = new System.Windows.Forms.Panel();
             _cmbStatus = new System.Windows.Forms.ComboBox();
             btnReportStatus = new System.Windows.Forms.Button();
@@ -66,6 +70,7 @@ namespace EQSimulator
             panelTop.Controls.Add(_txtEqId);
             panelTop.Controls.Add(lblBaseTopic);
             panelTop.Controls.Add(_txtTopic);
+            panelTop.Controls.Add(_btnSaveSettings);
             panelTop.Controls.Add(_btnConnect);
             panelTop.Dock = System.Windows.Forms.DockStyle.Top;
             panelTop.Location = new System.Drawing.Point(0, 0);
@@ -129,13 +134,24 @@ namespace EQSimulator
             _txtTopic.TabIndex = 5;
             _txtTopic.Text = "TN2/Floor2/Yellow/ZZ0304/";
             // 
+            // _btnSaveSettings
+            // 
+            _btnSaveSettings.Location = new System.Drawing.Point(465, 13);
+            _btnSaveSettings.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _btnSaveSettings.Name = "_btnSaveSettings";
+            _btnSaveSettings.Size = new System.Drawing.Size(100, 69);
+            _btnSaveSettings.TabIndex = 6;
+            _btnSaveSettings.Text = "記憶設定";
+            _btnSaveSettings.UseVisualStyleBackColor = true;
+            _btnSaveSettings.Click += BtnSaveSettings_Click;
+            // 
             // _btnConnect
             // 
-            _btnConnect.Location = new System.Drawing.Point(594, 13);
+            _btnConnect.Location = new System.Drawing.Point(580, 13);
             _btnConnect.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _btnConnect.Name = "_btnConnect";
             _btnConnect.Size = new System.Drawing.Size(117, 69);
-            _btnConnect.TabIndex = 6;
+            _btnConnect.TabIndex = 7;
             _btnConnect.Text = "Connect";
             _btnConnect.UseVisualStyleBackColor = true;
             _btnConnect.Click += BtnConnect_Click;
@@ -144,135 +160,29 @@ namespace EQSimulator
             // 
             grpParams.Controls.Add(lblBarcode);
             grpParams.Controls.Add(_txtBarcode);
-            grpParams.Controls.Add(lblQty);
-            grpParams.Controls.Add(_txtQty);
-            grpParams.Controls.Add(lblToolingId);
-            grpParams.Controls.Add(_txtToolingId);
-            grpParams.Controls.Add(lblCassetteId);
-            grpParams.Controls.Add(_txtCassetteId);
-            grpParams.Controls.Add(lblMaterialId);
-            grpParams.Controls.Add(_txtMaterialId);
             grpParams.Controls.Add(lblWorkOrder);
             grpParams.Controls.Add(_txtWorkOrder);
+            grpParams.Controls.Add(lblMaterialId);
+            grpParams.Controls.Add(_txtMaterialId);
+            grpParams.Controls.Add(lblCassetteId);
+            grpParams.Controls.Add(_txtCassetteId);
+            grpParams.Controls.Add(lblToolingId);
+            grpParams.Controls.Add(_txtToolingId);
+            grpParams.Controls.Add(lblQty);
+            grpParams.Controls.Add(_txtQty);
             grpParams.Controls.Add(lblUserId);
             grpParams.Controls.Add(_txtUserId);
+            grpParams.Controls.Add(lblPanelList);
+            grpParams.Controls.Add(_txtPanelList);
             grpParams.Dock = System.Windows.Forms.DockStyle.Top;
             grpParams.Location = new System.Drawing.Point(0, 100);
             grpParams.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             grpParams.Name = "grpParams";
             grpParams.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            grpParams.Size = new System.Drawing.Size(915, 162);
+            grpParams.Size = new System.Drawing.Size(915, 185);
             grpParams.TabIndex = 1;
             grpParams.TabStop = false;
             grpParams.Text = "Request Parameters";
-            // 
-            // lblBarcode
-            // 
-            lblBarcode.Location = new System.Drawing.Point(210, 25);
-            lblBarcode.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblBarcode.Name = "lblBarcode";
-            lblBarcode.Size = new System.Drawing.Size(70, 29);
-            lblBarcode.TabIndex = 13;
-            lblBarcode.Text = "Barcode:";
-            // 
-            // _txtBarcode
-            // 
-            _txtBarcode.Location = new System.Drawing.Point(280, 21);
-            _txtBarcode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtBarcode.Name = "_txtBarcode";
-            _txtBarcode.Size = new System.Drawing.Size(396, 23);
-            _txtBarcode.TabIndex = 12;
-            _txtBarcode.Text = "{{{{746092{A1{{{ed1fa5a22b55404697e96b698b66e498";
-            // 
-            // lblQty
-            // 
-            lblQty.Location = new System.Drawing.Point(467, 100);
-            lblQty.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblQty.Name = "lblQty";
-            lblQty.Size = new System.Drawing.Size(93, 29);
-            lblQty.TabIndex = 11;
-            lblQty.Text = "Qty:";
-            // 
-            // _txtQty
-            // 
-            _txtQty.Location = new System.Drawing.Point(560, 96);
-            _txtQty.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtQty.Name = "_txtQty";
-            _txtQty.Size = new System.Drawing.Size(116, 23);
-            _txtQty.TabIndex = 10;
-            _txtQty.Text = "100";
-            // 
-            // lblToolingId
-            // 
-            lblToolingId.Location = new System.Drawing.Point(233, 100);
-            lblToolingId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblToolingId.Name = "lblToolingId";
-            lblToolingId.Size = new System.Drawing.Size(93, 29);
-            lblToolingId.TabIndex = 9;
-            lblToolingId.Text = "Tooling ID:";
-            // 
-            // _txtToolingId
-            // 
-            _txtToolingId.Location = new System.Drawing.Point(327, 96);
-            _txtToolingId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtToolingId.Name = "_txtToolingId";
-            _txtToolingId.Size = new System.Drawing.Size(116, 23);
-            _txtToolingId.TabIndex = 8;
-            _txtToolingId.Text = "TOOL01";
-            // 
-            // lblCassetteId
-            // 
-            lblCassetteId.Location = new System.Drawing.Point(12, 100);
-            lblCassetteId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblCassetteId.Name = "lblCassetteId";
-            lblCassetteId.Size = new System.Drawing.Size(93, 29);
-            lblCassetteId.TabIndex = 7;
-            lblCassetteId.Text = "Cassette ID:";
-            // 
-            // _txtCassetteId
-            // 
-            _txtCassetteId.Location = new System.Drawing.Point(105, 96);
-            _txtCassetteId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtCassetteId.Name = "_txtCassetteId";
-            _txtCassetteId.Size = new System.Drawing.Size(116, 23);
-            _txtCassetteId.TabIndex = 6;
-            _txtCassetteId.Text = "C0000000000002";
-            // 
-            // lblMaterialId
-            // 
-            lblMaterialId.Location = new System.Drawing.Point(467, 62);
-            lblMaterialId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblMaterialId.Name = "lblMaterialId";
-            lblMaterialId.Size = new System.Drawing.Size(93, 29);
-            lblMaterialId.TabIndex = 5;
-            lblMaterialId.Text = "Material ID:";
-            // 
-            // _txtMaterialId
-            // 
-            _txtMaterialId.Location = new System.Drawing.Point(560, 59);
-            _txtMaterialId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtMaterialId.Name = "_txtMaterialId";
-            _txtMaterialId.Size = new System.Drawing.Size(116, 23);
-            _txtMaterialId.TabIndex = 4;
-            _txtMaterialId.Text = "MAT001";
-            // 
-            // lblWorkOrder
-            // 
-            lblWorkOrder.Location = new System.Drawing.Point(233, 62);
-            lblWorkOrder.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblWorkOrder.Name = "lblWorkOrder";
-            lblWorkOrder.Size = new System.Drawing.Size(93, 29);
-            lblWorkOrder.TabIndex = 3;
-            lblWorkOrder.Text = "Work Order:";
-            // 
-            // _txtWorkOrder
-            // 
-            _txtWorkOrder.Location = new System.Drawing.Point(327, 59);
-            _txtWorkOrder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _txtWorkOrder.Name = "_txtWorkOrder";
-            _txtWorkOrder.Size = new System.Drawing.Size(116, 23);
-            _txtWorkOrder.TabIndex = 2;
-            _txtWorkOrder.Text = "W0000000000002";
             // 
             // lblUserId
             // 
@@ -280,7 +190,7 @@ namespace EQSimulator
             lblUserId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             lblUserId.Name = "lblUserId";
             lblUserId.Size = new System.Drawing.Size(70, 29);
-            lblUserId.TabIndex = 1;
+            lblUserId.TabIndex = 0;
             lblUserId.Text = "User ID:";
             // 
             // _txtUserId
@@ -289,15 +199,141 @@ namespace EQSimulator
             _txtUserId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _txtUserId.Name = "_txtUserId";
             _txtUserId.Size = new System.Drawing.Size(116, 23);
-            _txtUserId.TabIndex = 0;
+            _txtUserId.TabIndex = 1;
             _txtUserId.Text = "746092";
+            // 
+            // lblBarcode
+            // 
+            lblBarcode.Location = new System.Drawing.Point(210, 25);
+            lblBarcode.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblBarcode.Name = "lblBarcode";
+            lblBarcode.Size = new System.Drawing.Size(70, 29);
+            lblBarcode.TabIndex = 2;
+            lblBarcode.Text = "Barcode:";
+            // 
+            // _txtBarcode
+            // 
+            _txtBarcode.Location = new System.Drawing.Point(280, 21);
+            _txtBarcode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtBarcode.Name = "_txtBarcode";
+            _txtBarcode.Size = new System.Drawing.Size(396, 23);
+            _txtBarcode.TabIndex = 3;
+            _txtBarcode.Text = "{{{{746092{A1{{{ed1fa5a22b55404697e96b698b66e498";
+            // 
+            // lblWorkOrder
+            // 
+            lblWorkOrder.Location = new System.Drawing.Point(12, 62);
+            lblWorkOrder.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblWorkOrder.Name = "lblWorkOrder";
+            lblWorkOrder.Size = new System.Drawing.Size(93, 29);
+            lblWorkOrder.TabIndex = 4;
+            lblWorkOrder.Text = "Work Order:";
+            // 
+            // _txtWorkOrder
+            // 
+            _txtWorkOrder.Location = new System.Drawing.Point(105, 59);
+            _txtWorkOrder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtWorkOrder.Name = "_txtWorkOrder";
+            _txtWorkOrder.Size = new System.Drawing.Size(116, 23);
+            _txtWorkOrder.TabIndex = 5;
+            _txtWorkOrder.Text = "W0000000000002";
+            // 
+            // lblMaterialId
+            // 
+            lblMaterialId.Location = new System.Drawing.Point(233, 62);
+            lblMaterialId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblMaterialId.Name = "lblMaterialId";
+            lblMaterialId.Size = new System.Drawing.Size(93, 29);
+            lblMaterialId.TabIndex = 6;
+            lblMaterialId.Text = "Material ID:";
+            // 
+            // _txtMaterialId
+            // 
+            _txtMaterialId.Location = new System.Drawing.Point(327, 59);
+            _txtMaterialId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtMaterialId.Name = "_txtMaterialId";
+            _txtMaterialId.Size = new System.Drawing.Size(116, 23);
+            _txtMaterialId.TabIndex = 7;
+            _txtMaterialId.Text = "MAT001";
+            // 
+            // lblCassetteId
+            // 
+            lblCassetteId.Location = new System.Drawing.Point(12, 100);
+            lblCassetteId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblCassetteId.Name = "lblCassetteId";
+            lblCassetteId.Size = new System.Drawing.Size(93, 29);
+            lblCassetteId.TabIndex = 8;
+            lblCassetteId.Text = "Cassette ID:";
+            // 
+            // _txtCassetteId
+            // 
+            _txtCassetteId.Location = new System.Drawing.Point(105, 96);
+            _txtCassetteId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtCassetteId.Name = "_txtCassetteId";
+            _txtCassetteId.Size = new System.Drawing.Size(116, 23);
+            _txtCassetteId.TabIndex = 9;
+            _txtCassetteId.Text = "C0000000000002";
+            // 
+            // lblToolingId
+            // 
+            lblToolingId.Location = new System.Drawing.Point(233, 100);
+            lblToolingId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblToolingId.Name = "lblToolingId";
+            lblToolingId.Size = new System.Drawing.Size(93, 29);
+            lblToolingId.TabIndex = 10;
+            lblToolingId.Text = "Tooling ID:";
+            // 
+            // _txtToolingId
+            // 
+            _txtToolingId.Location = new System.Drawing.Point(327, 96);
+            _txtToolingId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtToolingId.Name = "_txtToolingId";
+            _txtToolingId.Size = new System.Drawing.Size(116, 23);
+            _txtToolingId.TabIndex = 11;
+            _txtToolingId.Text = "TOOL01";
+            // 
+            // lblQty
+            // 
+            lblQty.Location = new System.Drawing.Point(467, 100);
+            lblQty.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblQty.Name = "lblQty";
+            lblQty.Size = new System.Drawing.Size(40, 29);
+            lblQty.TabIndex = 12;
+            lblQty.Text = "Qty:";
+            // 
+            // _txtQty
+            // 
+            _txtQty.Location = new System.Drawing.Point(510, 96);
+            _txtQty.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtQty.Name = "_txtQty";
+            _txtQty.Size = new System.Drawing.Size(116, 23);
+            _txtQty.TabIndex = 13;
+            _txtQty.Text = "100";
+            // 
+            // lblPanelList
+            // 
+            lblPanelList.Location = new System.Drawing.Point(12, 140);
+            lblPanelList.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblPanelList.Name = "lblPanelList";
+            lblPanelList.Size = new System.Drawing.Size(93, 29);
+            lblPanelList.TabIndex = 14;
+            lblPanelList.Text = "Panel List:";
+            // 
+            // _txtPanelList
+            // 
+            _txtPanelList.Location = new System.Drawing.Point(105, 136);
+            _txtPanelList.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _txtPanelList.Name = "_txtPanelList";
+            _txtPanelList.Size = new System.Drawing.Size(571, 23);
+            _txtPanelList.TabIndex = 15;
+            _txtPanelList.Text = "P0000000000011,P0000000000012,P0000000000013,P0000000000014,P0000000000015,P0000000000016,P0000000000017,P0000000000018,P0000000000019,P0000000000020";
             // 
             // _grpActions
             // 
             _grpActions.Controls.Add(flowActions);
             _grpActions.Dock = System.Windows.Forms.DockStyle.Top;
             _grpActions.Enabled = false;
-            _grpActions.Location = new System.Drawing.Point(0, 262);
+            _grpActions.Location = new System.Drawing.Point(0, 285);
             _grpActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _grpActions.Name = "_grpActions";
             _grpActions.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -315,6 +351,7 @@ namespace EQSimulator
             flowActions.Controls.Add(btnPanelOut);
             flowActions.Controls.Add(btnRtnTraceData);
             flowActions.Controls.Add(btnAlarm);
+            flowActions.Controls.Add(_btnAutoTest);
             flowActions.Controls.Add(pnlStatusReport);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Location = new System.Drawing.Point(4, 20);
@@ -401,15 +438,26 @@ namespace EQSimulator
             btnAlarm.UseVisualStyleBackColor = true;
             btnAlarm.Click += BtnAlarm_Click;
             // 
+            // _btnAutoTest
+            // 
+            _btnAutoTest.Location = new System.Drawing.Point(158, 47);
+            _btnAutoTest.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _btnAutoTest.Name = "_btnAutoTest";
+            _btnAutoTest.Size = new System.Drawing.Size(120, 29);
+            _btnAutoTest.TabIndex = 7;
+            _btnAutoTest.Text = "Start Auto Test";
+            _btnAutoTest.UseVisualStyleBackColor = true;
+            _btnAutoTest.Click += BtnAutoTest_Click;
+            // 
             // pnlStatusReport
             // 
             pnlStatusReport.Controls.Add(_cmbStatus);
             pnlStatusReport.Controls.Add(btnReportStatus);
-            pnlStatusReport.Location = new System.Drawing.Point(158, 47);
+            pnlStatusReport.Location = new System.Drawing.Point(286, 47);
             pnlStatusReport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             pnlStatusReport.Name = "pnlStatusReport";
             pnlStatusReport.Size = new System.Drawing.Size(292, 38);
-            pnlStatusReport.TabIndex = 7;
+            pnlStatusReport.TabIndex = 8;
             // 
             // _cmbStatus
             // 
@@ -438,12 +486,12 @@ namespace EQSimulator
             _txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
             _txtLog.Font = new System.Drawing.Font("Consolas", 10F);
             _txtLog.ForeColor = System.Drawing.Color.Lime;
-            _txtLog.Location = new System.Drawing.Point(0, 387);
+            _txtLog.Location = new System.Drawing.Point(0, 410);
             _txtLog.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _txtLog.Multiline = true;
             _txtLog.Name = "_txtLog";
             _txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            _txtLog.Size = new System.Drawing.Size(915, 314);
+            _txtLog.Size = new System.Drawing.Size(915, 291);
             _txtLog.TabIndex = 3;
             // 
             // MainForm
@@ -477,6 +525,7 @@ namespace EQSimulator
         private System.Windows.Forms.TextBox _txtEqId;
         private System.Windows.Forms.Label lblBaseTopic;
         private System.Windows.Forms.TextBox _txtTopic;
+        private System.Windows.Forms.Button _btnSaveSettings;
         private System.Windows.Forms.Button _btnConnect;
         private System.Windows.Forms.GroupBox grpParams;
         private System.Windows.Forms.Label lblUserId;
@@ -493,6 +542,8 @@ namespace EQSimulator
         private System.Windows.Forms.TextBox _txtToolingId;
         private System.Windows.Forms.Label lblQty;
         private System.Windows.Forms.TextBox _txtQty;
+        private System.Windows.Forms.Label lblPanelList;
+        private System.Windows.Forms.TextBox _txtPanelList;
         private System.Windows.Forms.GroupBox _grpActions;
         private System.Windows.Forms.FlowLayoutPanel flowActions;
         private System.Windows.Forms.Button btnUser;
@@ -502,6 +553,7 @@ namespace EQSimulator
         private System.Windows.Forms.Button btnPanelOut;
         private System.Windows.Forms.Button btnRtnTraceData;
         private System.Windows.Forms.Button btnAlarm;
+        private System.Windows.Forms.Button _btnAutoTest;
         private System.Windows.Forms.Panel pnlStatusReport;
         private System.Windows.Forms.ComboBox _cmbStatus;
         private System.Windows.Forms.Button btnReportStatus;
