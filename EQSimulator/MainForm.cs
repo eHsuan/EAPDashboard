@@ -207,9 +207,15 @@ namespace EQSimulator
             });
         }
 
+        private AlarmTestForm _alarmTestForm;
+
         private void BtnAlarm_Click(object sender, EventArgs e)
         {
-            SendMessage(new AlarmMessage { CMD = CommandType.AlarmReport, AlarmStatus = "Start", AlarmType = "A", AlarmCode = "E004", AlarmMsg = "Emergency Stop" });
+            if (_alarmTestForm == null || _alarmTestForm.IsDisposed)
+            {
+                _alarmTestForm = new AlarmTestForm(msg => SendMessage(msg));
+            }
+            _alarmTestForm.ShowDialog(this);
         }
 
         private void BtnPanelIn_Click(object sender, EventArgs e)
