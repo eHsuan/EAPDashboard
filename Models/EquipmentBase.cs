@@ -526,6 +526,7 @@ namespace EAPDashboard.Models
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 if (resPrefix != "PASS")
                 {
+                    OnLogReceived(LogLevel.Error, $"[TrackIn] MES WOCHECKIN Failed for WOs {combinedWo}. Code: {reply.ResultCode}, Message: {reply.Message}");
                     return $"{resPrefix}|{reply.ResultCode}|MES WOCHECKIN Failed for WOs {combinedWo}: {reply.Message}";
                 }
 
@@ -634,6 +635,7 @@ namespace EAPDashboard.Models
                 string resPrefix = (reply.Result == "success" || reply.Result == "PASS") ? "PASS" : "FAIL";
                 if (resPrefix != "PASS")
                 {
+                    OnLogReceived(LogLevel.Error, $"[TrackOut] MES WOCHECKOUT Failed for WOs {combinedWo}. Code: {reply.ResultCode}, Message: {reply.Message}");
                     return $"{resPrefix}|{reply.ResultCode}|MES WOCHECKOUT Failed for WOs {combinedWo}: {reply.Message}";
                 }
 
