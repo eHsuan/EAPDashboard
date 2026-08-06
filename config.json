@@ -9,7 +9,7 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Production"
+    "ActiveEnvironment": "Test"
   },
   "GatewaySettings": {
     "PrimaryUrl": "http://127.0.0.1:5000",
@@ -20,6 +20,11 @@
     "BindingTable": "EAP_CassetteBind",
     "CassetteColumn": "CassetteID",
     "WoColumn": "WorkOrder"
+  },
+  "PostgresDbSettings": {
+    "ConnectionString": "Host=localhost;Port=5432;Database=Protocol_localdata;Username=postgres;Password=PostgreSQL18;",
+    "Enabled": true,
+    "RetentionDays": 14
   },
   "Equipments": [
     {

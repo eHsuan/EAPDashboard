@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Polly;
 using System.Net.Http;
+using Protocol.LocalData;
 
 namespace EAPDashboard.Models
 {
@@ -60,6 +61,11 @@ namespace EAPDashboard.Models
         private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
         
         protected string _lastOperator = "UNKNOWN";
+        protected DateTimeOffset _statusStartTime = DateTimeOffset.UtcNow;
+        protected string _currentStatusMapped = "RUN";
+        protected decimal _runTimeSec = 0;
+        protected decimal _downTimeSec = 0;
+        protected System.Timers.Timer _hourlyAvailabilityTimer;
 
         public string Id { get; set; }
         public string Name { get; set; }
@@ -69,6 +75,7 @@ namespace EAPDashboard.Models
         public bool IsMesSimulator { get; set; } = false;
         public bool EnableCassetteBinding { get; set; } = false;
         public int StatusReportIntervalSeconds { get; set; } = 60;
+        public LocalDataService LocalDataServiceInstance { get; set; }
         public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
         public string DictionaryPath { get; set; } = string.Empty;
@@ -130,6 +137,141 @@ namespace EAPDashboard.Models
                 {
                     OnLogReceived(LogLevel.Error, $"[MES PERIODIC ERROR] Periodic EQPSTATUS report error for {Id}: {ex.Message}");
                 }
+            }
+        }
+
+        public void WriteStatusToLocalDb(string statusCode, string statusDesc = "")
+        {
+            if (LocalDataServiceInstance == null) return;
+            try
+            {
+                string mappedCode = MapStatusCodeToStandard(statusCode);
+                decimal elapsed = (decimal)(DateTimeOffset.UtcNow - _statusStartTime).TotalSeconds;
+                if (elapsed > 0)
+                {
+                    if (_currentStatusMapped == "RUN") _runTimeSec += elapsed;
+                    else _downTimeSec += elapsed;
+                }
+
+                _statusStartTime = DateTimeOffset.UtcNow;
+                _currentStatusMapped = mappedCode;
+
+                LocalDataServiceInstance.WriteEquipmentStatus(Id, mappedCode, statusDesc ?? "", DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"WriteEquipmentStatus Error: {ex.Message}");
+            }
+        }
+
+        protected string MapStatusCodeToStandard(string statusCode)
+        {
+            if (string.IsNullOrEmpty(statusCode)) return "IDLE";
+            if (statusCode == "0" || statusCode == "3" || statusCode.Equals("RUN", StringComparison.OrdinalIgnoreCase)) return "RUN";
+            if (statusCode == "1" || statusCode == "10" || statusCode.Equals("ALARM", StringComparison.OrdinalIgnoreCase)) return "ALARM";
+            if (statusCode == "5" || statusCode.Equals("DOWN", StringComparison.OrdinalIgnoreCase)) return "DOWN";
+            if (statusCode == "4" || statusCode.Equals("MAINTENANCE", StringComparison.OrdinalIgnoreCase)) return "MAINTENANCE";
+            return "IDLE";
+        }
+
+        public void StartHourlyAvailabilityTimer(CancellationToken ct)
+        {
+            if (_hourlyAvailabilityTimer != null) return;
+            _statusStartTime = DateTimeOffset.UtcNow;
+            _hourlyAvailabilityTimer = new System.Timers.Timer(TimeSpan.FromHours(1).TotalMilliseconds);
+            _hourlyAvailabilityTimer.Elapsed += (s, e) => WriteHourlyAvailabilityToLocalDb();
+            _hourlyAvailabilityTimer.AutoReset = true;
+            _hourlyAvailabilityTimer.Start();
+
+            ct.Register(() => {
+                _hourlyAvailabilityTimer?.Stop();
+                _hourlyAvailabilityTimer?.Dispose();
+            });
+        }
+
+        public void WriteHourlyAvailabilityToLocalDb()
+        {
+            if (LocalDataServiceInstance == null) return;
+            try
+            {
+                decimal elapsed = (decimal)(DateTimeOffset.UtcNow - _statusStartTime).TotalSeconds;
+                if (elapsed > 0)
+                {
+                    if (_currentStatusMapped == "RUN") _runTimeSec += elapsed;
+                    else _downTimeSec += elapsed;
+                }
+
+                decimal total = _runTimeSec + _downTimeSec;
+                decimal rate = total > 0 ? _runTimeSec / total : 0;
+
+                LocalDataServiceInstance.WriteAvailability(
+                    equipmentNo: Id,
+                    periodStart: DateTimeOffset.UtcNow.AddHours(-1),
+                    periodEnd: DateTimeOffset.UtcNow,
+                    runTimeSec: _runTimeSec,
+                    downTimeSec: _downTimeSec,
+                    availabilityRate: rate
+                );
+
+                _runTimeSec = 0;
+                _downTimeSec = 0;
+                _statusStartTime = DateTimeOffset.UtcNow;
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"WriteAvailability Error: {ex.Message}");
+            }
+        }
+
+        public void SetCurrentWorkOrderLocalDb(string woNo)
+        {
+            if (LocalDataServiceInstance == null || string.IsNullOrEmpty(woNo)) return;
+            try
+            {
+                LocalDataServiceInstance.SetCurrentWorkOrder(Id, woNo, DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"SetCurrentWorkOrder LocalDb Error: {ex.Message}");
+            }
+        }
+
+        public void WriteOutputLocalDb(string woNo, int outputQty, int ngQty = 0)
+        {
+            if (LocalDataServiceInstance == null) return;
+            try
+            {
+                LocalDataServiceInstance.WriteOutput(Id, woNo ?? "", outputQty, ngQty, DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"WriteOutput LocalDb Error: {ex.Message}");
+            }
+        }
+
+        public void WriteCycleTimeLocalDb(string woNo, decimal cycleTimeSec)
+        {
+            if (LocalDataServiceInstance == null) return;
+            try
+            {
+                LocalDataServiceInstance.WriteCycleTime(Id, woNo ?? "", cycleTimeSec, DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"WriteCycleTime LocalDb Error: {ex.Message}");
+            }
+        }
+
+        public void WriteParametersLocalDb(IEnumerable<ParameterData> parameters)
+        {
+            if (LocalDataServiceInstance == null || parameters == null) return;
+            try
+            {
+                LocalDataServiceInstance.WriteEquipmentParameters(Id, parameters);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"WriteEquipmentParameters LocalDb Error: {ex.Message}");
             }
         }
 
@@ -301,6 +443,8 @@ namespace EAPDashboard.Models
                     }
                 }
 
+                SetCurrentWorkOrderLocalDb(combinedWo);
+
                 return $"PASS|{reply.ResultCode}|{reply.Message}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|Report Failed: {ex.Message}"; }
@@ -349,6 +493,11 @@ namespace EAPDashboard.Models
                         bool dbOk = await UpdateBindingInDbAsync(cid, wo, panels);
                         if (!dbOk) await SavePendingBindingAsync(cid, wo, panels);
                     }
+                }
+
+                if (int.TryParse(qty, out int outQty))
+                {
+                    WriteOutputLocalDb(combinedWo, outQty, 0);
                 }
 
                 return $"PASS|{reply.ResultCode}|{reply.Message}";
@@ -508,6 +657,7 @@ namespace EAPDashboard.Models
             {
                 string eid = reportEqpId ?? this.Id;
                 SetLastStatus(newStatus);
+                WriteStatusToLocalDb(newStatus);
                 OnLogReceived(LogLevel.Info, string.Format("[STATUS] {0} Status Changed: {1} -> {2}", eid, oldStatus, newStatus));
 
                 if (int.TryParse(newStatus, out int sc))

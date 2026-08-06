@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Linq;
 using Protocol.Drivers.Secs;
+using Protocol.LocalData;
 
 namespace EAPDashboard.Models
 {
@@ -138,6 +139,7 @@ namespace EAPDashboard.Models
             _ = SendAreYouThere();
             _ = SendStatusRequest();
             _ = StartPeriodicStatusReportLoop(_linkedCts.Token);
+            StartHourlyAvailabilityTimer(_linkedCts.Token);
         }
 
         private async Task MonitorTrackInTimeout(CancellationToken ct)
@@ -380,16 +382,19 @@ namespace EAPDashboard.Models
                         int newStatusInt = int.TryParse(scm.NewStatus?.ToString(), out int nval) ? nval : 0;
                         _currentStatusCode = newStatusInt.ToString();
                         if (GetActiveStatusMap().TryGetValue(newStatusInt, out var nst)) State = nst;
+                        WriteStatusToLocalDb(_currentStatusCode);
                         HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = _currentStatusCode });
                         await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.ProcessDataReport:
                         var pdr = (ProcessDataReportMessage)msg;
+                        ExtractAndWriteParametersFromMqtt(pdr);
                         await SaveProductionDataAsync("DataReport", pdr.WorkOrder, pdr, saveToDb: false);
                         await SendReply(new ReplyProcessDataReportMessage { CMD = CommandType.ReplyProcessDataReport, RtnResult = RtnResult.PASS }, msg);
                         break;
                     case CommandType.RtnTraceData:
                         var rtd = (RtnTraceDataMessage)msg;
+                        ExtractAndWriteParametersFromMqtt(rtd);
                         await SaveProductionDataAsync("TraceData", "", rtd, saveToDb: false);
                         await SendReply(new ReplyRtnTraceDataMessage { CMD = CommandType.ReplyRtnTraceData, RtnResult = RtnResult.PASS, RtnMsg = "Trace data received successfully" }, msg);
                         break;
@@ -624,5 +629,59 @@ namespace EAPDashboard.Models
         }
 
         public override void Stop() { _heartbeatTimer?.Stop(); _heartbeatTimer?.Dispose(); _linkedCts?.Cancel(); }
+
+        private void ExtractAndWriteParametersFromMqtt(object itemsObj)
+        {
+            if (itemsObj == null || LocalDataServiceInstance == null) return;
+            try
+            {
+                var now = DateTimeOffset.UtcNow;
+                var list = new List<ParameterData>();
+
+                string json = JsonConvert.SerializeObject(itemsObj);
+                JToken token = JToken.Parse(json);
+                JArray array = null;
+
+                if (token is JObject jObj)
+                {
+                    if (jObj["ProcessData"] is JArray pdArr) array = pdArr;
+                    else if (jObj["TraceData"] is JArray tdArr) array = tdArr;
+                    else if (jObj["Data"] is JArray dArr) array = dArr;
+                }
+                else if (token is JArray jArr)
+                {
+                    array = jArr;
+                }
+
+                if (array != null)
+                {
+                    foreach (var itemToken in array)
+                    {
+                        if (itemToken is JObject item)
+                        {
+                            string code = item["ParamCode"]?.ToString() ?? item["ParamName"]?.ToString() ?? item["Parameter"]?.ToString();
+                            if (string.IsNullOrEmpty(code)) continue;
+
+                            string name = item["ParamName"]?.ToString() ?? code;
+                            decimal val = decimal.TryParse(item["Value"]?.ToString(), out decimal v) ? v : 0m;
+                            decimal? upper = decimal.TryParse(item["UpperLimit"]?.ToString(), out decimal u) ? u : (decimal?)null;
+                            decimal? lower = decimal.TryParse(item["LowerLimit"]?.ToString(), out decimal l) ? l : (decimal?)null;
+                            bool isAlarm = (upper.HasValue && val > upper.Value) || (lower.HasValue && val < lower.Value);
+
+                            list.Add(new ParameterData(code, name, val, upper, lower, isAlarm, now, 0.1m));
+                        }
+                    }
+                }
+
+                if (list.Count > 0)
+                {
+                    WriteParametersLocalDb(list);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"ExtractAndWriteParametersFromMqtt Error: {ex.Message}");
+            }
+        }
     }
 }

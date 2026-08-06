@@ -54,6 +54,9 @@
     <Reference Include="Protocol.MES">
       <HintPath>dll\Protocol.MES\Protocol.MES.dll</HintPath>
     </Reference>
+    <Reference Include="Protocol.LocalData">
+      <HintPath>dll\Protocol.LocalData\Protocol.LocalData.dll</HintPath>
+    </Reference>
     <Reference Include="System.ServiceModel" />
     <Reference Include="System.Net.Http" />
   </ItemGroup>

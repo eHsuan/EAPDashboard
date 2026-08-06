@@ -13,8 +13,17 @@ using System.Linq;
 using CyntecMqttLib.Interfaces;
 using System.Net.Sockets;
 
+using Protocol.LocalData;
+
 namespace EAPDashboard
 {
+    public class PostgresDbSettings
+    {
+        public string ConnectionString { get; set; }
+        public bool Enabled { get; set; } = true;
+        public int RetentionDays { get; set; } = 14;
+    }
+
     public class AppConfig
     {
         public string EapId { get; set; }
@@ -27,6 +36,7 @@ namespace EAPDashboard
         public MesSettings MesSettings { get; set; }
         public GatewaySettings GatewaySettings { get; set; }
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
+        public PostgresDbSettings PostgresDbSettings { get; set; }
         public List<EquipmentConfig> Equipments { get; set; }
     }
 
@@ -66,6 +76,8 @@ namespace EAPDashboard
         private AppConfig _appConfig;
         private CancellationTokenSource _mainCts;
         private MqttBus _bus;
+        private LocalDataService _localDataService;
+        private System.Timers.Timer _partitionTimer;
 
         public MainForm()
         {
@@ -132,6 +144,38 @@ namespace EAPDashboard
                 }
                 bool isSim = !(_appConfig.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
 
+                if (_appConfig.PostgresDbSettings != null && _appConfig.PostgresDbSettings.Enabled && !string.IsNullOrEmpty(_appConfig.PostgresDbSettings.ConnectionString))
+                {
+                    try
+                    {
+                        _localDataService = new LocalDataService(_appConfig.PostgresDbSettings.ConnectionString);
+                        
+                        var activeEqs = _appConfig.Equipments?
+                            .Where(e => e.IsActive)
+                            .Select(e => (e.Id, (string?)e.Name))
+                            .ToArray();
+
+                        if (activeEqs != null && activeEqs.Length > 0)
+                        {
+                            _localDataService.SyncEquipments(activeEqs);
+                        }
+
+                        int retention = _appConfig.PostgresDbSettings.RetentionDays > 0 ? _appConfig.PostgresDbSettings.RetentionDays : 14;
+                        _localDataService.EnsureParameterLogPartitions(retentionDays: retention, lookaheadDays: 2);
+
+                        _partitionTimer = new System.Timers.Timer(TimeSpan.FromHours(24).TotalMilliseconds);
+                        _partitionTimer.Elapsed += (s, e) => {
+                            try { _localDataService?.EnsureParameterLogPartitions(retentionDays: retention, lookaheadDays: 2); } catch { }
+                        };
+                        _partitionTimer.AutoReset = true;
+                        _partitionTimer.Start();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"LocalDataService Init Failed: {ex.Message}");
+                    }
+                }
+
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {
                         if (!config.IsActive) continue;
@@ -153,6 +197,7 @@ namespace EAPDashboard
                                 DbConfig = _appConfig.DbSettings,
                                 GatewayConfig = gConfig,
                                 IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
+                                LocalDataServiceInstance = _localDataService
                             };
                         }
                         else if (config.Protocol == "SECS") {
@@ -166,7 +211,8 @@ namespace EAPDashboard
                                 DictionaryPath = dictPath, 
                                 DbConfig = _appConfig.DbSettings, 
                                 GatewayConfig = gConfig,
-                                TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat
+                                TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat,
+                                LocalDataServiceInstance = _localDataService
                             };
                         }
                         

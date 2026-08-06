@@ -18,6 +18,7 @@
 | CycleTime | 每個生產週期的週期時間 |
 | Availability | 可動率區段統計 |
 | 工單 | 目前工單號碼與異動歷程 |
+| Alarm | EAP 上報的設備告警,含開始/結束時間配對 |
 | 產出 | 產出數量與不良數 |
 
 ---
@@ -51,6 +52,8 @@ Migrations\
  ├─ 001_init_schema.sql            ← 建立所有資料表與索引
  ├─ 002_partition_maintenance.sql  ← 建立機台參數分區維護函式
  ├─ 003_equipment_registry.sql     ← 建立設備清單表
+ ├─ 004_add_param_unit.sql         ← 機台參數新增單位欄位(param_unit)
+ ├─ 005_equipment_alarm.sql        ← 建立設備 Alarm 現況/歷程表
  └─ run_migrations.bat             ← 雙擊執行，一鍵完成所有建表動作
 ```
 
@@ -210,15 +213,17 @@ _localData.WriteEquipmentStatus("EQ001", "ALARM", "溫度超標", DateTimeOffset
 var now = DateTimeOffset.UtcNow;
 var parameters = new[]
 {
-    new ParameterData("TEMP1",     "加熱溫度", 185.3m, 200m, 150m, false, now, threshold: 0.5m),
-    new ParameterData("PRESSURE1", "射出壓力",  95.0m, 150m,  55m, false, now, threshold: 2.0m),
-    new ParameterData("SPEED1",    "螺桿轉速",  980m, 1200m, 850m, false, now, threshold: 5.0m),
+    new ParameterData("TEMP1",     "加熱溫度", 185.3m, 200m, 150m, false, now, threshold: 0.5m, paramUnit: "°C"),
+    new ParameterData("PRESSURE1", "射出壓力",  95.0m, 150m,  55m, false, now, threshold: 2.0m, paramUnit: "bar"),
+    new ParameterData("SPEED1",    "螺桿轉速",  980m, 1200m, 850m, false, now, threshold: 5.0m, paramUnit: "rpm"),
 };
 
 _localData.WriteEquipmentParameters("EQ001", parameters);
 ```
 
-#### `WriteEquipmentParameter(equipmentNo, paramCode, paramName, actualValue, upperLimit, lowerLimit, isAlarm, recordTime, threshold = 0)` ← 單筆寫入
+> **paramUnit** 為選填，未提供時寫入 NULL。既有呼叫端不需修改即可繼續使用。
+
+#### `WriteEquipmentParameter(equipmentNo, paramCode, paramName, actualValue, upperLimit, lowerLimit, isAlarm, recordTime, threshold = 0, paramUnit = null)` ← 單筆寫入
 
 單筆寫入一個參數，每次各自開一個連線。
 
@@ -235,7 +240,8 @@ _localData.WriteEquipmentParameter(
     lowerLimit:  150m,
     isAlarm:     false,
     recordTime:  DateTimeOffset.UtcNow,
-    threshold:   0.5m
+    threshold:   0.5m,
+    paramUnit:   "°C"
 );
 ```
 
@@ -351,6 +357,35 @@ _localData.SetCurrentWorkOrder("EQ001", "WO20260630002", DateTimeOffset.UtcNow);
 
 ---
 
+### Alarm
+
+一台設備可同時存在多個獨立 alarm(以 `equipment_no` + `alarm_id` 區分),與工單相同採「現況 + 歷程(含 end_time)」設計,由呼叫端在 alarm 發生與解除時分別呼叫對應的 Function。
+
+#### `RaiseAlarm(equipmentNo, alarmId, alarmText, startTime)`
+
+Alarm 開始(EAP 上報告警發生)。寫入/更新 `equipment_alarm_current`,並在 `equipment_alarm_log` 開立一筆 `end_time = NULL` 的歷程。
+
+- **使用時機**:收到 EAP 的 alarm set 事件時呼叫(例如 SEMI E30 的 ALID 觸發)。
+- **alarmId**:EAP 的 Alarm ID/代碼,同一設備、同一 alarmId 視為同一個 alarm。
+- **重複呼叫安全**:若該 alarm 已在告警中(例如斷線重連後的狀態重同步、訊息重送)重複呼叫,不會覆蓋原本的 `start_time`、也不會在歷程多開一筆,只會更新 `alarm_text`。
+
+```csharp
+_localData.RaiseAlarm("EQ001", "A101", "加熱溫度超上限", DateTimeOffset.UtcNow);
+```
+
+#### `ClearAlarm(equipmentNo, alarmId, endTime)`
+
+Alarm 結束(EAP 上報告警解除)。從 `equipment_alarm_current` 移除該筆,並補上 `equipment_alarm_log` 中對應那筆尚未結束紀錄的 `end_time`。
+
+- **使用時機**:收到 EAP 的 alarm clear 事件時呼叫。
+- **注意**:`equipmentNo` + `alarmId` 需與對應的 `RaiseAlarm` 一致,才能正確配對到同一筆歷程。
+
+```csharp
+_localData.ClearAlarm("EQ001", "A101", DateTimeOffset.UtcNow);
+```
+
+---
+
 ### 產出
 
 #### `WriteOutput(equipmentNo, woNo, outputQty, ngQty, recordTime)`
@@ -397,6 +432,10 @@ _localData.WriteOutput("EQ001", "WO20260630001", outputQty: 100, ngQty: 2, DateT
 │ equipment_workorder_current │ 工單現況                 │
 ├─────────────────────────────┼────────────────────────┤
 │ equipment_workorder_log     │ 工單歷史                │
+├─────────────────────────────┼────────────────────────┤
+│ equipment_alarm_current     │ Alarm 現況(告警中)      │
+├─────────────────────────────┼────────────────────────┤
+│ equipment_alarm_log         │ Alarm 歷史(含起止時間)  │
 ├─────────────────────────────┼────────────────────────┤
 │ equipment_output_log        │ 產出                    │
 └─────────────────────────────┴────────────────────────┘
