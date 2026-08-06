@@ -275,6 +275,32 @@ namespace EAPDashboard.Models
             }
         }
 
+        public void RaiseAlarmLocalDb(string alarmId, string alarmText = "")
+        {
+            if (LocalDataServiceInstance == null || string.IsNullOrEmpty(alarmId)) return;
+            try
+            {
+                LocalDataServiceInstance.RaiseAlarm(Id, alarmId, alarmText ?? "", DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"RaiseAlarm LocalDb Error: {ex.Message}");
+            }
+        }
+
+        public void ClearAlarmLocalDb(string alarmId)
+        {
+            if (LocalDataServiceInstance == null || string.IsNullOrEmpty(alarmId)) return;
+            try
+            {
+                LocalDataServiceInstance.ClearAlarm(Id, alarmId, DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"ClearAlarm LocalDb Error: {ex.Message}");
+            }
+        }
+
         public EquipmentBase()
         {
             var fallbackPolicy = Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
@@ -711,13 +737,23 @@ namespace EAPDashboard.Models
             return "PASS|OK|Success";
         }
 
-        public async Task<string> ProcessAlarmAsync(string alarmCode, bool isSet, string reportEqpId = null)
+        public async Task<string> ProcessAlarmAsync(string alarmCode, bool isSet, string reportEqpId = null, string alarmMsg = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
                 string mc = TransformAlarmCode(alarmCode);
                 OnLogReceived(LogLevel.Warn, string.Format("[ALARM] {0} Alarm Report: Code={1} (Mapped={2}), Set={3}", eid, alarmCode, mc, isSet));
+
+                if (isSet)
+                {
+                    string text = !string.IsNullOrEmpty(alarmMsg) ? alarmMsg : $"Alarm {alarmCode} (Mapped: {mc})";
+                    RaiseAlarmLocalDb(alarmCode, text);
+                }
+                else
+                {
+                    ClearAlarmLocalDb(alarmCode);
+                }
 
                 var statusReq = new EQPSTATUSRequest { EqpNo = eid, StatusCode = isSet ? "1" : "2", ErrorCode = mc };
                 
