@@ -227,6 +227,15 @@ namespace EQSimulator
                             SendMessage(new IamHereMessage { CMD = CommandType.IamHere }, msg);
                             break;
                         
+                        case CommandType.StatusReq:
+                            Log($"-> Received StatusReq from EAP. Replying current status ({_currentStatusCode})...");
+                            SendMessage(new ReplyStatusReqMessage { 
+                                CMD = CommandType.ReplyStatusReq, 
+                                RtnResult = RtnResult.PASS, 
+                                CurrentStatus = _currentStatusCode ?? "0" 
+                            }, msg);
+                            break;
+                        
                         case CommandType.ReplyTrackInReq:
                             var rti = (ReplyTrackInReqMessage)msg;
                             Log($"-> TrackIn Result: {rti.RtnResult}, Msg: {rti.RtnMsg}");

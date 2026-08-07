@@ -620,7 +620,7 @@ namespace EAPDashboard.Models
             await _bus.PublishAsync(_commandTopic, cmd);
             if (cmd is BaseMessage bm2)
             {
-                if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere && bm2.CMD != CommandType.StatusReq)
+                if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere)
                 {
                     OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
                 }
