@@ -220,6 +220,7 @@ namespace EAPDashboard
                             eq.IsSimulator = isSim;
                             eq.EnableCassetteBinding = config.EnableCassetteBinding ?? _appConfig.EnableCassetteBinding;
                             eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? _appConfig.EqpStatusReportIntervalSeconds;
+                            eq.PostgresConnectionString = _appConfig.PostgresDbSettings?.ConnectionString;
                             _equipments.Add(eq);
                         }
                     }

@@ -976,8 +976,118 @@ namespace EAPDashboard.Models
             } catch { return "ERROR"; }
         }
 
+        public bool IsInitializingReconciliation { get; set; } = true;
+        public string PostgresConnectionString { get; set; }
+        private CancellationTokenSource _reconciliationCts;
+        private bool _isFirstStateUpdate = true;
+
+        public async Task ReconcileOrphanAlarmsLocalDbAsync()
+        {
+            if (string.IsNullOrEmpty(PostgresConnectionString)) return;
+            try
+            {
+                using (var conn = new Npgsql.NpgsqlConnection(PostgresConnectionString))
+                {
+                    await conn.OpenAsync();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+                            DELETE FROM equipment_alarm_current WHERE equipment_no = @EqpId OR equipment_id = @EqpId;
+                            UPDATE equipment_alarm_log SET end_time = @endTime WHERE (equipment_no = @EqpId OR equipment_id = @EqpId) AND end_time IS NULL;";
+                        cmd.Parameters.AddWithValue("EqpId", Id ?? "");
+                        cmd.Parameters.AddWithValue("endTime", DateTime.UtcNow);
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+                IsInitializingReconciliation = false;
+                OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} orphan DB alarms reconciled & cleared. IsInitializingReconciliation set to FALSE.");
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[Reconciliation] ReconcileOrphanAlarms Error for {Id}: {ex.Message}");
+            }
+        }
+
+        protected void OnEquipmentStateUpdated(EquipmentState newState)
+        {
+            if (!IsInitializingReconciliation) return;
+
+            if (_isFirstStateUpdate)
+            {
+                _isFirstStateUpdate = false;
+                if (newState == EquipmentState.Running || newState == EquipmentState.Idle)
+                {
+                    OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} initial state is {newState}. Executing immediate DB alarm reconciliation.");
+                    Task.Run(() => ReconcileOrphanAlarmsLocalDbAsync());
+                    return;
+                }
+                else if (newState == EquipmentState.Alarm || newState == EquipmentState.Down)
+                {
+                    OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} initial state is {newState}. Pending 30s reconciliation upon status change.");
+                }
+            }
+
+            if (newState == EquipmentState.Running || newState == EquipmentState.Idle)
+            {
+                if (_reconciliationCts == null)
+                {
+                    _reconciliationCts = new CancellationTokenSource();
+                    var ct = _reconciliationCts.Token;
+                    OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} changed state to {newState}. Started 30s timer for orphan DB alarm reconciliation.");
+
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(30000, ct);
+                            if (ct.IsCancellationRequested) return;
+
+                            if (State == EquipmentState.Running || State == EquipmentState.Idle)
+                            {
+                                await ReconcileOrphanAlarmsLocalDbAsync();
+                            }
+                            else
+                            {
+                                OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} 30s timer expired but state is {State}. Skipping reconciliation.");
+                            }
+                        }
+                        catch (TaskCanceledException) { }
+                        catch (Exception ex)
+                        {
+                            OnLogReceived(LogLevel.Error, $"[Reconciliation] Timer Task Exception for {Id}: {ex.Message}");
+                        }
+                        finally
+                        {
+                            _reconciliationCts = null;
+                        }
+                    });
+                }
+            }
+            else if (newState == EquipmentState.Alarm || newState == EquipmentState.Down)
+            {
+                if (_reconciliationCts != null)
+                {
+                    _reconciliationCts.Cancel();
+                    _reconciliationCts = null;
+                    OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} state returned to {newState}. Cancelled pending 30s reconciliation timer.");
+                }
+            }
+        }
+
         public ConnectionStatus Connection { get => _connectionStatus; set { if (_connectionStatus != value) { _connectionStatus = value; OnPropertyChanged(nameof(Connection)); } } }
-        public EquipmentState State { get => _state; set { if (_state != value) { _state = value; OnPropertyChanged(nameof(State)); } } }
+        public EquipmentState State 
+        { 
+            get => _state; 
+            set 
+            { 
+                if (_state != value || _isFirstStateUpdate) 
+                { 
+                    _state = value; 
+                    OnPropertyChanged(nameof(State)); 
+                    OnEquipmentStateUpdated(value);
+                } 
+            } 
+        }
         public string CurrentRecipe { get => _currentRecipe; set { if (_currentRecipe != value) { _currentRecipe = value; OnPropertyChanged(nameof(CurrentRecipe)); } } }
 
         // 安全重啟相關屬性

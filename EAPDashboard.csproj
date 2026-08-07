@@ -36,6 +36,7 @@
   <ItemGroup>
     <PackageReference Include="MQTTnet" Version="3.0.16" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="Polly" Version="7.2.4" />
     <PackageReference Include="Secs4Net" Version="2.4.4" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />

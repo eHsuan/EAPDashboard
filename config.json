@@ -46,6 +46,15 @@
       "IsActive": true
     },
     {
+      "Id": "OV0097",
+      "Name": "OV0097",
+      "Protocol": "MQTT",
+      "Topic": "factory/LOCAL/machine/OV0097",
+      "DictionaryPath": "Dictionaries/OV0097.json",
+      "StatusType": "Delta",
+      "IsActive": true
+    },
+    {
       "Id": "EQ02",
       "Name": "SECS Equipment 02",
       "Protocol": "SECS",
