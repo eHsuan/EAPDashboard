@@ -30,6 +30,9 @@
     <Reference Include="Protocol.Core">
       <HintPath>..\dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
     </Reference>
+    <Reference Include="Protocol.LocalData">
+      <HintPath>..\dll\Protocol.LocalData\Protocol.LocalData.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

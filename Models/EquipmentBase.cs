@@ -1016,10 +1016,12 @@ namespace EAPDashboard.Models
         {
             if (!IsInitializingReconciliation) return;
 
+            bool isNormalState = (newState == EquipmentState.Running || newState == EquipmentState.Idle || newState == EquipmentState.Paused);
+
             if (_isFirstStateUpdate)
             {
                 _isFirstStateUpdate = false;
-                if (newState == EquipmentState.Running || newState == EquipmentState.Idle)
+                if (isNormalState)
                 {
                     OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} initial state is {newState}. Executing immediate DB alarm reconciliation.");
                     Task.Run(() => ReconcileOrphanAlarmsLocalDbAsync());
@@ -1032,7 +1034,7 @@ namespace EAPDashboard.Models
                 }
             }
 
-            if (newState == EquipmentState.Running || newState == EquipmentState.Idle)
+            if (isNormalState)
             {
                 if (_reconciliationCts == null)
                 {
@@ -1047,7 +1049,7 @@ namespace EAPDashboard.Models
                             await Task.Delay(30000, ct);
                             if (ct.IsCancellationRequested) return;
 
-                            if (State == EquipmentState.Running || State == EquipmentState.Idle)
+                            if (State == EquipmentState.Running || State == EquipmentState.Idle || State == EquipmentState.Paused)
                             {
                                 await ReconcileOrphanAlarmsLocalDbAsync();
                             }
