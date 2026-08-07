@@ -354,11 +354,15 @@ namespace EAPDashboard.Models
             _resiliencePolicy = Policy.WrapAsync<HttpResponseMessage>(fallbackPolicy, timeoutPolicy);
         }
 
+        private readonly ConcurrentDictionary<string, string> _managementItems = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public void LoadAlarmMappings(string path = null)
         {
             try
             {
                 _alarmMappings.Clear();
+                _managementItems.Clear();
+
                 string dictPath = !string.IsNullOrEmpty(path) ? path : this.DictionaryPath;
                 if (string.IsNullOrEmpty(dictPath)) return;
 
@@ -387,6 +391,16 @@ namespace EAPDashboard.Models
                 else
                 {
                     OnLogReceived(LogLevel.Info, $"[Dictionary] No 'AlarmMapping' node found in {Path.GetFileName(fullPath)} for {Id}.");
+                }
+
+                var mgmtObj = jObj["ManagementItems"] as JObject;
+                if (mgmtObj != null)
+                {
+                    foreach (var prop in mgmtObj.Properties())
+                    {
+                        _managementItems[prop.Name.Trim()] = prop.Value?.ToString();
+                    }
+                    OnLogReceived(LogLevel.Info, $"[Dictionary] Loaded {_managementItems.Count} management items from {Path.GetFileName(fullPath)} for {Id}.");
                 }
             }
             catch (Exception ex) { OnLogReceived(LogLevel.Error, $"Load Alarm Mapping Failed for {Id}: {ex.Message}"); }
@@ -424,29 +438,8 @@ namespace EAPDashboard.Models
 
         public virtual string GetManagementItemValue(string inputCode)
         {
-            if (string.IsNullOrEmpty(DictionaryPath) || string.IsNullOrEmpty(inputCode)) return null;
-            try
-            {
-                string fullDictPath = Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath);
-                if (File.Exists(fullDictPath))
-                {
-                    string json = File.ReadAllText(fullDictPath);
-                    var jsonObj = JObject.Parse(json);
-                    var mgmtObj = jsonObj["ManagementItems"] as JObject;
-                    if (mgmtObj != null)
-                    {
-                        foreach (var prop in mgmtObj.Properties())
-                        {
-                            if (prop.Name.Equals(inputCode.Trim(), StringComparison.OrdinalIgnoreCase))
-                            {
-                                return prop.Value?.ToString();
-                            }
-                        }
-                    }
-                }
-            }
-            catch { }
-            return null;
+            if (string.IsNullOrEmpty(inputCode)) return null;
+            return _managementItems.TryGetValue(inputCode.Trim(), out var val) ? val : null;
         }
 
         public async Task<string> ProcessTrackInAsync(List<string> cassetteIds, List<string> workOrders, List<string> panels, string userId, string reportEqpId = null)

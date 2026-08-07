@@ -41,6 +41,7 @@
       "Name": "ZZ0304",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ZZ0304",
+      "DictionaryPath": "Dictionaries/ZZ0304.json",
       "StatusType": "Delta",
       "IsActive": true
     },

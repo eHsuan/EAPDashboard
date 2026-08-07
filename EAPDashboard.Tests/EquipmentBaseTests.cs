@@ -124,6 +124,7 @@ namespace EAPDashboard.Tests
             };
 
             // Act
+            eq.LoadAlarmMappings();
             string valUppercase = eq.GetManagementItemValue("TE004");
             string valLowercase = eq.GetManagementItemValue("te004");
 
