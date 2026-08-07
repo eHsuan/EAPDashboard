@@ -196,10 +196,16 @@ namespace EQSimulator
             });
         }
 
+        private string _currentStatusCode = "0";
+
         private void BtnReportStatus_Click(object sender, EventArgs e)
         {
-            int status = Convert.ToInt32(_cmbStatus.SelectedValue);
-            SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = status.ToString(), OldStatus = "0" });
+            string newStatus = _cmbStatus.SelectedValue?.ToString() ?? "0";
+            string oldStatus = _currentStatusCode;
+            _currentStatusCode = newStatus;
+
+            SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = newStatus, OldStatus = oldStatus });
+            Log($"[StatusChange] EQ State updated: {oldStatus} -> {newStatus}");
         }
 
         private void HandleIncomingCommand(string json)
