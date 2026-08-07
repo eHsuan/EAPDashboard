@@ -983,7 +983,11 @@ namespace EAPDashboard.Models
 
         public async Task ReconcileOrphanAlarmsLocalDbAsync()
         {
-            if (string.IsNullOrEmpty(PostgresConnectionString)) return;
+            if (string.IsNullOrEmpty(PostgresConnectionString)) 
+            {
+                OnLogReceived(LogLevel.Warn, $"[Reconciliation] Skip DB reconciliation for {Id}: PostgresConnectionString is empty.");
+                return;
+            }
             try
             {
                 using (var conn = new Npgsql.NpgsqlConnection(PostgresConnectionString))
@@ -992,15 +996,15 @@ namespace EAPDashboard.Models
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"
-                            DELETE FROM equipment_alarm_current WHERE equipment_no = @EqpId OR equipment_id = @EqpId;
-                            UPDATE equipment_alarm_log SET end_time = @endTime WHERE (equipment_no = @EqpId OR equipment_id = @EqpId) AND end_time IS NULL;";
+                            DELETE FROM equipment_alarm_current WHERE equipment_no = @EqpId;
+                            UPDATE equipment_alarm_log SET end_time = @endTime WHERE equipment_no = @EqpId AND end_time IS NULL;";
                         cmd.Parameters.AddWithValue("EqpId", Id ?? "");
                         cmd.Parameters.AddWithValue("endTime", DateTime.UtcNow);
-                        await cmd.ExecuteNonQueryAsync();
+                        int affected = await cmd.ExecuteNonQueryAsync();
+                        OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} orphan DB alarms reconciled & cleared (Affected rows: {affected}). IsInitializingReconciliation set to FALSE.");
                     }
                 }
                 IsInitializingReconciliation = false;
-                OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} orphan DB alarms reconciled & cleared. IsInitializingReconciliation set to FALSE.");
             }
             catch (Exception ex)
             {
@@ -1024,6 +1028,7 @@ namespace EAPDashboard.Models
                 else if (newState == EquipmentState.Alarm || newState == EquipmentState.Down)
                 {
                     OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} initial state is {newState}. Pending 30s reconciliation upon status change.");
+                    return;
                 }
             }
 
