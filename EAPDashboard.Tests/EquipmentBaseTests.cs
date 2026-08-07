@@ -147,6 +147,5 @@ namespace EAPDashboard.Tests
 
             // Assert
             val.Should().BeNull();
-        }
     }
 }

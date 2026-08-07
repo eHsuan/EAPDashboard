@@ -981,35 +981,25 @@ namespace EAPDashboard.Models
         private CancellationTokenSource _reconciliationCts;
         private bool _isFirstStateUpdate = true;
 
-        public async Task ReconcileOrphanAlarmsLocalDbAsync()
+        public Task ReconcileOrphanAlarmsLocalDbAsync()
         {
-            if (string.IsNullOrEmpty(PostgresConnectionString)) 
+            if (LocalDataServiceInstance == null) 
             {
-                OnLogReceived(LogLevel.Warn, $"[Reconciliation] Skip DB reconciliation for {Id}: PostgresConnectionString is empty.");
-                return;
+                OnLogReceived(LogLevel.Warn, $"[Reconciliation] Skip DB reconciliation for {Id}: LocalDataServiceInstance is null.");
+                return Task.CompletedTask;
             }
             try
             {
-                using (var conn = new Npgsql.NpgsqlConnection(PostgresConnectionString))
-                {
-                    await conn.OpenAsync();
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = @"
-                            DELETE FROM equipment_alarm_current WHERE equipment_no = @EqpId;
-                            UPDATE equipment_alarm_log SET end_time = @endTime WHERE equipment_no = @EqpId AND end_time IS NULL;";
-                        cmd.Parameters.AddWithValue("EqpId", Id ?? "");
-                        cmd.Parameters.AddWithValue("endTime", DateTime.UtcNow);
-                        int affected = await cmd.ExecuteNonQueryAsync();
-                        OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} orphan DB alarms reconciled & cleared (Affected rows: {affected}). IsInitializingReconciliation set to FALSE.");
-                    }
-                }
+                OnLogReceived(LogLevel.Info, $"[Reconciliation] Invoking LocalDataService.SyncAlarms for equipment {Id}.");
+                LocalDataServiceInstance.SyncAlarms(Id, DateTimeOffset.UtcNow);
                 IsInitializingReconciliation = false;
+                OnLogReceived(LogLevel.Info, $"[Reconciliation] Equipment {Id} orphan DB alarms reconciled & synchronized via SyncAlarms. IsInitializingReconciliation set to FALSE.");
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Error, $"[Reconciliation] ReconcileOrphanAlarms Error for {Id}: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"[Reconciliation] SyncAlarms Error for {Id}: {ex.Message}");
             }
+            return Task.CompletedTask;
         }
 
         protected void OnEquipmentStateUpdated(EquipmentState newState)
