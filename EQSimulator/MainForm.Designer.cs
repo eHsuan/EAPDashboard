@@ -52,6 +52,7 @@ namespace EQSimulator
             btnAlarm = new System.Windows.Forms.Button();
             _btnAutoTest = new System.Windows.Forms.Button();
             pnlStatusReport = new System.Windows.Forms.Panel();
+            _cmbStatusType = new System.Windows.Forms.ComboBox();
             _cmbStatus = new System.Windows.Forms.ComboBox();
             btnReportStatus = new System.Windows.Forms.Button();
             _txtLog = new System.Windows.Forms.TextBox();
@@ -449,29 +450,42 @@ namespace EQSimulator
             _btnAutoTest.UseVisualStyleBackColor = true;
             _btnAutoTest.Click += BtnAutoTest_Click;
             // 
+            // 
             // pnlStatusReport
             // 
+            pnlStatusReport.Controls.Add(_cmbStatusType);
             pnlStatusReport.Controls.Add(_cmbStatus);
             pnlStatusReport.Controls.Add(btnReportStatus);
             pnlStatusReport.Location = new System.Drawing.Point(286, 47);
             pnlStatusReport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             pnlStatusReport.Name = "pnlStatusReport";
-            pnlStatusReport.Size = new System.Drawing.Size(292, 38);
+            pnlStatusReport.Size = new System.Drawing.Size(390, 38);
             pnlStatusReport.TabIndex = 8;
+            // 
+            // _cmbStatusType
+            // 
+            _cmbStatusType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            _cmbStatusType.FormattingEnabled = true;
+            _cmbStatusType.Items.AddRange(new object[] { "Cyntec", "Delta" });
+            _cmbStatusType.Location = new System.Drawing.Point(4, 4);
+            _cmbStatusType.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _cmbStatusType.Name = "_cmbStatusType";
+            _cmbStatusType.Size = new System.Drawing.Size(80, 23);
+            _cmbStatusType.TabIndex = 2;
             // 
             // _cmbStatus
             // 
             _cmbStatus.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             _cmbStatus.FormattingEnabled = true;
-            _cmbStatus.Location = new System.Drawing.Point(4, 4);
+            _cmbStatus.Location = new System.Drawing.Point(90, 4);
             _cmbStatus.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _cmbStatus.Name = "_cmbStatus";
-            _cmbStatus.Size = new System.Drawing.Size(139, 23);
+            _cmbStatus.Size = new System.Drawing.Size(160, 23);
             _cmbStatus.TabIndex = 0;
             // 
             // btnReportStatus
             // 
-            btnReportStatus.Location = new System.Drawing.Point(150, 1);
+            btnReportStatus.Location = new System.Drawing.Point(255, 1);
             btnReportStatus.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             btnReportStatus.Name = "btnReportStatus";
             btnReportStatus.Size = new System.Drawing.Size(128, 29);
@@ -555,6 +569,7 @@ namespace EQSimulator
         private System.Windows.Forms.Button btnAlarm;
         private System.Windows.Forms.Button _btnAutoTest;
         private System.Windows.Forms.Panel pnlStatusReport;
+        private System.Windows.Forms.ComboBox _cmbStatusType;
         private System.Windows.Forms.ComboBox _cmbStatus;
         private System.Windows.Forms.Button btnReportStatus;
         private System.Windows.Forms.TextBox _txtLog;

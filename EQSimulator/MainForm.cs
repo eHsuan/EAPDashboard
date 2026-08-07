@@ -62,20 +62,43 @@ namespace EQSimulator
 
         private void InitializeStatusCombo()
         {
-            var statuses = new[] {
-                new { Value = 0, Text = "0: RUNNING" },
-                new { Value = 1, Text = "1: ALARM" },
-                new { Value = 2, Text = "2: PAUSED" },
-                new { Value = 3, Text = "3: IDLE" },
-                new { Value = 4, Text = "4: SETUP" },
-                new { Value = 5, Text = "5: WAIT" },
-                new { Value = 6, Text = "6: RUN" },
-                new { Value = 7, Text = "7: STOP" },
-                new { Value = 8, Text = "8: MANUAL" },
-                new { Value = 9, Text = "9: ERROR" },
-                new { Value = 10, Text = "10: DOWN" }
-            };
-            _cmbStatus.DataSource = statuses;
+            if (_cmbStatusType != null)
+            {
+                if (_cmbStatusType.SelectedIndex < 0) _cmbStatusType.SelectedIndex = 0;
+                _cmbStatusType.SelectedIndexChanged += (s, e) => UpdateStatusComboSource();
+            }
+            UpdateStatusComboSource();
+        }
+
+        private void UpdateStatusComboSource()
+        {
+            string type = _cmbStatusType?.SelectedItem?.ToString() ?? "Cyntec";
+            if ("Cyntec".Equals(type, StringComparison.OrdinalIgnoreCase))
+            {
+                var cyntecStatuses = new[] {
+                    new { Value = 1, Text = "1: RUNNING (Cyntec)" },
+                    new { Value = 2, Text = "2: IDLE (Cyntec)" },
+                    new { Value = 3, Text = "3: ALARM (Cyntec)" }
+                };
+                _cmbStatus.DataSource = cyntecStatuses;
+            }
+            else
+            {
+                var deltaStatuses = new[] {
+                    new { Value = 0, Text = "0: RUNNING (Delta)" },
+                    new { Value = 1, Text = "1: ALARM (Delta)" },
+                    new { Value = 2, Text = "2: PAUSED (Delta)" },
+                    new { Value = 3, Text = "3: IDLE (Delta)" },
+                    new { Value = 4, Text = "4: SETUP (Delta)" },
+                    new { Value = 5, Text = "5: WAIT (Delta)" },
+                    new { Value = 6, Text = "6: RUN (Delta)" },
+                    new { Value = 7, Text = "7: STOP (Delta)" },
+                    new { Value = 8, Text = "8: MANUAL (Delta)" },
+                    new { Value = 9, Text = "9: ERROR (Delta)" },
+                    new { Value = 10, Text = "10: DOWN (Delta)" }
+                };
+                _cmbStatus.DataSource = deltaStatuses;
+            }
             _cmbStatus.DisplayMember = "Text";
             _cmbStatus.ValueMember = "Value";
         }
