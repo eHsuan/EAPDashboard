@@ -414,13 +414,13 @@ namespace EAPDashboard.Models
 
         // --- Core Business Logic ---
 
-        public async Task<string> ProcessUserVerifyAsync(string barcode, string userId, string reportEqpId = null)
+        public async Task<string> ProcessUserVerifyAsync(string barcode, string userId, string userPassword = null, string reportEqpId = null)
         {
             try
             {
                 string eid = reportEqpId ?? this.Id;
-                OnLogReceived(LogLevel.Info, $"[Business] {eid} User Verify: Barcode={barcode}, UserID={userId}");
-                var req = new UserVerifyRequest { EqpNo = eid, User2DBarCode = barcode, UserID = userId };
+                OnLogReceived(LogLevel.Info, $"[Business] {eid} User Verify: Barcode={barcode}, UserID={userId}, Password={(string.IsNullOrEmpty(userPassword) ? "N/A" : "***")}");
+                var req = new UserVerifyRequest { EqpNo = eid, User2DBarCode = barcode, UserID = userId, UserPassword = userPassword };
                 
                 var replyTask = Task.Run(() => CallMesWithLog<UserVerifyRequest, UserVerifyReply>(req));
                 if (await Task.WhenAny(replyTask, Task.Delay(25000)) != replyTask)

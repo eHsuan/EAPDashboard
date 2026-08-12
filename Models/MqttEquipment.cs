@@ -436,14 +436,46 @@ namespace EAPDashboard.Models
                 case "USER_VERIFY":
                 case "500":
                 case "100":
-                    string uid = getValByLogicalName("UserID");
-                    string bcd = getValByLogicalName("Barcode") ?? uid;
-                    string uvRes = await ProcessUserVerifyAsync(bcd, uid);
+                    string userBarcode = null;
+                    string userId = null;
+                    string userPassword = null;
+
+                    if (evm.Data != null)
+                    {
+                        foreach (var item in evm.Data)
+                        {
+                            if (string.IsNullOrEmpty(item.Parameter)) continue;
+                            string varName = EqpDictionary?.GetVariableName(item.Parameter);
+                            if (string.IsNullOrEmpty(varName)) continue;
+
+                            if (varName.Equals("User_Barcode", StringComparison.OrdinalIgnoreCase))
+                            {
+                                userBarcode = item.Value;
+                            }
+                            else if (varName.Equals("UserID", StringComparison.OrdinalIgnoreCase) || varName.Equals("User_ID", StringComparison.OrdinalIgnoreCase))
+                            {
+                                userId = item.Value;
+                            }
+                            else if (varName.Equals("UserPassword", StringComparison.OrdinalIgnoreCase) || varName.Equals("User_Password", StringComparison.OrdinalIgnoreCase))
+                            {
+                                userPassword = item.Value;
+                            }
+                        }
+                    }
+
+                    // 互斥條件：若有 User_Barcode 則直接放棄 UserID 與 UserPassword
+                    if (!string.IsNullOrEmpty(userBarcode))
+                    {
+                        userId = null;
+                        userPassword = null;
+                    }
+
+                    string uvRes = await ProcessUserVerifyAsync(userBarcode, userId, userPassword);
                     string[] uvp = uvRes.Split('|');
                     await SendReply(new ReplyEventReportMessage { 
                         CMD = CommandType.ReplyEventReport, 
                         RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
-                        RtnMsg = uvp[2] 
+                        RtnMsg = uvp.Length > 2 ? uvp[2] : "" 
                     }, evm);
                     break;
 
