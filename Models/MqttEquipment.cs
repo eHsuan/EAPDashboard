@@ -76,8 +76,8 @@ namespace EAPDashboard.Models
         private static readonly Dictionary<int, EquipmentState> CyntecStatusMap = new Dictionary<int, EquipmentState>()
         {
            { 1, EquipmentState.Running },
-           { 2, EquipmentState.Idle },
-           { 3, EquipmentState.Alarm }
+           { 2, EquipmentState.Alarm },
+           { 3, EquipmentState.Idle }
         };
 
         public Dictionary<int, EquipmentState> GetActiveStatusMap()

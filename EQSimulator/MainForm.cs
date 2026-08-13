@@ -77,8 +77,8 @@ namespace EQSimulator
             {
                 var cyntecStatuses = new[] {
                     new { Value = 1, Text = "1: RUNNING (Cyntec)" },
-                    new { Value = 2, Text = "2: IDLE (Cyntec)" },
-                    new { Value = 3, Text = "3: ALARM (Cyntec)" }
+                    new { Value = 2, Text = "2: ALARM (Cyntec)" },
+                    new { Value = 3, Text = "3: IDLE (Cyntec)" }
                 };
                 _cmbStatus.DataSource = cyntecStatuses;
             }
