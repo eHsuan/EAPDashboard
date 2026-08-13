@@ -28,13 +28,22 @@
   },
   "Equipments": [
     {
+      "Id": "ET0026",
+      "Name": "鎳鉻蝕刻",
+      "Protocol": "MQTT",
+      "Topic": "factory/LOCAL/machine/ET0026_TEST",
+      "DictionaryPath": "Dictionaries/ET0026.json",
+      "StatusType": "Cyntec",
+      "IsActive": true
+    },
+    {
       "Id": "AC3811",
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/AC3811",
       "DictionaryPath": "Dictionaries/AC3811.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "ZZ0304",
@@ -52,7 +61,7 @@
       "Topic": "factory/LOCAL/machine/OV0097",
       "DictionaryPath": "Dictionaries/OV0097.json",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "EQ02",
