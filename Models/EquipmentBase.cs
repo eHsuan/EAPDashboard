@@ -508,13 +508,14 @@ namespace EAPDashboard.Models
                 if (distinctRecipes.Count > 1)
                 {
                     // Recipe 不一致，跳過 PP_SELECT，發送 Terminal Display 並直接回傳 TrackIn FAIL
-                    string diffDetails = string.Join(", ", woRecipeMap.Select(kv => $"WO [{kv.Key}]: {kv.Value}"));
-                    string terminalMsg = $"Recipe Mismatch! {diffDetails}. Track-in Forbidden.";
+                    var details = woRecipeMap.Select((kv, idx) => $"WO_{idx + 1}:{kv.Key}[{kv.Value}]");
+                    string terminalMsg = $"Recipe Mismatch! {string.Join(",", details)}";
                     
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {terminalMsg}");
                     try
                     {
-                        await SendTerminalDisplay(terminalMsg);
+                        string safeTerminalMsg = terminalMsg.Length > 200 ? terminalMsg.Substring(0, 197) + "..." : terminalMsg;
+                        await SendTerminalDisplay(safeTerminalMsg);
                     }
                     catch (Exception ex)
                     {

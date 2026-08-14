@@ -177,6 +177,25 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public void RecipeMismatchFormat_ShouldFollowSpecifiedStructure()
+        {
+            // Arrange
+            var woRecipeMap = new Dictionary<string, string>
+            {
+                { "WOOOOOOOOO01", "RECIPE_A" },
+                { "WOOOOOOOO02", "RECIPE_B" }
+            };
+
+            // Act
+            var details = woRecipeMap.Select((kv, idx) => $"WO_{idx + 1}:{kv.Key}[{kv.Value}]");
+            string terminalMsg = $"Recipe Mismatch! {string.Join(",", details)}";
+
+            // Assert
+            terminalMsg.Should().Be("Recipe Mismatch! WO_1:WOOOOOOOOO01[RECIPE_A],WO_2:WOOOOOOOO02[RECIPE_B]");
+            terminalMsg.Length.Should().BeLessThanOrEqualTo(200);
+        }
+
+        [Fact]
         public void GetManagementItemValue_WithValidDictionary_ShouldBeCaseInsensitive()
         {
             // Arrange
