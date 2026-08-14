@@ -266,7 +266,8 @@ namespace EAPDashboard.Models
             if (LocalDataServiceInstance == null || string.IsNullOrEmpty(woNo)) return;
             try
             {
-                LocalDataServiceInstance.SetCurrentWorkOrder(Id, woNo, DateTimeOffset.UtcNow);
+                string safeWo = woNo.Length > 50 ? woNo.Substring(0, 50) : woNo;
+                LocalDataServiceInstance.SetCurrentWorkOrder(Id, safeWo, DateTimeOffset.UtcNow);
             }
             catch (Exception ex)
             {
@@ -276,10 +277,11 @@ namespace EAPDashboard.Models
 
         public void WriteOutputLocalDb(string woNo, int outputQty, int ngQty = 0)
         {
-            if (LocalDataServiceInstance == null) return;
+            if (LocalDataServiceInstance == null || string.IsNullOrEmpty(woNo)) return;
             try
             {
-                LocalDataServiceInstance.WriteOutput(Id, woNo ?? "", outputQty, ngQty, DateTimeOffset.UtcNow);
+                string safeWo = woNo.Length > 50 ? woNo.Substring(0, 50) : woNo;
+                LocalDataServiceInstance.WriteOutput(Id, safeWo, outputQty, ngQty, DateTimeOffset.UtcNow);
             }
             catch (Exception ex)
             {
@@ -668,7 +670,10 @@ namespace EAPDashboard.Models
                     }
                 }
 
-                SetCurrentWorkOrderLocalDb(combinedWo);
+                foreach (var wo in validWos)
+                {
+                    SetCurrentWorkOrderLocalDb(wo);
+                }
 
                 // 進站成功後，逐筆發送第二次工單查詢 (WOQRYRequest) 獲取出站所需管理項目
                 _ = Task.Run(async () =>
@@ -840,7 +845,10 @@ namespace EAPDashboard.Models
 
                 if (int.TryParse(qty, out int outQty))
                 {
-                    WriteOutputLocalDb(combinedWo, outQty, 0);
+                    foreach (var wo in validWos)
+                    {
+                        WriteOutputLocalDb(wo, outQty, 0);
+                    }
                 }
 
                 return $"PASS|{resultCode}|{resultMessage}";
