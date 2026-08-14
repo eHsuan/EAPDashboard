@@ -4,8 +4,7 @@
     "500": "USER_VERIFY",
     "100": "PANEL_IN",
     "101": "PANEL_OUT",
-    "300": "RECIPE_CHANGE_REQ",
-    "301": "REPLY_PP_SELECT"
+    "300": "RECIPE_CHANGE_REQ"
   },
   "Variables": {
     "101": "UserID",
