@@ -11,6 +11,7 @@ namespace EAPDashboard.Tests
     public class TestableEquipment : EquipmentBase
     {
         public List<string> LogHistory { get; } = new List<string>();
+        public string LastTerminalDisplayMessage { get; private set; }
 
         public TestableEquipment(string id)
         {
@@ -25,6 +26,13 @@ namespace EAPDashboard.Tests
             base.OnLogReceived(level, message);
         }
 
+        public override Task SendTerminalDisplay(string message)
+        {
+            LastTerminalDisplayMessage = message;
+            return Task.CompletedTask;
+        }
+
+        public string GetMesParamValueTest(string dt, string name) => GetMesParamValue(dt, name);
         public override Task SendTimeCalibration() => Task.CompletedTask;
         public override void Start(System.Threading.CancellationToken externalCancellationToken, CyntecMqttLib.Interfaces.MqttBus bus = null, int heartbeatIntervalSeconds = 30) { }
     }
@@ -60,24 +68,8 @@ namespace EAPDashboard.Tests
             // Act
             var result = await eq.ProcessTrackInAsync(cassetteIds, workOrders, new List<string>(), "U001");
 
-            // Assert - Even if MES call returns error/mock in test without MES server, result format should be valid
-            result.Should().NotBeNullOrEmpty();
-        }
-
-        [Fact]
-        public async Task ProcessTrackInAsync_MultipleWorkOrders_DifferentRecipes_ShouldTriggerRecipeConsistencyCheck()
-        {
-            // Arrange
-            var eq = new TestableEquipment("EQ01");
-            var cassetteIds = new List<string> { "C001", "C002" };
-            var workOrders = new List<string> { "WO001", "WO002" };
-
-            // Act
-            var result = await eq.ProcessTrackInAsync(cassetteIds, workOrders, new List<string>(), "U001");
-
             // Assert
-            // When MES returns timeouts/fails or recipes, result should be properly formatted
-            result.Should().NotBeNull();
+            result.Should().NotBeNullOrEmpty();
         }
 
         [Fact]
@@ -91,6 +83,22 @@ namespace EAPDashboard.Tests
                 workOrders: new List<string> { "WO001" },
                 userId: "U001",
                 cassetteIds: new List<string> { "C001" });
+
+            // Assert
+            result.Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task ProcessTrackInFinalAsync_MultipleWorkOrders_ShouldReturnResult()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var result = await eq.ProcessTrackInFinalAsync(
+                workOrders: new List<string> { "WO001", "WO002" },
+                userId: "U001",
+                cassetteIds: new List<string> { "C001", "C002" });
 
             // Assert
             result.Should().NotBeNullOrEmpty();
@@ -112,6 +120,60 @@ namespace EAPDashboard.Tests
 
             // Assert
             result.Should().NotBeNullOrEmpty();
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_MultipleWorkOrders_ShouldReturnResult()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO001", "WO002" },
+                qty: "20",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001", "C002" },
+                panels: new List<string> { "PNL01", "PNL02" });
+
+            // Assert
+            result.Should().NotBeNullOrEmpty();
+        }
+
+        public class MockMesEquipment : EquipmentBase
+        {
+            public string LastTerminalMessage { get; private set; }
+            public Dictionary<string, string> MockRecipes { get; set; } = new Dictionary<string, string>();
+
+            public MockMesEquipment(string id)
+            {
+                this.Id = id;
+                this.Name = $"Mock_{id}";
+                this.Protocol = "TEST";
+            }
+
+            public override Task SendTerminalDisplay(string message)
+            {
+                LastTerminalMessage = message;
+                return Task.CompletedTask;
+            }
+
+            public override Task SendTimeCalibration() => Task.CompletedTask;
+            public override void Start(System.Threading.CancellationToken externalCancellationToken, CyntecMqttLib.Interfaces.MqttBus bus = null, int heartbeatIntervalSeconds = 30) { }
+        }
+
+        [Fact]
+        public void ExtractRecipeFromMes_WithValidJson_ShouldReturnRecipeId()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            string inputParamListDt = "[{\"ParamName\":\"RECIPEID\",\"DefaultValue\":\"RECIPE_ABC\"}]";
+
+            // Act
+            string recipe = eq.GetMesParamValueTest(inputParamListDt, "RECIPEID");
+
+            // Assert
+            recipe.Should().Be("RECIPE_ABC");
         }
 
         [Fact]

@@ -154,8 +154,10 @@ namespace MESSimulator
                 case "WOQRY":
                     return chkWOQRYPass == null || chkWOQRYPass.Checked;
                 case "WOCHECKIN":
+                case "WOCHECKIN_MULTI":
                     return chkWOCHECKINPass == null || chkWOCHECKINPass.Checked;
                 case "WOCHECKOUT":
+                case "WOCHECKOUT_MULTI":
                     return chkWOCHECKOUTPass == null || chkWOCHECKOUTPass.Checked;
                 case "EQPSTATUS":
                     return chkEQPSTATUSPass == null || chkEQPSTATUSPass.Checked;
@@ -227,13 +229,17 @@ namespace MESSimulator
                         reply["IsUrgent"] = "N";
                         reply["CustomerDeliveryTime"] = "9999-12-31 00:00:00.000";
 
+                        string mockRecipe = wonoQry.IndexOf("DIFF", StringComparison.OrdinalIgnoreCase) >= 0 
+                            ? $"SIM_RECIPE_DIFF_{wonoQry}" 
+                            : "SIM_RECIPE_001";
+
                         var paramDt = new JArray();
                         paramDt.Add(new JObject { 
                             ["ParamCode"] = "001",
                             ["ParamName"] = "RECIPEID", 
                             ["RequireInput"] = "N",
                             ["DataListItem"] = "",
-                            ["DefaultValue"] = "SIM_RECIPE_001",
+                            ["DefaultValue"] = mockRecipe,
                             ["RefFieldCode"] = "RECIPE ID",
                             ["UpperValue"] = "",
                             ["LowerValue"] = "",
@@ -311,6 +317,39 @@ namespace MESSimulator
                         reply["Message"] = "Simulation Success";
                         break;
 
+                    case "WOCHECKIN_MULTI":
+                        var wosInMulti = new List<string>();
+                        if (req["WoNoDt"] != null)
+                        {
+                            try
+                            {
+                                var arr = JArray.Parse(req["WoNoDt"].ToString());
+                                foreach (var item in arr)
+                                {
+                                    string wo = item["WoNo"]?.ToString();
+                                    if (!string.IsNullOrEmpty(wo)) wosInMulti.Add(wo);
+                                }
+                            }
+                            catch { }
+                        }
+                        else if (req["WoNoList"] != null && req["WoNoList"] is JArray arrIn)
+                        {
+                            foreach (var item in arrIn)
+                            {
+                                string wo = item["WoNo"]?.ToString();
+                                if (!string.IsNullOrEmpty(wo)) wosInMulti.Add(wo);
+                            }
+                        }
+
+                        foreach (var wo in wosInMulti)
+                        {
+                            _woAlreadyInMap[wo] = true;
+                        }
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "W001";
+                        reply["Message"] = "Simulation Multi-Checkin Success";
+                        break;
+
                     case "WOCHECKOUT":
                         string wonoOut = req["WONO"]?.ToString() ?? "";
                         if (_woRequiredCodesMap.TryGetValue(wonoOut, out var reqOutCodes) && reqOutCodes != null && reqOutCodes.Count > 0)
@@ -350,6 +389,40 @@ namespace MESSimulator
                         _woRequiredCodesMap.TryRemove(wonoOut, out _);
                         reply["Result"] = "success";
                         reply["Message"] = "Simulation Success";
+                        break;
+
+                    case "WOCHECKOUT_MULTI":
+                        var wosOutMulti = new List<string>();
+                        if (req["WoNoDt"] != null)
+                        {
+                            try
+                            {
+                                var arr = JArray.Parse(req["WoNoDt"].ToString());
+                                foreach (var item in arr)
+                                {
+                                    string wo = item["WoNo"]?.ToString();
+                                    if (!string.IsNullOrEmpty(wo)) wosOutMulti.Add(wo);
+                                }
+                            }
+                            catch { }
+                        }
+                        else if (req["WoNoList"] != null && req["WoNoList"] is JArray arrOut)
+                        {
+                            foreach (var item in arrOut)
+                            {
+                                string wo = item["WoNo"]?.ToString();
+                                if (!string.IsNullOrEmpty(wo)) wosOutMulti.Add(wo);
+                            }
+                        }
+
+                        foreach (var wo in wosOutMulti)
+                        {
+                            _woAlreadyInMap[wo] = false;
+                            _woRequiredCodesMap.TryRemove(wo, out _);
+                        }
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "W001";
+                        reply["Message"] = "Simulation Multi-Checkout Success";
                         break;
 
                     case "EQPSTATUS":
