@@ -51,6 +51,7 @@ namespace EQSimulator
             btnRtnTraceData = new System.Windows.Forms.Button();
             btnAlarm = new System.Windows.Forms.Button();
             _btnAutoTest = new System.Windows.Forms.Button();
+            chkPPSelectPass = new System.Windows.Forms.CheckBox();
             pnlStatusReport = new System.Windows.Forms.Panel();
             _cmbStatusType = new System.Windows.Forms.ComboBox();
             _cmbStatus = new System.Windows.Forms.ComboBox();
@@ -354,6 +355,7 @@ namespace EQSimulator
             flowActions.Controls.Add(btnAlarm);
             flowActions.Controls.Add(_btnAutoTest);
             flowActions.Controls.Add(pnlStatusReport);
+            flowActions.Controls.Add(chkPPSelectPass);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Location = new System.Drawing.Point(4, 20);
             flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -494,6 +496,19 @@ namespace EQSimulator
             btnReportStatus.UseVisualStyleBackColor = true;
             btnReportStatus.Click += BtnReportStatus_Click;
             // 
+            // chkPPSelectPass
+            // 
+            chkPPSelectPass.AutoSize = true;
+            chkPPSelectPass.Checked = true;
+            chkPPSelectPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkPPSelectPass.Location = new System.Drawing.Point(680, 52);
+            chkPPSelectPass.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            chkPPSelectPass.Name = "chkPPSelectPass";
+            chkPPSelectPass.Size = new System.Drawing.Size(110, 19);
+            chkPPSelectPass.TabIndex = 9;
+            chkPPSelectPass.Text = "PP_SELECT Pass";
+            chkPPSelectPass.UseVisualStyleBackColor = true;
+            // 
             // _txtLog
             // 
             _txtLog.BackColor = System.Drawing.Color.Black;
@@ -519,13 +534,14 @@ namespace EQSimulator
             Controls.Add(panelTop);
             Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             Name = "MainForm";
-            Text = "EQ Protocol Simulator v1.0.3";
+            Text = "Equipment MQTT Simulator v1.0.0";
             panelTop.ResumeLayout(false);
             panelTop.PerformLayout();
             grpParams.ResumeLayout(false);
             grpParams.PerformLayout();
             _grpActions.ResumeLayout(false);
             flowActions.ResumeLayout(false);
+            flowActions.PerformLayout();
             pnlStatusReport.ResumeLayout(false);
             ResumeLayout(false);
             PerformLayout();
@@ -568,6 +584,7 @@ namespace EQSimulator
         private System.Windows.Forms.Button btnRtnTraceData;
         private System.Windows.Forms.Button btnAlarm;
         private System.Windows.Forms.Button _btnAutoTest;
+        private System.Windows.Forms.CheckBox chkPPSelectPass;
         private System.Windows.Forms.Panel pnlStatusReport;
         private System.Windows.Forms.ComboBox _cmbStatusType;
         private System.Windows.Forms.ComboBox _cmbStatus;

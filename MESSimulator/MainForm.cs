@@ -229,9 +229,30 @@ namespace MESSimulator
                         reply["IsUrgent"] = "N";
                         reply["CustomerDeliveryTime"] = "9999-12-31 00:00:00.000";
 
-                        string mockRecipe = wonoQry.IndexOf("DIFF", StringComparison.OrdinalIgnoreCase) >= 0 
-                            ? $"SIM_RECIPE_DIFF_{wonoQry}" 
-                            : "SIM_RECIPE_001";
+                        bool isRecipeMismatch = false;
+                        try
+                        {
+                            if (this.InvokeRequired)
+                            {
+                                isRecipeMismatch = (bool)this.Invoke(new Func<bool>(() => chkRecipeMismatch != null && chkRecipeMismatch.Checked));
+                            }
+                            else
+                            {
+                                isRecipeMismatch = chkRecipeMismatch != null && chkRecipeMismatch.Checked;
+                            }
+                        }
+                        catch { }
+
+                        string mockRecipe = "SIM_RECIPE_001";
+                        if (isRecipeMismatch)
+                        {
+                            int lastVal = !string.IsNullOrEmpty(wonoQry) ? (int)wonoQry[wonoQry.Length - 1] : 0;
+                            mockRecipe = $"RECIPE_{(lastVal % 2 == 0 ? "A" : "B")}_{wonoQry}";
+                        }
+                        else if (wonoQry.IndexOf("DIFF", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            mockRecipe = $"SIM_RECIPE_DIFF_{wonoQry}";
+                        }
 
                         var paramDt = new JArray();
                         paramDt.Add(new JObject { 

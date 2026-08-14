@@ -47,12 +47,14 @@ namespace MESSimulator
             chkWOCHECKINPass = new System.Windows.Forms.CheckBox();
             chkWOCHECKOUTPass = new System.Windows.Forms.CheckBox();
             chkEQPSTATUSPass = new System.Windows.Forms.CheckBox();
+            chkRecipeMismatch = new System.Windows.Forms.CheckBox();
             panelTop.Controls.Add(lblHandshakeResponses);
             panelTop.Controls.Add(chkUserVerifyPass);
             panelTop.Controls.Add(chkWOQRYPass);
             panelTop.Controls.Add(chkWOCHECKINPass);
             panelTop.Controls.Add(chkWOCHECKOUTPass);
             panelTop.Controls.Add(chkEQPSTATUSPass);
+            panelTop.Controls.Add(chkRecipeMismatch);
             panelTop.Controls.Add(lblInRequireInputCode);
             panelTop.Controls.Add(txtInRequireInputCode);
             panelTop.Controls.Add(lblOutRequireInputCode);
@@ -218,6 +220,17 @@ namespace MESSimulator
             chkEQPSTATUSPass.Text = "EQPSTATUS";
             chkEQPSTATUSPass.UseVisualStyleBackColor = true;
             // 
+            // chkRecipeMismatch
+            // 
+            chkRecipeMismatch.AutoSize = true;
+            chkRecipeMismatch.Checked = false;
+            chkRecipeMismatch.Location = new System.Drawing.Point(645, 50);
+            chkRecipeMismatch.Name = "chkRecipeMismatch";
+            chkRecipeMismatch.Size = new System.Drawing.Size(185, 19);
+            chkRecipeMismatch.TabIndex = 15;
+            chkRecipeMismatch.Text = "多工單 Recipe 不一致 (模擬 Fail)";
+            chkRecipeMismatch.UseVisualStyleBackColor = true;
+            // 
             // splitContainer
             // 
             splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -339,5 +352,6 @@ namespace MESSimulator
         private System.Windows.Forms.CheckBox chkWOCHECKINPass;
         private System.Windows.Forms.CheckBox chkWOCHECKOUTPass;
         private System.Windows.Forms.CheckBox chkEQPSTATUSPass;
+        private System.Windows.Forms.CheckBox chkRecipeMismatch;
     }
 }

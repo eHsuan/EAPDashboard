@@ -268,15 +268,37 @@ namespace EQSimulator
                         case CommandType.RemoteCMD:
                             var rcmd = (RemoteCMDMessage)msg;
                             if (rcmd.RemoteCMDType == RemoteCommandType.PP_SELECT) {
-                                Log($"-> RemoteCMD: PP_SELECT. Recipe: {rcmd.RecipeID}. Switching...");
-                                Task.Delay(2000).ContinueWith(_ => {
-                                    SendMessage(new ReplyRemoteCMDMessage { 
-                                        CMD = CommandType.ReplyRemoteCMD, 
-                                        RemoteCMDType = RemoteCommandType.PP_SELECT,
-                                        RtnResult = RtnResult.PASS 
-                                    }, rcmd);
-                                    Log($"-> Recipe {rcmd.RecipeID} Change SUCCESS.");
-                                });
+                                bool isPass = false;
+                                try {
+                                    if (this.InvokeRequired) {
+                                        isPass = (bool)this.Invoke(new Func<bool>(() => chkPPSelectPass == null || chkPPSelectPass.Checked));
+                                    } else {
+                                        isPass = chkPPSelectPass == null || chkPPSelectPass.Checked;
+                                    }
+                                } catch { isPass = true; }
+
+                                if (isPass) {
+                                    Log($"-> RemoteCMD: PP_SELECT. Recipe: {rcmd.RecipeID}. Switching...");
+                                    Task.Delay(2000).ContinueWith(_ => {
+                                        SendMessage(new ReplyRemoteCMDMessage { 
+                                            CMD = CommandType.ReplyRemoteCMD, 
+                                            RemoteCMDType = RemoteCommandType.PP_SELECT,
+                                            RtnResult = RtnResult.PASS 
+                                        }, rcmd);
+                                        Log($"-> Recipe {rcmd.RecipeID} Change SUCCESS.");
+                                    });
+                                } else {
+                                    Log($"-> RemoteCMD: PP_SELECT. Recipe: {rcmd.RecipeID}. [Forced FAIL] Recipe Mismatch.");
+                                    Task.Delay(1000).ContinueWith(_ => {
+                                        SendMessage(new ReplyRemoteCMDMessage { 
+                                            CMD = CommandType.ReplyRemoteCMD, 
+                                            RemoteCMDType = RemoteCommandType.PP_SELECT,
+                                            RtnResult = RtnResult.FAIL,
+                                            RtnMsg = "Recipe ID mismatch: Target recipe parameter incompatible with station config"
+                                        }, rcmd);
+                                        Log($"-> Recipe {rcmd.RecipeID} Change FAILED (Simulated Mismatch).");
+                                    });
+                                }
                             }
                             break;
 
