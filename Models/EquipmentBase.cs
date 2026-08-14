@@ -1268,7 +1268,8 @@ namespace EAPDashboard.Models
                 lock (_logLock) {
                     string logDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", timestamp.ToString("yyyyMMdd"), this.Id ?? "System");
                     if (!Directory.Exists(logDir)) Directory.CreateDirectory(logDir);
-                    string filePath = Path.Combine(logDir, string.Format("{0:HH}.txt", timestamp));
+                    int maxMB = LogMaintenanceService.CurrentSettings?.MaxFileSizeMB ?? 20;
+                    string filePath = LogMaintenanceService.GetLogFilePath(logDir, timestamp, maxMB);
                     string evtPart = string.IsNullOrEmpty(eventName) ? "" : string.Format(" [{0}]", eventName);
                     File.AppendAllText(filePath, string.Format("[{0:yyyy-MM-dd HH:mm:ss.fff}] [{1}]{2} : {3}{4}", timestamp, level, evtPart, message, Environment.NewLine));
                 }

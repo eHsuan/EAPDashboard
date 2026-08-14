@@ -80,7 +80,7 @@ namespace EAPDashboard
                 richTextBoxLogs.Clear();
                 DateTime start = dateTimePickerStart.Value;
                 DateTime end = dateTimePickerEnd.Value;
-                var filteredLogs = GetLogsInRange(start, end);
+                var filteredLogs = GetLogsInRange(start, end, out var archivedDates);
 
                 richTextBoxLogs.SuspendLayout();
                 foreach (var log in filteredLogs)
@@ -88,6 +88,15 @@ namespace EAPDashboard
                     AppendLogToRichTextBoxInternal(log.Item1, log.Item2, log.Item3);
                 }
                 richTextBoxLogs.ResumeLayout();
+
+                if (archivedDates != null && archivedDates.Count > 0)
+                {
+                    MessageBox.Show(
+                        $"查詢區間內包含已封存的歷史日誌檔案：\n{string.Join("\n", archivedDates)}\n\n依系統安全策略，已封存日誌無法在此直接顯示。\n如需檢視，請至本機 logs 資料夾手動解壓縮後檢視。",
+                        "日誌已封存提示",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information);
+                }
             }
             catch (Exception ex)
             {
@@ -142,7 +151,7 @@ namespace EAPDashboard
 
                 if (saveFileDialogCsv.ShowDialog() == DialogResult.OK)
                 {
-                    var logs = GetLogsInRange(start, end);
+                    var logs = GetLogsInRange(start, end, out var archivedDates);
                     var csvBuilder = new StringBuilder();
                     csvBuilder.AppendLine("Timestamp,Level,Message");
 
@@ -155,7 +164,19 @@ namespace EAPDashboard
                     }
 
                     File.WriteAllText(saveFileDialogCsv.FileName, csvBuilder.ToString());
-                    MessageBox.Show($"Log successfully exported to:\n{saveFileDialogCsv.FileName}", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    if (archivedDates != null && archivedDates.Count > 0)
+                    {
+                        MessageBox.Show(
+                            $"Log 已成功匯出至：\n{saveFileDialogCsv.FileName}\n\n注意：查詢區間內部分已封存之日誌未包含在此匯出檔中：\n{string.Join("\n", archivedDates)}",
+                            "匯出完成 (含封存提醒)",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Log successfully exported to:\n{saveFileDialogCsv.FileName}", "Export Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
                 }
             }
             catch (Exception ex)
@@ -166,22 +187,38 @@ namespace EAPDashboard
 
         private List<Tuple<DateTime, LogLevel, string>> GetLogsInRange(DateTime start, DateTime end)
         {
+            return GetLogsInRange(start, end, out _);
+        }
+
+        private List<Tuple<DateTime, LogLevel, string>> GetLogsInRange(DateTime start, DateTime end, out List<string> archivedDates)
+        {
             var logs = new List<Tuple<DateTime, LogLevel, string>>();
+            archivedDates = new List<string>();
             var logLineRegex = new Regex(@"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\] \[(.*?)\] : (.*)$", RegexOptions.Compiled);
 
             // 遍歷範圍內的每一天
             for (DateTime date = start.Date; date <= end.Date; date = date.AddDays(1))
             {
                 string dayDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", date.ToString("yyyyMMdd"), _equipment.Id);
-                if (!Directory.Exists(dayDir)) continue;
+                string zipPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", $"{date:yyyyMMdd}.zip");
 
-                // 獲取該目錄下所有小時的 .txt 檔案
+                if (!Directory.Exists(dayDir))
+                {
+                    if (File.Exists(zipPath))
+                    {
+                        archivedDates.Add($"{date:yyyy-MM-dd} (logs/{date:yyyyMMdd}.zip)");
+                    }
+                    continue;
+                }
+
+                // 獲取該目錄下所有小時的 .txt 檔案（包含滾動切分的 08_1.txt 等）
                 var files = Directory.GetFiles(dayDir, "*.txt").OrderBy(f => f).ToList();
 
                 foreach (var file in files)
                 {
                     string fileName = Path.GetFileNameWithoutExtension(file);
-                    if (!int.TryParse(fileName, out int hour)) continue;
+                    string hourPart = fileName.Split('_')[0];
+                    if (!int.TryParse(hourPart, out int hour)) continue;
 
                     // 檢查檔案代表的小時是否在搜尋範圍內
                     DateTime fileHour = date.AddHours(hour);

@@ -37,6 +37,7 @@ namespace EAPDashboard
         public GatewaySettings GatewaySettings { get; set; }
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
         public PostgresDbSettings PostgresDbSettings { get; set; }
+        public LogSettings LogSettings { get; set; }
         public List<EquipmentConfig> Equipments { get; set; }
     }
 
@@ -175,6 +176,13 @@ namespace EAPDashboard
                         System.Diagnostics.Debug.WriteLine($"LocalDataService Init Failed: {ex.Message}");
                     }
                 }
+
+                // 啟動日誌生命週期維運管理（歷史壓縮、過期刪除）
+                try
+                {
+                    LogMaintenanceService.Start(_appConfig.LogSettings ?? new LogSettings());
+                }
+                catch { }
 
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {

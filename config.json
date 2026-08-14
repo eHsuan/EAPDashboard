@@ -26,12 +26,18 @@
     "Enabled": true,
     "RetentionDays": 14
   },
+  "LogSettings": {
+    "Enabled": true,
+    "CompressDays": 3,
+    "RetentionDays": 30,
+    "MaxFileSizeMB": 20
+  },
   "Equipments": [
     {
       "Id": "ET0026",
       "Name": "鎳鉻蝕刻",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/ET0026_TEST",
+      "Topic": "factory/LOCAL/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
       "IsActive": true
