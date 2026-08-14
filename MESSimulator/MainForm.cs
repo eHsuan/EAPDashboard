@@ -140,6 +140,30 @@ namespace MESSimulator
             catch { return ""; }
         }
 
+        private bool IsHandshakePass(string txnName)
+        {
+            if (this.InvokeRequired)
+            {
+                return (bool)this.Invoke(new Func<bool>(() => IsHandshakePass(txnName)));
+            }
+
+            switch (txnName)
+            {
+                case "UserVerify":
+                    return chkUserVerifyPass == null || chkUserVerifyPass.Checked;
+                case "WOQRY":
+                    return chkWOQRYPass == null || chkWOQRYPass.Checked;
+                case "WOCHECKIN":
+                    return chkWOCHECKINPass == null || chkWOCHECKINPass.Checked;
+                case "WOCHECKOUT":
+                    return chkWOCHECKOUTPass == null || chkWOCHECKOUTPass.Checked;
+                case "EQPSTATUS":
+                    return chkEQPSTATUSPass == null || chkEQPSTATUSPass.Checked;
+                default:
+                    return true;
+            }
+        }
+
         private string GenerateMockReply(string jsonReq)
         {
             if (string.IsNullOrEmpty(jsonReq)) return "{\"Result\":\"FAIL\", \"Message\":\"Empty Request\"}";
@@ -148,6 +172,16 @@ namespace MESSimulator
             {
                 var req = JObject.Parse(jsonReq);
                 string txn = req["TransactionName"]?.ToString();
+
+                if (!IsHandshakePass(txn))
+                {
+                    JObject failReply = new JObject();
+                    failReply["TransactionName"] = txn;
+                    failReply["Result"] = "FAIL";
+                    failReply["ResultCode"] = "ERR_SIM_FAIL";
+                    failReply["Message"] = $"[Simulation] Forced FAIL response for {txn}";
+                    return failReply.ToString(Newtonsoft.Json.Formatting.None);
+                }
 
                 JObject reply = new JObject();
                 reply["TransactionName"] = txn;

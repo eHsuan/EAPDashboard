@@ -41,6 +41,18 @@ namespace MESSimulator
             // 
             // panelTop
             // 
+            lblHandshakeResponses = new System.Windows.Forms.Label();
+            chkUserVerifyPass = new System.Windows.Forms.CheckBox();
+            chkWOQRYPass = new System.Windows.Forms.CheckBox();
+            chkWOCHECKINPass = new System.Windows.Forms.CheckBox();
+            chkWOCHECKOUTPass = new System.Windows.Forms.CheckBox();
+            chkEQPSTATUSPass = new System.Windows.Forms.CheckBox();
+            panelTop.Controls.Add(lblHandshakeResponses);
+            panelTop.Controls.Add(chkUserVerifyPass);
+            panelTop.Controls.Add(chkWOQRYPass);
+            panelTop.Controls.Add(chkWOCHECKINPass);
+            panelTop.Controls.Add(chkWOCHECKOUTPass);
+            panelTop.Controls.Add(chkEQPSTATUSPass);
             panelTop.Controls.Add(lblInRequireInputCode);
             panelTop.Controls.Add(txtInRequireInputCode);
             panelTop.Controls.Add(lblOutRequireInputCode);
@@ -54,7 +66,7 @@ namespace MESSimulator
             panelTop.Location = new System.Drawing.Point(0, 0);
             panelTop.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             panelTop.Name = "panelTop";
-            panelTop.Size = new System.Drawing.Size(1176, 75);
+            panelTop.Size = new System.Drawing.Size(1176, 80);
             panelTop.TabIndex = 0;
             // 
             // lblInRequireInputCode
@@ -135,25 +147,81 @@ namespace MESSimulator
             lblPort.Name = "lblPort";
             lblPort.Size = new System.Drawing.Size(33, 15);
             lblPort.TabIndex = 1;
-            lblPort.Text = "Port:";
-            // 
-            // lblStatus
-            // 
-            lblStatus.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            lblStatus.AutoSize = true;
-            lblStatus.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            lblStatus.ForeColor = System.Drawing.Color.Red;
-            lblStatus.Location = new System.Drawing.Point(992, 25);
-            lblStatus.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            lblStatus.Name = "lblStatus";
-            lblStatus.Size = new System.Drawing.Size(141, 21);
-            lblStatus.TabIndex = 0;
             lblStatus.Text = "● Server Stopped";
+            // 
+            // lblHandshakeResponses
+            // 
+            lblHandshakeResponses.AutoSize = true;
+            lblHandshakeResponses.Location = new System.Drawing.Point(23, 52);
+            lblHandshakeResponses.Name = "lblHandshakeResponses";
+            lblHandshakeResponses.Size = new System.Drawing.Size(125, 15);
+            lblHandshakeResponses.TabIndex = 9;
+            lblHandshakeResponses.Text = "交握回復 (PASS):";
+            // 
+            // chkUserVerifyPass
+            // 
+            chkUserVerifyPass.AutoSize = true;
+            chkUserVerifyPass.Checked = true;
+            chkUserVerifyPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkUserVerifyPass.Location = new System.Drawing.Point(155, 50);
+            chkUserVerifyPass.Name = "chkUserVerifyPass";
+            chkUserVerifyPass.Size = new System.Drawing.Size(81, 19);
+            chkUserVerifyPass.TabIndex = 10;
+            chkUserVerifyPass.Text = "UserVerify";
+            chkUserVerifyPass.UseVisualStyleBackColor = true;
+            // 
+            // chkWOQRYPass
+            // 
+            chkWOQRYPass.AutoSize = true;
+            chkWOQRYPass.Checked = true;
+            chkWOQRYPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkWOQRYPass.Location = new System.Drawing.Point(245, 50);
+            chkWOQRYPass.Name = "chkWOQRYPass";
+            chkWOQRYPass.Size = new System.Drawing.Size(71, 19);
+            chkWOQRYPass.TabIndex = 11;
+            chkWOQRYPass.Text = "WOQRY";
+            chkWOQRYPass.UseVisualStyleBackColor = true;
+            // 
+            // chkWOCHECKINPass
+            // 
+            chkWOCHECKINPass.AutoSize = true;
+            chkWOCHECKINPass.Checked = true;
+            chkWOCHECKINPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkWOCHECKINPass.Location = new System.Drawing.Point(325, 50);
+            chkWOCHECKINPass.Name = "chkWOCHECKINPass";
+            chkWOCHECKINPass.Size = new System.Drawing.Size(95, 19);
+            chkWOCHECKINPass.TabIndex = 12;
+            chkWOCHECKINPass.Text = "WOCHECKIN";
+            chkWOCHECKINPass.UseVisualStyleBackColor = true;
+            // 
+            // chkWOCHECKOUTPass
+            // 
+            chkWOCHECKOUTPass.AutoSize = true;
+            chkWOCHECKOUTPass.Checked = true;
+            chkWOCHECKOUTPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkWOCHECKOUTPass.Location = new System.Drawing.Point(430, 50);
+            chkWOCHECKOUTPass.Name = "chkWOCHECKOUTPass";
+            chkWOCHECKOUTPass.Size = new System.Drawing.Size(107, 19);
+            chkWOCHECKOUTPass.TabIndex = 13;
+            chkWOCHECKOUTPass.Text = "WOCHECKOUT";
+            chkWOCHECKOUTPass.UseVisualStyleBackColor = true;
+            // 
+            // chkEQPSTATUSPass
+            // 
+            chkEQPSTATUSPass.AutoSize = true;
+            chkEQPSTATUSPass.Checked = true;
+            chkEQPSTATUSPass.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkEQPSTATUSPass.Location = new System.Drawing.Point(545, 50);
+            chkEQPSTATUSPass.Name = "chkEQPSTATUSPass";
+            chkEQPSTATUSPass.Size = new System.Drawing.Size(89, 19);
+            chkEQPSTATUSPass.TabIndex = 14;
+            chkEQPSTATUSPass.Text = "EQPSTATUS";
+            chkEQPSTATUSPass.UseVisualStyleBackColor = true;
             // 
             // splitContainer
             // 
             splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
-            splitContainer.Location = new System.Drawing.Point(0, 75);
+            splitContainer.Location = new System.Drawing.Point(0, 80);
             splitContainer.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             splitContainer.Name = "splitContainer";
             // 
@@ -265,5 +333,11 @@ namespace MESSimulator
         private System.Windows.Forms.TextBox txtRequest;
         private System.Windows.Forms.GroupBox grpLog;
         private System.Windows.Forms.TextBox txtLog;
+        private System.Windows.Forms.Label lblHandshakeResponses;
+        private System.Windows.Forms.CheckBox chkUserVerifyPass;
+        private System.Windows.Forms.CheckBox chkWOQRYPass;
+        private System.Windows.Forms.CheckBox chkWOCHECKINPass;
+        private System.Windows.Forms.CheckBox chkWOCHECKOUTPass;
+        private System.Windows.Forms.CheckBox chkEQPSTATUSPass;
     }
 }
