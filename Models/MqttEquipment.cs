@@ -434,8 +434,6 @@ namespace EAPDashboard.Models
             switch (upperEvent)
             {
                 case "USER_VERIFY":
-                case "500":
-                case "100":
                     string userBarcode = null;
                     string userId = null;
                     string userPassword = null;
@@ -477,30 +475,6 @@ namespace EAPDashboard.Models
                         RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
                         RtnMsg = uvp.Length > 2 ? uvp[2] : "" 
                     }, evm);
-                    break;
-
-                case "BATCH_PROCESS_DATA":
-                case "101":
-                    await SaveProductionDataAsync("BatchData", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
-                    break;
-
-                case "KEY_PARAMETERS":
-                case "102":
-                    await SaveProductionDataAsync("KeyParams", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
-                    break;
-
-                case "PANEL_IN":
-                case "103":
-                    await SaveProductionDataAsync("PanelIn", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
-                    break;
-
-                case "PANEL_OUT":
-                case "104":
-                    await SaveProductionDataAsync("PanelOut", "", evm);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 case "KPIV_REPORT":

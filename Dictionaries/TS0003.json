@@ -1,10 +1,7 @@
 {
   "Model": "MQTT_V1.0.1_Standard",
   "Events": {
-    "500": "USER_VERIFY",
-    "100": "PANEL_IN",
-    "101": "PANEL_OUT",
-    "300": "RECIPE_CHANGE_REQ"
+    "500": "USER_VERIFY"
   },
   "Variables": {
     "101": "UserID",
