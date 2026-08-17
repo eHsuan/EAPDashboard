@@ -69,37 +69,6 @@ namespace EAPDashboard.Models
         public string NGUnit { get; set; }
     }
 
-    public class AddProductLeftoverRequest : MESBaseMessage
-    {
-        public string WONO { get; set; }
-        public string Qty { get; set; }
-        public string ReelID { get; set; }
-    }
-
-    public class AddProductLeftoverReply : MESBaseMessage
-    {
-        public string Result { get; set; }
-        public string ResultCode { get; set; }
-        public string Message { get; set; }
-    }
-
-    public class UseProductLeftoverRequest : MESBaseMessage
-    {
-        public string WONO { get; set; }
-        public string ReelID { get; set; }
-        public string LeftOverWONo { get; set; }
-        public string LeftOverBatchNo { get; set; }
-        public string AddQty { get; set; }
-        public string GapQty { get; set; }
-    }
-
-    public class UseProductLeftoverReply : MESBaseMessage
-    {
-        public string Result { get; set; }
-        public string ResultCode { get; set; }
-        public string Message { get; set; }
-    }
-
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
