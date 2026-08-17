@@ -429,9 +429,14 @@ namespace EAPDashboard.Models
 
         private async Task HandleEventReport(EventReportMessage evm, string rawJson)
         {
-            string rawEventId = evm.EventID;
+            string rawEventId = evm.EventID ?? "";
             string logicalEvent = EqpDictionary?.GetEventName(rawEventId) ?? rawEventId;
             string upperEvent = logicalEvent.ToUpper();
+
+            if (upperEvent.StartsWith("UNKNOWN_CEID_"))
+            {
+                upperEvent = upperEvent.Substring("UNKNOWN_CEID_".Length);
+            }
 
             OnLogReceived(LogLevel.Info, $"[EVENT] {Id} EventID (CEID): {rawEventId} (Mapped: {logicalEvent})");
 
@@ -440,13 +445,16 @@ namespace EAPDashboard.Models
                 if (evm.Data == null) return null;
                 return evm.Data.FirstOrDefault(x => 
                     x.Parameter.Equals(logicalName, StringComparison.OrdinalIgnoreCase) ||
-                    (EqpDictionary?.GetVariableName(x.Parameter) ?? x.Parameter).Equals(logicalName, StringComparison.OrdinalIgnoreCase)
+                    (EqpDictionary?.GetVariableName(x.Parameter) ?? x.Parameter).Equals(logicalName, StringComparison.OrdinalIgnoreCase) ||
+                    (EqpDictionary?.Variables != null && EqpDictionary.Variables.Any(kvp => kvp.Value.Equals(logicalName, StringComparison.OrdinalIgnoreCase) && kvp.Key.Equals(x.Parameter, StringComparison.OrdinalIgnoreCase)))
                 )?.Value;
             }
 
             switch (upperEvent)
             {
+                case "500":
                 case "USER_VERIFY":
+                case "USERVERIFY":
                     string userBarcode = null;
                     string userId = null;
                     string userPassword = null;
@@ -490,6 +498,7 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
+                case "501":
                 case "NGCODE_REPORT":
                 case "NGCODEREPORT":
                     string ngWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
@@ -502,6 +511,7 @@ namespace EAPDashboard.Models
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
+                case "502":
                 case "LEFTOVERS_REPORT":
                 case "LEFTOVERSREPORT":
                     string leftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
@@ -517,6 +527,7 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
+                case "503":
                 case "PRODUCT_LEFTOVER_REPORT":
                 case "PRODUCTLEFTOVERREPORT":
                     string pLeftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();

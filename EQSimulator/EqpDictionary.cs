@@ -28,11 +28,23 @@ namespace EQSimulator
         {
             try 
             {
-                string dictPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Dictionaries", $"{eqId}.json");
-                if (File.Exists(dictPath))
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string[] candidatePaths = new[]
                 {
-                    string json = File.ReadAllText(dictPath);
-                    return JsonConvert.DeserializeObject<EqpDictionary>(json);
+                    Path.Combine(baseDir, "Dictionaries", $"{eqId}.json"),
+                    Path.Combine(baseDir, "Dictionaries", "MQTT_Standard.json"),
+                    Path.Combine(baseDir, "..", "..", "..", "..", "Dictionaries", $"{eqId}.json"),
+                    Path.Combine(baseDir, "..", "..", "..", "..", "Dictionaries", "MQTT_Standard.json")
+                };
+
+                foreach (var path in candidatePaths)
+                {
+                    if (File.Exists(path))
+                    {
+                        string json = File.ReadAllText(path);
+                        var dict = JsonConvert.DeserializeObject<EqpDictionary>(json);
+                        if (dict != null) return dict;
+                    }
                 }
             } catch { }
             return new EqpDictionary();
@@ -40,25 +52,41 @@ namespace EQSimulator
 
         public string GetCeid(string eventName)
         {
-            foreach (var kvp in Events)
+            if (string.IsNullOrWhiteSpace(eventName)) return eventName ?? "";
+            string trimmed = eventName.Trim();
+            if (Events != null)
             {
-                if (kvp.Value.Equals(eventName, StringComparison.OrdinalIgnoreCase)) return kvp.Key;
+                foreach (var kvp in Events)
+                {
+                    if (kvp.Value.Equals(trimmed, StringComparison.OrdinalIgnoreCase)) return kvp.Key;
+                }
+                if (Events.ContainsKey(trimmed)) return trimmed;
             }
             return eventName;
         }
 
         public string GetVid(string varName)
         {
-            foreach (var kvp in Variables)
+            if (string.IsNullOrWhiteSpace(varName)) return varName ?? "";
+            string trimmed = varName.Trim();
+            if (Variables != null)
             {
-                if (kvp.Value.Equals(varName, StringComparison.OrdinalIgnoreCase)) return kvp.Key;
+                foreach (var kvp in Variables)
+                {
+                    if (kvp.Value.Equals(trimmed, StringComparison.OrdinalIgnoreCase)) return kvp.Key;
+                }
+                if (Variables.ContainsKey(trimmed)) return trimmed;
             }
             return varName;
         }
         
         public string GetVarName(string vid)
         {
-            return Variables.TryGetValue(vid, out var name) ? name : vid;
+            if (string.IsNullOrWhiteSpace(vid)) return vid ?? "";
+            string trimmed = vid.Trim();
+            if (Variables != null && Variables.TryGetValue(trimmed, out var name))
+                return name;
+            return vid;
         }
     }
 }

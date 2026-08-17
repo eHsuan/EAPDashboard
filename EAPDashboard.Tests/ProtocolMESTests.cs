@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Protocol.MES.Enums;
 using Protocol.MES.Messages;
+using System.Linq;
 using Xunit;
 
 namespace EAPDashboard.Tests
@@ -56,6 +57,44 @@ namespace EAPDashboard.Tests
             req.TransactionName.Should().Be(MESTransactionName.WOCHECKOUT);
             req.WONO.Should().Be("WO20260701");
             req.OutPut.Should().Be("10");
+        }
+
+        [Fact]
+        public void AddProductLeftoverRequest_Initialization_ShouldSetCorrectTransactionName()
+        {
+            var req = new Protocol.MES.Messages.AddProductLeftoverRequest
+            {
+                WONO = "WO20260701",
+                Qty = "10",
+                ReelID = "REEL001",
+                EqpNo = "EQ01",
+                UserID = "EAP"
+            };
+
+            req.TransactionName.Should().Be(MESTransactionName.AddProductLeftover);
+            req.WONO.Should().Be("WO20260701");
+            req.Qty.Should().Be("10");
+            req.ReelID.Should().Be("REEL001");
+        }
+
+        [Fact]
+        public void UseProductLeftoverRequest_Initialization_ShouldSetCorrectTransactionName()
+        {
+            var req = new Protocol.MES.Messages.UseProductLeftoverRequest
+            {
+                WONO = "WO20260701",
+                ReelID = "REEL001",
+                LeftOverWONo = "WO_PREV",
+                LeftOverBatchNo = "BATCH01",
+                AddQty = "10",
+                GapQty = "0",
+                EqpNo = "EQ01",
+                UserID = "EAP"
+            };
+
+            req.TransactionName.Should().Be(MESTransactionName.UseProductLeftover);
+            req.WONO.Should().Be("WO20260701");
+            req.ReelID.Should().Be("REEL001");
         }
     }
 }
