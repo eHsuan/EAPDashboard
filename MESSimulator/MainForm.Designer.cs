@@ -48,6 +48,7 @@ namespace MESSimulator
             chkWOCHECKOUTPass = new System.Windows.Forms.CheckBox();
             chkEQPSTATUSPass = new System.Windows.Forms.CheckBox();
             chkRecipeMismatch = new System.Windows.Forms.CheckBox();
+            chkEnableNGCodeList = new System.Windows.Forms.CheckBox();
             panelTop.Controls.Add(lblHandshakeResponses);
             panelTop.Controls.Add(chkUserVerifyPass);
             panelTop.Controls.Add(chkWOQRYPass);
@@ -55,6 +56,7 @@ namespace MESSimulator
             panelTop.Controls.Add(chkWOCHECKOUTPass);
             panelTop.Controls.Add(chkEQPSTATUSPass);
             panelTop.Controls.Add(chkRecipeMismatch);
+            panelTop.Controls.Add(chkEnableNGCodeList);
             panelTop.Controls.Add(lblInRequireInputCode);
             panelTop.Controls.Add(txtInRequireInputCode);
             panelTop.Controls.Add(lblOutRequireInputCode);
@@ -231,6 +233,18 @@ namespace MESSimulator
             chkRecipeMismatch.Text = "多工單 Recipe 不一致 (模擬 Fail)";
             chkRecipeMismatch.UseVisualStyleBackColor = true;
             // 
+            // chkEnableNGCodeList
+            // 
+            chkEnableNGCodeList.AutoSize = true;
+            chkEnableNGCodeList.Checked = true;
+            chkEnableNGCodeList.CheckState = System.Windows.Forms.CheckState.Checked;
+            chkEnableNGCodeList.Location = new System.Drawing.Point(845, 50);
+            chkEnableNGCodeList.Name = "chkEnableNGCodeList";
+            chkEnableNGCodeList.Size = new System.Drawing.Size(165, 19);
+            chkEnableNGCodeList.TabIndex = 16;
+            chkEnableNGCodeList.Text = "啟用 NGCodeListDT 模擬";
+            chkEnableNGCodeList.UseVisualStyleBackColor = true;
+            // 
             // splitContainer
             // 
             splitContainer.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -353,5 +367,6 @@ namespace MESSimulator
         private System.Windows.Forms.CheckBox chkWOCHECKOUTPass;
         private System.Windows.Forms.CheckBox chkEQPSTATUSPass;
         private System.Windows.Forms.CheckBox chkRecipeMismatch;
+        private System.Windows.Forms.CheckBox chkEnableNGCodeList;
     }
 }

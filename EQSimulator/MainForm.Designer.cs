@@ -56,6 +56,14 @@ namespace EQSimulator
             _cmbStatusType = new System.Windows.Forms.ComboBox();
             _cmbStatus = new System.Windows.Forms.ComboBox();
             btnReportStatus = new System.Windows.Forms.Button();
+            pnlNGGroup = new System.Windows.Forms.Panel();
+            lblNGCode = new System.Windows.Forms.Label();
+            _cboNGCode = new System.Windows.Forms.ComboBox();
+            _txtNGName = new System.Windows.Forms.TextBox();
+            _txtNGQty = new System.Windows.Forms.TextBox();
+            _txtNGUnit = new System.Windows.Forms.TextBox();
+            btnSendNGCode = new System.Windows.Forms.Button();
+            btnSendAllNG = new System.Windows.Forms.Button();
             _txtLog = new System.Windows.Forms.TextBox();
             panelTop.SuspendLayout();
             grpParams.SuspendLayout();
@@ -339,7 +347,7 @@ namespace EQSimulator
             _grpActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _grpActions.Name = "_grpActions";
             _grpActions.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _grpActions.Size = new System.Drawing.Size(915, 125);
+            _grpActions.Size = new System.Drawing.Size(915, 165);
             _grpActions.TabIndex = 2;
             _grpActions.TabStop = false;
             _grpActions.Text = "Simulation Actions";
@@ -356,12 +364,13 @@ namespace EQSimulator
             flowActions.Controls.Add(_btnAutoTest);
             flowActions.Controls.Add(pnlStatusReport);
             flowActions.Controls.Add(chkPPSelectPass);
+            flowActions.Controls.Add(pnlNGGroup);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Location = new System.Drawing.Point(4, 20);
             flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             flowActions.Name = "flowActions";
             flowActions.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
-            flowActions.Size = new System.Drawing.Size(907, 101);
+            flowActions.Size = new System.Drawing.Size(907, 141);
             flowActions.TabIndex = 0;
             // 
             // btnUser
@@ -452,7 +461,7 @@ namespace EQSimulator
             _btnAutoTest.UseVisualStyleBackColor = true;
             _btnAutoTest.Click += BtnAutoTest_Click;
             // 
-            // 
+                     // 
             // pnlStatusReport
             // 
             pnlStatusReport.Controls.Add(_cmbStatusType);
@@ -509,18 +518,96 @@ namespace EQSimulator
             chkPPSelectPass.Text = "PP_SELECT Pass";
             chkPPSelectPass.UseVisualStyleBackColor = true;
             // 
+            // pnlNGGroup
+            // 
+            pnlNGGroup.Controls.Add(lblNGCode);
+            pnlNGGroup.Controls.Add(_cboNGCode);
+            pnlNGGroup.Controls.Add(_txtNGName);
+            pnlNGGroup.Controls.Add(_txtNGQty);
+            pnlNGGroup.Controls.Add(_txtNGUnit);
+            pnlNGGroup.Controls.Add(btnSendNGCode);
+            pnlNGGroup.Controls.Add(btnSendAllNG);
+            pnlNGGroup.Location = new System.Drawing.Point(10, 89);
+            pnlNGGroup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            pnlNGGroup.Name = "pnlNGGroup";
+            pnlNGGroup.Size = new System.Drawing.Size(680, 38);
+            pnlNGGroup.TabIndex = 10;
+            // 
+            // lblNGCode
+            // 
+            lblNGCode.Location = new System.Drawing.Point(4, 8);
+            lblNGCode.Name = "lblNGCode";
+            lblNGCode.Size = new System.Drawing.Size(32, 23);
+            lblNGCode.TabIndex = 0;
+            lblNGCode.Text = "NG:";
+            // 
+            // _cboNGCode
+            // 
+            _cboNGCode.FormattingEnabled = true;
+            _cboNGCode.Items.AddRange(new object[] { "UPNG501", "UPNG502", "UPNG503" });
+            _cboNGCode.Location = new System.Drawing.Point(38, 4);
+            _cboNGCode.Name = "_cboNGCode";
+            _cboNGCode.Size = new System.Drawing.Size(95, 23);
+            _cboNGCode.TabIndex = 1;
+            _cboNGCode.Text = "UPNG501";
+            _cboNGCode.SelectedIndexChanged += CboNGCode_SelectedIndexChanged;
+            // 
+            // _txtNGName
+            // 
+            _txtNGName.Location = new System.Drawing.Point(139, 4);
+            _txtNGName.Name = "_txtNGName";
+            _txtNGName.Size = new System.Drawing.Size(100, 23);
+            _txtNGName.TabIndex = 2;
+            _txtNGName.Text = "機台卡片";
+            // 
+            // _txtNGQty
+            // 
+            _txtNGQty.Location = new System.Drawing.Point(245, 4);
+            _txtNGQty.Name = "_txtNGQty";
+            _txtNGQty.Size = new System.Drawing.Size(38, 23);
+            _txtNGQty.TabIndex = 3;
+            _txtNGQty.Text = "1";
+            // 
+            // _txtNGUnit
+            // 
+            _txtNGUnit.Location = new System.Drawing.Point(289, 4);
+            _txtNGUnit.Name = "_txtNGUnit";
+            _txtNGUnit.Size = new System.Drawing.Size(45, 23);
+            _txtNGUnit.TabIndex = 4;
+            _txtNGUnit.Text = "PCS";
+            // 
+            // btnSendNGCode
+            // 
+            btnSendNGCode.Location = new System.Drawing.Point(340, 1);
+            btnSendNGCode.Name = "btnSendNGCode";
+            btnSendNGCode.Size = new System.Drawing.Size(90, 29);
+            btnSendNGCode.TabIndex = 5;
+            btnSendNGCode.Text = "上報 NG";
+            btnSendNGCode.UseVisualStyleBackColor = true;
+            btnSendNGCode.Click += BtnSendNGCode_Click;
+            // 
+            // btnSendAllNG
+            // 
+            btnSendAllNG.Location = new System.Drawing.Point(436, 1);
+            btnSendAllNG.Name = "btnSendAllNG";
+            btnSendAllNG.Size = new System.Drawing.Size(130, 29);
+            btnSendAllNG.TabIndex = 6;
+            btnSendAllNG.Text = "一鍵上報全部 NG";
+            btnSendAllNG.UseVisualStyleBackColor = true;
+            btnSendAllNG.Click += BtnSendAllNG_Click;
+            // 
             // _txtLog
             // 
             _txtLog.BackColor = System.Drawing.Color.Black;
             _txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
             _txtLog.Font = new System.Drawing.Font("Consolas", 10F);
             _txtLog.ForeColor = System.Drawing.Color.Lime;
-            _txtLog.Location = new System.Drawing.Point(0, 410);
+            _txtLog.Location = new System.Drawing.Point(0, 450);
             _txtLog.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _txtLog.Multiline = true;
             _txtLog.Name = "_txtLog";
             _txtLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            _txtLog.Size = new System.Drawing.Size(915, 291);
+            _txtLog.Size = new System.Drawing.Size(915, 251);
             _txtLog.TabIndex = 3;
             // 
             // MainForm
@@ -543,6 +630,8 @@ namespace EQSimulator
             flowActions.ResumeLayout(false);
             flowActions.PerformLayout();
             pnlStatusReport.ResumeLayout(false);
+            pnlNGGroup.ResumeLayout(false);
+            pnlNGGroup.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
 
@@ -589,6 +678,14 @@ namespace EQSimulator
         private System.Windows.Forms.ComboBox _cmbStatusType;
         private System.Windows.Forms.ComboBox _cmbStatus;
         private System.Windows.Forms.Button btnReportStatus;
+        private System.Windows.Forms.Panel pnlNGGroup;
+        private System.Windows.Forms.Label lblNGCode;
+        private System.Windows.Forms.ComboBox _cboNGCode;
+        private System.Windows.Forms.TextBox _txtNGName;
+        private System.Windows.Forms.TextBox _txtNGQty;
+        private System.Windows.Forms.TextBox _txtNGUnit;
+        private System.Windows.Forms.Button btnSendNGCode;
+        private System.Windows.Forms.Button btnSendAllNG;
         private System.Windows.Forms.TextBox _txtLog;
     }
 }

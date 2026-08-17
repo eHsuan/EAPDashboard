@@ -231,6 +231,79 @@ namespace EQSimulator
             Log($"[StatusChange] EQ State updated: {oldStatus} -> {newStatus}");
         }
 
+        private void CboNGCode_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string code = _cboNGCode.Text ?? "";
+            switch (code.Trim().ToUpperInvariant())
+            {
+                case "UPNG501":
+                    _txtNGName.Text = "機台卡片";
+                    break;
+                case "UPNG502":
+                    _txtNGName.Text = "人為疏失折片";
+                    break;
+                case "UPNG503":
+                    _txtNGName.Text = "工程驗證抽片";
+                    break;
+            }
+        }
+
+        private void BtnSendNGCode_Click(object sender, EventArgs e)
+        {
+            string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
+            string ngCode = _cboNGCode.Text?.Trim() ?? "UPNG501";
+            string ngName = _txtNGName.Text?.Trim() ?? "機台卡片";
+            string ngQty = _txtNGQty.Text?.Trim() ?? "1";
+            string ngUnit = _txtNGUnit.Text?.Trim() ?? "PCS";
+
+            var evm = new EventReportMessage
+            {
+                CMD = CommandType.EventReport,
+                EventID = _dictionary.GetCeid("NGCodeReport"),
+                Data = new List<EventItem>
+                {
+                    new EventItem { Parameter = _dictionary.GetVid("WorkOrder"), Value = wo },
+                    new EventItem { Parameter = _dictionary.GetVid("NGCode"), Value = ngCode },
+                    new EventItem { Parameter = _dictionary.GetVid("NGName"), Value = ngName },
+                    new EventItem { Parameter = _dictionary.GetVid("NGQty"), Value = ngQty },
+                    new EventItem { Parameter = _dictionary.GetVid("NGUnit"), Value = ngUnit }
+                }
+            };
+            SendMessage(evm);
+            Log($"[NGCodeReport] Sent NGCode: {ngCode}, Qty: {ngQty}, Unit: {ngUnit} for WO: {wo}");
+        }
+
+        private async void BtnSendAllNG_Click(object sender, EventArgs e)
+        {
+            string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
+            var defaultList = new[]
+            {
+                ("UPNG501", "機台卡片", "1", "PCS"),
+                ("UPNG502", "人為疏失折片", "0", "PCS"),
+                ("UPNG503", "工程驗證抽片", "0", "PCS")
+            };
+
+            foreach (var (code, name, qty, unit) in defaultList)
+            {
+                var evm = new EventReportMessage
+                {
+                    CMD = CommandType.EventReport,
+                    EventID = _dictionary.GetCeid("NGCodeReport"),
+                    Data = new List<EventItem>
+                    {
+                        new EventItem { Parameter = _dictionary.GetVid("WorkOrder"), Value = wo },
+                        new EventItem { Parameter = _dictionary.GetVid("NGCode"), Value = code },
+                        new EventItem { Parameter = _dictionary.GetVid("NGName"), Value = name },
+                        new EventItem { Parameter = _dictionary.GetVid("NGQty"), Value = qty },
+                        new EventItem { Parameter = _dictionary.GetVid("NGUnit"), Value = unit }
+                    }
+                };
+                SendMessage(evm);
+                Log($"[NGCodeReport] Auto sent NGCode: {code}, Qty: {qty}, Unit: {unit} for WO: {wo}");
+                await Task.Delay(100);
+            }
+        }
+
         private void HandleIncomingCommand(string json)
         {
             if (this.IsDisposed) return;
@@ -319,7 +392,14 @@ namespace EQSimulator
 
                         case CommandType.ReplyTrackOutReq:
                             var rto = (ReplyTrackOutReqMessage)msg;
-                            Log($"-> TrackOut Result: {rto.RtnResult}, Msg: {rto.RtnMsg}");
+                            if (rto.RtnResult == RtnResult.PASS)
+                            {
+                                Log($"-> TrackOut Result: PASS, Msg: {rto.RtnMsg}");
+                            }
+                            else
+                            {
+                                Log($"[TRACKOUT REJECTED] EAP 要求必須先上報以下未完成之 NGCode: {rto.RtnMsg}");
+                            }
                             _currentEventTcs?.TrySetResult(true);
                             break;
 

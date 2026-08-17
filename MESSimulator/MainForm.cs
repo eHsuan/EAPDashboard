@@ -296,6 +296,35 @@ namespace MESSimulator
                         }
                         reply["InputCodeListDT"] = codeDt.ToString(Newtonsoft.Json.Formatting.None);
                         _woRequiredCodesMap[wonoQry] = requiredList;
+
+                        bool enableNGCodeList = true;
+                        try
+                        {
+                            if (this.InvokeRequired)
+                            {
+                                enableNGCodeList = (bool)this.Invoke(new Func<bool>(() => chkEnableNGCodeList == null || chkEnableNGCodeList.Checked));
+                            }
+                            else
+                            {
+                                enableNGCodeList = chkEnableNGCodeList == null || chkEnableNGCodeList.Checked;
+                            }
+                        }
+                        catch { }
+
+                        if (enableNGCodeList)
+                        {
+                            var ngArray = new JArray
+                            {
+                                new JObject { ["NGCode"] = "UPNG501", ["NGName"] = "機台卡片" },
+                                new JObject { ["NGCode"] = "UPNG502", ["NGName"] = "人為疏失折片" },
+                                new JObject { ["NGCode"] = "UPNG503", ["NGName"] = "工程驗證抽片" }
+                            };
+                            reply["NGCodeListDT"] = ngArray.ToString(Newtonsoft.Json.Formatting.None);
+                        }
+                        else
+                        {
+                            reply["NGCodeListDT"] = "[]";
+                        }
                         break;
 
                     case "WOCHECKIN":
@@ -406,6 +435,12 @@ namespace MESSimulator
                                 }
                             }
                         }
+                        string ngListOut = req["NGListDt"]?.ToString() ?? req["NGListDT"]?.ToString();
+                        if (!string.IsNullOrEmpty(ngListOut))
+                        {
+                            Log($"[WOCHECKOUT] Received NGListDt for {wonoOut}: {ngListOut}");
+                        }
+
                         _woAlreadyInMap[wonoOut] = false;
                         _woRequiredCodesMap.TryRemove(wonoOut, out _);
                         reply["Result"] = "success";
