@@ -995,7 +995,7 @@ namespace EAPDashboard.Models
                         {
                             string missingListStr = string.Join(",", missingCodes);
                             OnLogReceived(LogLevel.Error, $"[TrackOut] Rejected WO {wo}: Unreported NGCode(s): [{missingListStr}]");
-                            return $"FAIL|NG_CHECK_FAIL|{missingListStr}";
+                            return $"FAIL|NG_CHECK_FAIL|Unreported NGCode(s): {missingListStr}";
                         }
                     }
                 }

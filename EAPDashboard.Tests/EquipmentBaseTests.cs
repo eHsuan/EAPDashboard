@@ -296,9 +296,9 @@ namespace EAPDashboard.Tests
                 panels: new List<string>());
 
             // Assert
-            result.Should().StartWith("FAIL|NG_CHECK_FAIL|");
-            string[] parts = result.Split('|');
-            parts[2].Split(',').Should().BeEquivalentTo(new[] { "UPNG502", "UPNG503" });
+            result.Should().StartWith("FAIL|NG_CHECK_FAIL|Unreported NGCode(s): ");
+            result.Should().Contain("UPNG502");
+            result.Should().Contain("UPNG503");
         }
 
         [Fact]
