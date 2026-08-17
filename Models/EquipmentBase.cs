@@ -53,12 +53,30 @@ namespace EAPDashboard.Models
         public List<string> Panels { get; set; } = new List<string>();
     }
 
+    public class NGCodeItem
+    {
+        public string NGCode { get; set; }
+        public string NGName { get; set; }
+        public string NGQty { get; set; } = null;
+        public string NGUnit { get; set; } = "";
+        public bool IsReported => NGQty != null;
+    }
+
+    public class NGItem
+    {
+        public string NGCode { get; set; }
+        public string NGQty { get; set; }
+        public string NGUnit { get; set; }
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
         private EquipmentState _state;
         private string _currentRecipe;
         private Dictionary<string, string> _alarmMappings = new Dictionary<string, string>();
+        protected readonly ConcurrentDictionary<string, ConcurrentDictionary<string, NGCodeItem>> _workOrderNgCodesMap 
+            = new ConcurrentDictionary<string, ConcurrentDictionary<string, NGCodeItem>>(StringComparer.OrdinalIgnoreCase);
         private static readonly object _logLock = new object();
         private static readonly HttpClient _httpClient = new HttpClient();
         private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
@@ -501,6 +519,47 @@ namespace EAPDashboard.Models
                             }
                         }
                     }
+
+                    // 檢查並收集工單的 NG 碼清單 (NGCodeListDT)
+                    string ngCodeListDtStr = null;
+                    try
+                    {
+                        ngCodeListDtStr = (qryReply as dynamic)?.NGCodeListDT?.ToString();
+                    }
+                    catch { }
+
+                    if (!string.IsNullOrWhiteSpace(ngCodeListDtStr) && ngCodeListDtStr != "[]")
+                    {
+                        try
+                        {
+                            var ngArray = JArray.Parse(ngCodeListDtStr);
+                            var ngDict = new ConcurrentDictionary<string, NGCodeItem>(StringComparer.OrdinalIgnoreCase);
+                            foreach (var item in ngArray)
+                            {
+                                string code = item["NGCode"]?.ToString()?.Trim();
+                                string name = item["NGName"]?.ToString()?.Trim();
+                                if (!string.IsNullOrEmpty(code))
+                                {
+                                    ngDict[code] = new NGCodeItem
+                                    {
+                                        NGCode = code,
+                                        NGName = name ?? "",
+                                        NGQty = null,
+                                        NGUnit = ""
+                                    };
+                                }
+                            }
+                            if (ngDict.Count > 0)
+                            {
+                                _workOrderNgCodesMap[wo] = ngDict;
+                                OnLogReceived(LogLevel.Info, $"[TrackIn] Loaded {ngDict.Count} NGCode(s) for WO {wo}: {string.Join(",", ngDict.Keys)}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse NGCodeListDT failed for WO {wo}: {ex.Message}");
+                        }
+                    }
                 }
 
                 // 比對所有工單查到的 RECIPEID 是否一致
@@ -728,6 +787,54 @@ namespace EAPDashboard.Models
                 reportEqpId);
         }
 
+        public bool RecordNGCodeReport(string workOrder, string ngCode, string ngName, string ngQty, string ngUnit)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder) || string.IsNullOrWhiteSpace(ngCode))
+            {
+                OnLogReceived(LogLevel.Warn, $"[NGCodeReport] Missing WorkOrder or NGCode (WO: '{workOrder}', NGCode: '{ngCode}')");
+                return false;
+            }
+
+            string trimmedWo = workOrder.Trim();
+            string trimmedCode = ngCode.Trim();
+
+            if (_workOrderNgCodesMap.TryGetValue(trimmedWo, out var ngDict) && ngDict != null)
+            {
+                if (ngDict.TryGetValue(trimmedCode, out var item))
+                {
+                    item.NGQty = ngQty ?? "0";
+                    if (!string.IsNullOrEmpty(ngUnit)) item.NGUnit = ngUnit.Trim();
+                    if (!string.IsNullOrEmpty(ngName)) item.NGName = ngName.Trim();
+                    OnLogReceived(LogLevel.Info, $"[NGCodeReport] Recorded WO: {trimmedWo}, NGCode: {trimmedCode} ({item.NGName}), Qty: {item.NGQty}, Unit: {item.NGUnit}");
+                    return true;
+                }
+                else
+                {
+                    OnLogReceived(LogLevel.Info, $"[NGCodeReport] Skipped: NGCode '{trimmedCode}' is not in the registered list for WO '{trimmedWo}'");
+                    return false;
+                }
+            }
+            else
+            {
+                OnLogReceived(LogLevel.Info, $"[NGCodeReport] Skipped: No registered NGCode list found for WO '{trimmedWo}'");
+                return false;
+            }
+        }
+
+        private void SetPropertySafely(object target, string propertyName, object value)
+        {
+            if (target == null || string.IsNullOrEmpty(propertyName)) return;
+            try
+            {
+                var prop = target.GetType().GetProperty(propertyName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                if (prop != null && prop.CanWrite)
+                {
+                    prop.SetValue(target, value);
+                }
+            }
+            catch { }
+        }
+
         public async Task<string> ProcessTrackOutAsync(List<string> workOrders, string qty, string userId, List<string> cassetteIds, List<string> panels, string reportEqpId = null)
         {
             try
@@ -740,6 +847,40 @@ namespace EAPDashboard.Models
                 string combinedWo = string.Join(",", validWos);
 
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
+
+                // 檢核所有工單的 NGCode 是否皆已全數上報
+                foreach (var wo in validWos)
+                {
+                    if (_workOrderNgCodesMap.TryGetValue(wo, out var ngDict) && ngDict != null && ngDict.Count > 0)
+                    {
+                        var missingCodes = ngDict.Values.Where(x => !x.IsReported).Select(x => x.NGCode).ToList();
+                        if (missingCodes.Count > 0)
+                        {
+                            string missingListStr = string.Join(",", missingCodes);
+                            OnLogReceived(LogLevel.Error, $"[TrackOut] Rejected WO {wo}: Unreported NGCode(s): [{missingListStr}]");
+                            return $"FAIL|NG_CHECK_FAIL|{missingListStr}";
+                        }
+                    }
+                }
+
+                // 收集所有上報的 NG 碼資料組裝成 NGListDt
+                var allNgItems = new List<NGItem>();
+                foreach (var wo in validWos)
+                {
+                    if (_workOrderNgCodesMap.TryGetValue(wo, out var ngDict) && ngDict != null && ngDict.Count > 0)
+                    {
+                        foreach (var item in ngDict.Values)
+                        {
+                            allNgItems.Add(new NGItem
+                            {
+                                NGCode = item.NGCode,
+                                NGQty = item.NGQty ?? "0",
+                                NGUnit = item.NGUnit ?? ""
+                            });
+                        }
+                    }
+                }
+                string ngListDtJson = allNgItems.Count > 0 ? JsonConvert.SerializeObject(allNgItems) : null;
 
                 string resPrefix = "FAIL";
                 string resultCode = "";
@@ -756,6 +897,11 @@ namespace EAPDashboard.Models
                         OutPut = qty,
                         WoNoDt = JsonConvert.SerializeObject(validWos.Select(w => new WoNoListItem { WoNo = w }).ToList())
                     };
+
+                    if (!string.IsNullOrEmpty(ngListDtJson))
+                    {
+                        SetPropertySafely(multiReq, "NGListDt", ngListDtJson);
+                    }
 
                     if (_trackOutRequireInputMap.TryGetValue(combinedWo, out var reqCodes) && reqCodes != null && reqCodes.Count > 0)
                     {
@@ -791,6 +937,11 @@ namespace EAPDashboard.Models
                 {
                     // 單工單出站報工維持標準 WOCHECKOUTRequest
                     var singleReq = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, Operator = userId, OutPut = qty };
+
+                    if (!string.IsNullOrEmpty(ngListDtJson))
+                    {
+                        SetPropertySafely(singleReq, "NGListDt", ngListDtJson);
+                    }
 
                     if (_trackOutRequireInputMap.TryGetValue(combinedWo, out var reqCodes) && reqCodes != null && reqCodes.Count > 0)
                     {
@@ -832,6 +983,10 @@ namespace EAPDashboard.Models
                 // 清理此工單快取
                 _trackInRequireInputMap.TryRemove(combinedWo, out _);
                 _trackOutRequireInputMap.TryRemove(combinedWo, out _);
+                foreach (var wo in validWos)
+                {
+                    _workOrderNgCodesMap.TryRemove(wo, out _);
+                }
 
                 if (EnableCassetteBinding)
                 {

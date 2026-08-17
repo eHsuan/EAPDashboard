@@ -355,7 +355,9 @@ namespace EAPDashboard.Models
                         List<string> toWos = to.WorkOrder ?? new List<string>();
                         List<string> toCassettes = to.CassetteID ?? new List<string>();
                         string tor = await ProcessTrackOutAsync(toWos, to.Qty.ToString(), to.UserID, toCassettes, toPanels);
-                        await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = tor.Split('|').Last() }, msg);
+                        string[] torParts = tor.Split('|');
+                        string rtnMsg = torParts.Length > 2 ? torParts[2] : (torParts.Length > 1 ? torParts[1] : "");
+                        await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = rtnMsg }, msg);
                         break;
                     case CommandType.AlarmReport:
                         var alm = (AlarmMessage)msg;
@@ -475,6 +477,18 @@ namespace EAPDashboard.Models
                         RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
                         RtnMsg = uvp.Length > 2 ? uvp[2] : "" 
                     }, evm);
+                    break;
+
+                case "NGCODE_REPORT":
+                case "NGCODEREPORT":
+                    string ngWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
+                    string ngCode = getValByLogicalName("NGCode") ?? getValByLogicalName("NG_Code");
+                    string ngName = getValByLogicalName("NGName") ?? getValByLogicalName("NG_Name");
+                    string ngQty = getValByLogicalName("NGQty") ?? getValByLogicalName("NG_Qty") ?? getValByLogicalName("Qty");
+                    string ngUnit = getValByLogicalName("NGUnit") ?? getValByLogicalName("NG_Unit") ?? getValByLogicalName("Unit");
+
+                    RecordNGCodeReport(ngWo, ngCode, ngName, ngQty, ngUnit);
+                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
                 case "KPIV_REPORT":

@@ -33,6 +33,16 @@ namespace EAPDashboard.Tests
         }
 
         public string GetMesParamValueTest(string dt, string name) => GetMesParamValue(dt, name);
+        public void SetWorkOrderNGCodesForTest(string wo, List<NGCodeItem> items)
+        {
+            var dict = new System.Collections.Concurrent.ConcurrentDictionary<string, NGCodeItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var it in items)
+            {
+                dict[it.NGCode] = it;
+            }
+            _workOrderNgCodesMap[wo] = dict;
+        }
+        public bool HasWorkOrderNGCodes(string wo) => _workOrderNgCodesMap.ContainsKey(wo);
         public override Task SendTimeCalibration() => Task.CompletedTask;
         public override void Start(System.Threading.CancellationToken externalCancellationToken, CyntecMqttLib.Interfaces.MqttBus bus = null, int heartbeatIntervalSeconds = 30) { }
     }
@@ -228,6 +238,90 @@ namespace EAPDashboard.Tests
 
             // Assert
             val.Should().BeNull();
+        }
+
+        [Fact]
+        public void RecordNGCodeReport_WhenWorkOrderAndCodeMatch_ShouldUpdateAndReturnTrue()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "UPNG501", NGName = "機台卡片" },
+                new NGCodeItem { NGCode = "UPNG502", NGName = "折片" }
+            });
+
+            // Act
+            bool result = eq.RecordNGCodeReport("WO100", "UPNG501", "機台卡片", "3", "PCS");
+
+            // Assert
+            result.Should().BeTrue();
+        }
+
+        [Fact]
+        public void RecordNGCodeReport_WhenCodeNotInList_ShouldSkipAndReturnFalse()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "UPNG501", NGName = "機台卡片" }
+            });
+
+            // Act
+            bool result = eq.RecordNGCodeReport("WO100", "UNKNOWN_CODE", "未知", "1", "PCS");
+
+            // Assert
+            result.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_WhenUnreportedNGCodesExist_ShouldRejectWithCommaSeparatedList()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = "1", NGUnit = "PCS" },
+                new NGCodeItem { NGCode = "UPNG502", NGName = "折片", NGQty = null },
+                new NGCodeItem { NGCode = "UPNG503", NGName = "抽片", NGQty = null }
+            });
+
+            // Act
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO100" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            // Assert
+            result.Should().StartWith("FAIL|NG_CHECK_FAIL|");
+            string[] parts = result.Split('|');
+            parts[2].Split(',').Should().BeEquivalentTo(new[] { "UPNG502", "UPNG503" });
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_WhenAllNGCodesReported_ShouldProceed()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = "1", NGUnit = "PCS" },
+                new NGCodeItem { NGCode = "UPNG502", NGName = "折片", NGQty = "0", NGUnit = "PCS" }
+            });
+
+            // Act
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO100" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            // Assert
+            result.Should().NotStartWith("FAIL|NG_CHECK_FAIL|");
         }
     }
 }
