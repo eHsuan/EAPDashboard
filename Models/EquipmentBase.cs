@@ -69,6 +69,20 @@ namespace EAPDashboard.Models
         public string NGUnit { get; set; }
     }
 
+    public class AddProductLeftoverRequest : MESBaseMessage
+    {
+        public string WONO { get; set; }
+        public string Qty { get; set; }
+        public string ReelID { get; set; }
+    }
+
+    public class AddProductLeftoverReply : MESBaseMessage
+    {
+        public string Result { get; set; }
+        public string ResultCode { get; set; }
+        public string Message { get; set; }
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
@@ -833,6 +847,56 @@ namespace EAPDashboard.Models
                 }
             }
             catch { }
+        }
+
+        public async Task<(bool isSuccess, string message)> ProcessAddProductLeftoverAsync(string workOrder, string qty, string reelId, string reportEqpId = null)
+        {
+            string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
+            string wo = workOrder?.Trim() ?? "";
+            string q = qty?.Trim() ?? "0";
+            string rid = reelId?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(wo) || string.IsNullOrEmpty(rid))
+            {
+                string err = $"Missing WorkOrder ('{wo}') or ReelID ('{rid}')";
+                OnLogReceived(LogLevel.Warn, $"[AddProductLeftover] {err}");
+                return (false, err);
+            }
+
+            try
+            {
+                var req = new AddProductLeftoverRequest
+                {
+                    WONO = wo,
+                    Qty = q,
+                    ReelID = rid,
+                    EqpNo = eid,
+                    UserID = "EAP"
+                };
+
+                var leftoverTask = Task.Run(() => CallMesWithLog<AddProductLeftoverRequest, AddProductLeftoverReply>(req));
+                if (await Task.WhenAny(leftoverTask, Task.Delay(25000)) != leftoverTask)
+                {
+                    string timeoutMsg = $"MES AddProductLeftover Timeout (25s) for WO: {wo}, ReelID: {rid}";
+                    OnLogReceived(LogLevel.Error, $"[AddProductLeftover] {timeoutMsg}");
+                    return (false, timeoutMsg);
+                }
+
+                var reply = await leftoverTask;
+                if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, reply.Message ?? "Success");
+                }
+                else
+                {
+                    return (false, reply?.Message ?? "MES AddProductLeftover Failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[AddProductLeftover] Exception: {ex.Message}");
+                return (false, ex.Message);
+            }
         }
 
         public async Task<string> ProcessTrackOutAsync(List<string> workOrders, string qty, string userId, List<string> cassetteIds, List<string> panels, string reportEqpId = null)

@@ -304,6 +304,27 @@ namespace EQSimulator
             }
         }
 
+        private void BtnSendLeftover_Click(object sender, EventArgs e)
+        {
+            string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
+            string reelId = _txtLeftoverReel.Text?.Trim() ?? "REEL001";
+            string qty = _txtLeftoverQty.Text?.Trim() ?? "10";
+
+            var evm = new EventReportMessage
+            {
+                CMD = CommandType.EventReport,
+                EventID = _dictionary.GetCeid("LeftoversReport") ?? "502",
+                Data = new List<EventItem>
+                {
+                    new EventItem { Parameter = _dictionary.GetVid("WorkOrder") ?? "WorkOrder", Value = wo },
+                    new EventItem { Parameter = _dictionary.GetVid("Qty") ?? "Qty", Value = qty },
+                    new EventItem { Parameter = _dictionary.GetVid("ReelID") ?? "ReelID", Value = reelId }
+                }
+            };
+            SendMessage(evm);
+            Log($"[LeftoversReport] Sent WorkOrder: {wo}, ReelID: {reelId}, Qty: {qty}");
+        }
+
         private void HandleIncomingCommand(string json)
         {
             if (this.IsDisposed) return;

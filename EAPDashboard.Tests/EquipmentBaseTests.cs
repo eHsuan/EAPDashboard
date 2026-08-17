@@ -323,5 +323,33 @@ namespace EAPDashboard.Tests
             // Assert
             result.Should().NotStartWith("FAIL|NG_CHECK_FAIL|");
         }
+
+        [Fact]
+        public async Task ProcessAddProductLeftoverAsync_MissingWO_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message) = await eq.ProcessAddProductLeftoverAsync("", "10", "REEL01");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder");
+        }
+
+        [Fact]
+        public async Task ProcessAddProductLeftoverAsync_MissingReelID_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message) = await eq.ProcessAddProductLeftoverAsync("WO100", "10", "");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder ('WO100') or ReelID ('')");
+        }
     }
 }

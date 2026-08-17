@@ -486,6 +486,19 @@ namespace MESSimulator
                         reply["Message"] = "Simulation Success";
                         break;
 
+                    case "ADDPRODUCTLEFTOVER":
+                        string leftoverWono = req["WONO"]?.ToString() ?? "";
+                        string leftoverQty = req["Qty"]?.ToString() ?? "0";
+                        string leftoverReelId = req["ReelID"]?.ToString() ?? "";
+                        string leftoverEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        string leftoverUserId = req["UserID"]?.ToString() ?? "";
+
+                        Log($"[AddProductLeftover] Received WONO: {leftoverWono}, Qty: {leftoverQty}, ReelID: {leftoverReelId}, EqpNo: {leftoverEqpNo}, UserID: {leftoverUserId}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "000";
+                        reply["Message"] = "Simulation AddProductLeftover Success";
+                        break;
+
                     default:
                         reply["Result"] = "FAIL";
                         reply["Message"] = $"Unsupported Transaction: {txn}";

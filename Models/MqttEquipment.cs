@@ -491,6 +491,21 @@ namespace EAPDashboard.Models
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
+                case "LEFTOVERS_REPORT":
+                case "LEFTOVERSREPORT":
+                    string leftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
+                    string leftoverQty = getValByLogicalName("Qty") ?? getValByLogicalName("Quantity");
+                    string leftoverReelId = getValByLogicalName("ReelID") ?? getValByLogicalName("Reel_ID") ?? getValByLogicalName("ReelId");
+
+                    var (leftoverPass, leftoverMsg) = await ProcessAddProductLeftoverAsync(leftoverWo, leftoverQty, leftoverReelId);
+                    await SendReply(new ReplyEventReportMessage
+                    {
+                        CMD = CommandType.ReplyEventReport,
+                        RtnResult = leftoverPass ? RtnResult.PASS : RtnResult.FAIL,
+                        RtnMsg = leftoverMsg
+                    }, evm);
+                    break;
+
                 case "KPIV_REPORT":
                     if (evm.Data != null && evm.Data.Count > 0)
                     {
