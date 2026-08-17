@@ -325,6 +325,30 @@ namespace EQSimulator
             Log($"[LeftoversReport] Sent WorkOrder: {wo}, ReelID: {reelId}, Qty: {qty}");
         }
 
+        private void BtnSendUseLeftover_Click(object sender, EventArgs e)
+        {
+            string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
+            string reelId = _txtLeftoverReel.Text?.Trim() ?? "REEL001";
+            string qty = _txtLeftoverQty.Text?.Trim() ?? "10";
+
+            var evm = new EventReportMessage
+            {
+                CMD = CommandType.EventReport,
+                EventID = _dictionary.GetCeid("ProductLeftoverReport") ?? "ProductLeftoverReport",
+                Data = new List<EventItem>
+                {
+                    new EventItem { Parameter = _dictionary.GetVid("WorkOrder") ?? "WorkOrder", Value = wo },
+                    new EventItem { Parameter = _dictionary.GetVid("ReelID") ?? "ReelID", Value = reelId },
+                    new EventItem { Parameter = _dictionary.GetVid("LeftoverWorkOrder") ?? "LeftoverWorkOrder", Value = "WO_PREV001" },
+                    new EventItem { Parameter = _dictionary.GetVid("LeftoverBatchNo") ?? "LeftoverBatchNo", Value = "BATCH001" },
+                    new EventItem { Parameter = _dictionary.GetVid("AddQty") ?? "AddQty", Value = qty },
+                    new EventItem { Parameter = _dictionary.GetVid("GapQty") ?? "GapQty", Value = "0" }
+                }
+            };
+            SendMessage(evm);
+            Log($"[ProductLeftoverReport] Sent WorkOrder: {wo}, ReelID: {reelId}, AddQty: {qty}");
+        }
+
         private void HandleIncomingCommand(string json)
         {
             if (this.IsDisposed) return;

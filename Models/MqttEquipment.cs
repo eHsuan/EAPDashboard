@@ -506,6 +506,24 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
+                case "PRODUCT_LEFTOVER_REPORT":
+                case "PRODUCTLEFTOVERREPORT":
+                    string pLeftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
+                    string pLeftoverReelId = getValByLogicalName("ReelID") ?? getValByLogicalName("Reel_ID") ?? getValByLogicalName("ReelId");
+                    string pLeftoverWoRef = getValByLogicalName("LeftoverWorkOrder") ?? getValByLogicalName("LeftOverWONo") ?? getValByLogicalName("Leftover_WorkOrder");
+                    string pLeftoverBatch = getValByLogicalName("LeftoverBatchNo") ?? getValByLogicalName("LeftOverBatchNo") ?? getValByLogicalName("Leftover_BatchNo");
+                    string pAddQty = getValByLogicalName("AddQty") ?? getValByLogicalName("Add_Qty");
+                    string pGapQty = getValByLogicalName("GapQty") ?? getValByLogicalName("Gap_Qty");
+
+                    var (pLeftoverPass, pLeftoverMsg) = await ProcessUseProductLeftoverAsync(pLeftoverWo, pLeftoverReelId, pLeftoverWoRef, pLeftoverBatch, pAddQty, pGapQty);
+                    await SendReply(new ReplyEventReportMessage
+                    {
+                        CMD = CommandType.ReplyEventReport,
+                        RtnResult = pLeftoverPass ? RtnResult.PASS : RtnResult.FAIL,
+                        RtnMsg = pLeftoverMsg
+                    }, evm);
+                    break;
+
                 case "KPIV_REPORT":
                     if (evm.Data != null && evm.Data.Count > 0)
                     {

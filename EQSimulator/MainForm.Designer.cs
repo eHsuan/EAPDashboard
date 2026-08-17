@@ -74,6 +74,7 @@ namespace EQSimulator
             lblLeftoverQty = new System.Windows.Forms.Label();
             _txtLeftoverQty = new System.Windows.Forms.TextBox();
             btnSendLeftover = new System.Windows.Forms.Button();
+            btnSendUseLeftover = new System.Windows.Forms.Button();
             _txtLog = new System.Windows.Forms.TextBox();
             panelTop.SuspendLayout();
             grpParams.SuspendLayout();
@@ -632,53 +633,64 @@ namespace EQSimulator
             pnlLeftoverGroup.Controls.Add(lblLeftoverQty);
             pnlLeftoverGroup.Controls.Add(_txtLeftoverQty);
             pnlLeftoverGroup.Controls.Add(btnSendLeftover);
+            pnlLeftoverGroup.Controls.Add(btnSendUseLeftover);
             pnlLeftoverGroup.Location = new System.Drawing.Point(548, 89);
             pnlLeftoverGroup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             pnlLeftoverGroup.Name = "pnlLeftoverGroup";
-            pnlLeftoverGroup.Size = new System.Drawing.Size(340, 38);
+            pnlLeftoverGroup.Size = new System.Drawing.Size(355, 38);
             pnlLeftoverGroup.TabIndex = 11;
             // 
             // lblLeftoverReel
             // 
             lblLeftoverReel.Location = new System.Drawing.Point(4, 8);
             lblLeftoverReel.Name = "lblLeftoverReel";
-            lblLeftoverReel.Size = new System.Drawing.Size(50, 23);
+            lblLeftoverReel.Size = new System.Drawing.Size(46, 23);
             lblLeftoverReel.TabIndex = 0;
-            lblLeftoverReel.Text = "ReelID:";
+            lblLeftoverReel.Text = "Reel:";
             // 
             // _txtLeftoverReel
             // 
-            _txtLeftoverReel.Location = new System.Drawing.Point(56, 4);
+            _txtLeftoverReel.Location = new System.Drawing.Point(50, 4);
             _txtLeftoverReel.Name = "_txtLeftoverReel";
-            _txtLeftoverReel.Size = new System.Drawing.Size(90, 23);
+            _txtLeftoverReel.Size = new System.Drawing.Size(75, 23);
             _txtLeftoverReel.TabIndex = 1;
             _txtLeftoverReel.Text = "REEL001";
             // 
             // lblLeftoverQty
             // 
-            lblLeftoverQty.Location = new System.Drawing.Point(152, 8);
+            lblLeftoverQty.Location = new System.Drawing.Point(127, 8);
             lblLeftoverQty.Name = "lblLeftoverQty";
-            lblLeftoverQty.Size = new System.Drawing.Size(32, 23);
+            lblLeftoverQty.Size = new System.Drawing.Size(30, 23);
             lblLeftoverQty.TabIndex = 2;
             lblLeftoverQty.Text = "Qty:";
             // 
             // _txtLeftoverQty
             // 
-            _txtLeftoverQty.Location = new System.Drawing.Point(186, 4);
+            _txtLeftoverQty.Location = new System.Drawing.Point(157, 4);
             _txtLeftoverQty.Name = "_txtLeftoverQty";
-            _txtLeftoverQty.Size = new System.Drawing.Size(40, 23);
+            _txtLeftoverQty.Size = new System.Drawing.Size(35, 23);
             _txtLeftoverQty.TabIndex = 3;
             _txtLeftoverQty.Text = "10";
             // 
             // btnSendLeftover
             // 
-            btnSendLeftover.Location = new System.Drawing.Point(232, 1);
+            btnSendLeftover.Location = new System.Drawing.Point(196, 1);
             btnSendLeftover.Name = "btnSendLeftover";
-            btnSendLeftover.Size = new System.Drawing.Size(100, 29);
+            btnSendLeftover.Size = new System.Drawing.Size(75, 29);
             btnSendLeftover.TabIndex = 4;
             btnSendLeftover.Text = "上報剩料";
             btnSendLeftover.UseVisualStyleBackColor = true;
             btnSendLeftover.Click += BtnSendLeftover_Click;
+            // 
+            // btnSendUseLeftover
+            // 
+            btnSendUseLeftover.Location = new System.Drawing.Point(275, 1);
+            btnSendUseLeftover.Name = "btnSendUseLeftover";
+            btnSendUseLeftover.Size = new System.Drawing.Size(75, 29);
+            btnSendUseLeftover.TabIndex = 5;
+            btnSendUseLeftover.Text = "上報補料";
+            btnSendUseLeftover.UseVisualStyleBackColor = true;
+            btnSendUseLeftover.Click += BtnSendUseLeftover_Click;
             // 
             // _txtLog
             // 
@@ -778,6 +790,7 @@ namespace EQSimulator
         private System.Windows.Forms.Label lblLeftoverQty;
         private System.Windows.Forms.TextBox _txtLeftoverQty;
         private System.Windows.Forms.Button btnSendLeftover;
+        private System.Windows.Forms.Button btnSendUseLeftover;
         private System.Windows.Forms.TextBox _txtLog;
     }
 }

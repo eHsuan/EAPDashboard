@@ -83,6 +83,23 @@ namespace EAPDashboard.Models
         public string Message { get; set; }
     }
 
+    public class UseProductLeftoverRequest : MESBaseMessage
+    {
+        public string WONO { get; set; }
+        public string ReelID { get; set; }
+        public string LeftOverWONo { get; set; }
+        public string LeftOverBatchNo { get; set; }
+        public string AddQty { get; set; }
+        public string GapQty { get; set; }
+    }
+
+    public class UseProductLeftoverReply : MESBaseMessage
+    {
+        public string Result { get; set; }
+        public string ResultCode { get; set; }
+        public string Message { get; set; }
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
@@ -895,6 +912,62 @@ namespace EAPDashboard.Models
             catch (Exception ex)
             {
                 OnLogReceived(LogLevel.Error, $"[AddProductLeftover] Exception: {ex.Message}");
+                return (false, ex.Message);
+            }
+        }
+
+        public async Task<(bool isSuccess, string message)> ProcessUseProductLeftoverAsync(string workOrder, string reelId, string leftoverWorkOrder, string leftoverBatchNo, string addQty, string gapQty, string reportEqpId = null)
+        {
+            string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
+            string wo = workOrder?.Trim() ?? "";
+            string rid = reelId?.Trim() ?? "";
+            string lWo = leftoverWorkOrder?.Trim() ?? "";
+            string lBatch = leftoverBatchNo?.Trim() ?? "";
+            string aQty = addQty?.Trim() ?? "0";
+            string gQty = gapQty?.Trim() ?? "0";
+
+            if (string.IsNullOrEmpty(wo) || string.IsNullOrEmpty(rid))
+            {
+                string err = $"Missing WorkOrder ('{wo}') or ReelID ('{rid}')";
+                OnLogReceived(LogLevel.Warn, $"[UseProductLeftover] {err}");
+                return (false, err);
+            }
+
+            try
+            {
+                var req = new UseProductLeftoverRequest
+                {
+                    WONO = wo,
+                    ReelID = rid,
+                    LeftOverWONo = lWo,
+                    LeftOverBatchNo = lBatch,
+                    AddQty = aQty,
+                    GapQty = gQty,
+                    EqpNo = eid,
+                    UserID = "EAP"
+                };
+
+                var useTask = Task.Run(() => CallMesWithLog<UseProductLeftoverRequest, UseProductLeftoverReply>(req));
+                if (await Task.WhenAny(useTask, Task.Delay(25000)) != useTask)
+                {
+                    string timeoutMsg = $"MES UseProductLeftover Timeout (25s) for WO: {wo}, ReelID: {rid}";
+                    OnLogReceived(LogLevel.Error, $"[UseProductLeftover] {timeoutMsg}");
+                    return (false, timeoutMsg);
+                }
+
+                var reply = await useTask;
+                if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, reply.Message ?? "Success");
+                }
+                else
+                {
+                    return (false, reply?.Message ?? "MES UseProductLeftover Failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[UseProductLeftover] Exception: {ex.Message}");
                 return (false, ex.Message);
             }
         }
