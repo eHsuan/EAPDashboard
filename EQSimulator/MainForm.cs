@@ -64,7 +64,14 @@ namespace EQSimulator
         {
             if (_cmbStatusType != null)
             {
-                if (_cmbStatusType.SelectedIndex < 0) _cmbStatusType.SelectedIndex = 0;
+                if (_cmbStatusType.Items.Count == 0)
+                {
+                    _cmbStatusType.Items.AddRange(new object[] { "Cyntec", "Delta" });
+                }
+                if (_cmbStatusType.Items.Count > 0 && _cmbStatusType.SelectedIndex < 0)
+                {
+                    _cmbStatusType.SelectedIndex = 0;
+                }
                 _cmbStatusType.SelectedIndexChanged += (s, e) => UpdateStatusComboSource();
             }
             UpdateStatusComboSource();

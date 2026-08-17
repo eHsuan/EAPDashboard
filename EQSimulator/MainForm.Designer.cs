@@ -524,6 +524,7 @@ namespace EQSimulator
             // 
             _cmbStatusType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             _cmbStatusType.FormattingEnabled = true;
+            _cmbStatusType.Items.AddRange(new object[] { "Cyntec", "Delta" });
             _cmbStatusType.Location = new System.Drawing.Point(4, 4);
             _cmbStatusType.Name = "_cmbStatusType";
             _cmbStatusType.Size = new System.Drawing.Size(110, 23);
