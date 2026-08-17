@@ -127,7 +127,11 @@ namespace EAPDashboard.Models
 
             OnLogReceived(LogLevel.Info, $"[START] MQTT module started for {Id}. Base Topic: {Topic}, Command Topic: {_commandTopic}, Report Topic: {_reportTopic}");
 
-            _bus.SubscribeAsync(_reportTopic, (topic, payload) => HandleReport(payload));
+            if (_bus != null)
+            {
+                _bus.Connected += OnBrokerConnected;
+                _bus.SubscribeAsync(_reportTopic, (topic, payload) => HandleReport(payload));
+            }
 
             _heartbeatTimer = new System.Timers.Timer(_heartbeatInterval * 1000);
             _heartbeatTimer.Elapsed += (s, e) => CheckHeartbeat();
@@ -140,6 +144,13 @@ namespace EAPDashboard.Models
             _ = SendStatusRequest();
             _ = StartPeriodicStatusReportLoop(_linkedCts.Token);
             StartHourlyAvailabilityTimer(_linkedCts.Token);
+        }
+
+        private void OnBrokerConnected()
+        {
+            OnLogReceived(LogLevel.Info, $"[MQTT] Broker connection restored. Sending probes for {Id}...");
+            _ = SendAreYouThere();
+            _ = SendStatusRequest();
         }
 
         private async Task MonitorTrackInTimeout(CancellationToken ct)
@@ -680,7 +691,16 @@ namespace EAPDashboard.Models
             }
         }
 
-        public override void Stop() { _heartbeatTimer?.Stop(); _heartbeatTimer?.Dispose(); _linkedCts?.Cancel(); }
+        public override void Stop() 
+        { 
+            if (_bus != null)
+            {
+                _bus.Connected -= OnBrokerConnected;
+            }
+            _heartbeatTimer?.Stop(); 
+            _heartbeatTimer?.Dispose(); 
+            _linkedCts?.Cancel(); 
+        }
 
         private void ExtractAndWriteParametersFromMqtt(object itemsObj)
         {

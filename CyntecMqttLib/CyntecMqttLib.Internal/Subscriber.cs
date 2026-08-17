@@ -22,6 +22,7 @@ internal class Subscriber
 	public Subscriber(MqttConnection conn)
 	{
 		_conn = conn;
+		_conn.Connected += async () => await ResubscribeAllAsync();
 	}
 
 	public async Task SubscribeAsync(string topic, Action<string, string> handler)
@@ -36,10 +37,43 @@ internal class Subscriber
 			}
 			list.Add(handler);
 		}
-		await _conn.Client.SubscribeAsync(new TopicFilterBuilder()
-            .WithTopic(topic)
-            .WithAtLeastOnceQoS()
-            .Build());
+
+		if (_conn.IsConnected)
+		{
+			try
+			{
+				await _conn.Client.SubscribeAsync(new TopicFilterBuilder()
+					.WithTopic(topic)
+					.WithAtLeastOnceQoS()
+					.Build());
+			}
+			catch { }
+		}
+	}
+
+	private async Task ResubscribeAllAsync()
+	{
+		EnsureHandlerRegistered();
+		List<string> topics;
+		lock (_lock)
+		{
+			topics = new List<string>(_handlers.Keys);
+		}
+
+		foreach (var topic in topics)
+		{
+			try
+			{
+				if (_conn.IsConnected)
+				{
+					await _conn.Client.SubscribeAsync(new TopicFilterBuilder()
+						.WithTopic(topic)
+						.WithAtLeastOnceQoS()
+						.Build());
+				}
+			}
+			catch { }
+		}
 	}
 
 	private void EnsureHandlerRegistered()
