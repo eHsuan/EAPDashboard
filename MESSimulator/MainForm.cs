@@ -147,9 +147,10 @@ namespace MESSimulator
                 return (bool)this.Invoke(new Func<bool>(() => IsHandshakePass(txnName)));
             }
 
-            switch (txnName)
+            switch (txnName?.ToUpper())
             {
-                case "UserVerify":
+                case "USERVERIFY":
+                case "USER_VERIFY":
                     return chkUserVerifyPass == null || chkUserVerifyPass.Checked;
                 case "WOQRY":
                     return chkWOQRYPass == null || chkWOQRYPass.Checked;
@@ -189,9 +190,10 @@ namespace MESSimulator
                 reply["TransactionName"] = txn;
                 reply["Result"] = "success";
 
-                switch (txn)
+                switch (txn?.ToUpper())
                 {
-                    case "UserVerify":
+                    case "USERVERIFY":
+                    case "USER_VERIFY":
                         string barcode = req["User2DBarCode"]?.ToString() ?? "";
                         string extractedId = req["UserID"]?.ToString() ?? "SIM_USER_001";
                         if (barcode.StartsWith("{{{{"))
@@ -487,6 +489,7 @@ namespace MESSimulator
                         break;
 
                     case "ADDPRODUCTLEFTOVER":
+                    case "ADD_PRODUCT_LEFTOVER":
                         string leftoverWono = req["WONO"]?.ToString() ?? "";
                         string leftoverQty = req["Qty"]?.ToString() ?? "0";
                         string leftoverReelId = req["ReelID"]?.ToString() ?? "";
@@ -500,6 +503,7 @@ namespace MESSimulator
                         break;
 
                     case "USEPRODUCTLEFTOVER":
+                    case "USE_PRODUCT_LEFTOVER":
                         string useWono = req["WONO"]?.ToString() ?? "";
                         string useReelId = req["ReelID"]?.ToString() ?? "";
                         string useLeftoverWo = req["LeftOverWONo"]?.ToString() ?? "";
