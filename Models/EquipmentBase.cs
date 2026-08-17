@@ -835,7 +835,7 @@ namespace EAPDashboard.Models
             catch { }
         }
 
-        public async Task<(bool isSuccess, string message)> ProcessAddProductLeftoverAsync(string workOrder, string qty, string reelId, string reportEqpId = null)
+        public async Task<(bool isSuccess, string message)> ProcessAddProductLeftoverAsync(string workOrder, string qty, string reelId, string userId = null, string reportEqpId = null)
         {
             string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
             string wo = workOrder?.Trim() ?? "";
@@ -857,7 +857,7 @@ namespace EAPDashboard.Models
                     Qty = q,
                     ReelID = rid,
                     EqpNo = eid,
-                    UserID = "EAP"
+                    UserID = !string.IsNullOrEmpty(userId) ? userId : "EAP"
                 };
 
                 var leftoverTask = Task.Run(() => CallMesWithLog<AddProductLeftoverRequest, AddProductLeftoverReply>(req));
@@ -885,7 +885,7 @@ namespace EAPDashboard.Models
             }
         }
 
-        public async Task<(bool isSuccess, string message)> ProcessUseProductLeftoverAsync(string workOrder, string reelId, string leftoverWorkOrder, string leftoverBatchNo, string addQty, string gapQty, string reportEqpId = null)
+        public async Task<(bool isSuccess, string message)> ProcessUseProductLeftoverAsync(string workOrder, string reelId, string leftoverWorkOrder, string leftoverBatchNo, string addQty, string gapQty, string userId = null, string reportEqpId = null)
         {
             string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
             string wo = workOrder?.Trim() ?? "";
@@ -913,7 +913,7 @@ namespace EAPDashboard.Models
                     AddQty = aQty,
                     GapQty = gQty,
                     EqpNo = eid,
-                    UserID = "EAP"
+                    UserID = !string.IsNullOrEmpty(userId) ? userId : "EAP"
                 };
 
                 var useTask = Task.Run(() => CallMesWithLog<UseProductLeftoverRequest, UseProductLeftoverReply>(req));

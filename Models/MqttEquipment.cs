@@ -452,7 +452,6 @@ namespace EAPDashboard.Models
 
             switch (upperEvent)
             {
-                case "500":
                 case "USER_VERIFY":
                 case "USERVERIFY":
                     string userBarcode = null;
@@ -498,7 +497,6 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
-                case "501":
                 case "NGCODE_REPORT":
                 case "NGCODEREPORT":
                     string ngWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
@@ -511,14 +509,14 @@ namespace EAPDashboard.Models
                     await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
                     break;
 
-                case "502":
                 case "LEFTOVERS_REPORT":
                 case "LEFTOVERSREPORT":
                     string leftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
                     string leftoverQty = getValByLogicalName("Qty") ?? getValByLogicalName("Quantity");
                     string leftoverReelId = getValByLogicalName("ReelID") ?? getValByLogicalName("Reel_ID") ?? getValByLogicalName("ReelId");
+                    string leftoverUserId = getValByLogicalName("UserID") ?? getValByLogicalName("User_ID") ?? getValByLogicalName("Operator");
 
-                    var (leftoverPass, leftoverMsg) = await ProcessAddProductLeftoverAsync(leftoverWo, leftoverQty, leftoverReelId);
+                    var (leftoverPass, leftoverMsg) = await ProcessAddProductLeftoverAsync(leftoverWo, leftoverQty, leftoverReelId, leftoverUserId);
                     await SendReply(new ReplyEventReportMessage
                     {
                         CMD = CommandType.ReplyEventReport,
@@ -527,7 +525,6 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
-                case "503":
                 case "PRODUCT_LEFTOVER_REPORT":
                 case "PRODUCTLEFTOVERREPORT":
                     string pLeftoverWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO") ?? _workOrderNgCodesMap.Keys.FirstOrDefault();
@@ -536,8 +533,9 @@ namespace EAPDashboard.Models
                     string pLeftoverBatch = getValByLogicalName("LeftoverBatchNo") ?? getValByLogicalName("LeftOverBatchNo") ?? getValByLogicalName("Leftover_BatchNo");
                     string pAddQty = getValByLogicalName("AddQty") ?? getValByLogicalName("Add_Qty");
                     string pGapQty = getValByLogicalName("GapQty") ?? getValByLogicalName("Gap_Qty");
+                    string pLeftoverUserId = getValByLogicalName("UserID") ?? getValByLogicalName("User_ID") ?? getValByLogicalName("Operator");
 
-                    var (pLeftoverPass, pLeftoverMsg) = await ProcessUseProductLeftoverAsync(pLeftoverWo, pLeftoverReelId, pLeftoverWoRef, pLeftoverBatch, pAddQty, pGapQty);
+                    var (pLeftoverPass, pLeftoverMsg) = await ProcessUseProductLeftoverAsync(pLeftoverWo, pLeftoverReelId, pLeftoverWoRef, pLeftoverBatch, pAddQty, pGapQty, pLeftoverUserId);
                     await SendReply(new ReplyEventReportMessage
                     {
                         CMD = CommandType.ReplyEventReport,

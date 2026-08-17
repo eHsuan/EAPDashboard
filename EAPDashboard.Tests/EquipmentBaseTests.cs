@@ -379,5 +379,33 @@ namespace EAPDashboard.Tests
             isSuccess.Should().BeFalse();
             message.Should().Contain("Missing WorkOrder ('WO100') or ReelID ('')");
         }
+
+        [Fact]
+        public async Task ProcessAddProductLeftoverAsync_WithCustomUserId_InvalidInput_ShouldFailValidation()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message) = await eq.ProcessAddProductLeftoverAsync("", "10", "REEL01", userId: "OP_USER_01");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder");
+        }
+
+        [Fact]
+        public async Task ProcessUseProductLeftoverAsync_WithCustomUserId_InvalidInput_ShouldFailValidation()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message) = await eq.ProcessUseProductLeftoverAsync("", "REEL01", "WO_PREV", "BATCH01", "10", "0", userId: "OP_USER_01");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder");
+        }
     }
 }

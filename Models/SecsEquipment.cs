@@ -266,19 +266,19 @@ namespace EAPDashboard.Models
                 }
 
                 string upperEvent = logicalEvent.ToUpper();
-                if (upperEvent == "TRACK_IN" || ceidStr == "200")
+                if (upperEvent == "TRACK_IN" || upperEvent == "TRACKIN")
                 {
                     await HandleS6F11TrackIn(data.Reports);
                 }
-                else if (upperEvent == "TRACK_OUT" || ceidStr == "206")
+                else if (upperEvent == "TRACK_OUT" || upperEvent == "TRACKOUT")
                 {
                     await HandleS6F11TrackOut(data.Reports);
                 }
-                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || ceidStr == "102")
+                else if (upperEvent == "PROCESS_DATA" || upperEvent == "KEY_PARAMETERS" || upperEvent == "PROCESSDATA" || upperEvent == "KEYPARAMETERS")
                 {
                     await HandleS6F11ProcessData(data.Reports, ceidStr, logicalEvent);
                 }
-                else if (upperEvent == "STATUS_CHANGE" || new[] { "50", "51", "52", "53" }.Contains(ceidStr))
+                else if (upperEvent == "STATUS_CHANGE" || upperEvent == "STATUSCHANGE")
                 {
                     HandleEqpStatusCall(new EQPSTATUSRequest { EqpNo = Id, StatusCode = statusCode ?? "3" });
                 }
@@ -300,11 +300,14 @@ namespace EAPDashboard.Models
                 cid = ExtractVidValue(reports, "300") ?? ExtractVidValue(reports, "320") ?? "UNKNOWN";
             }
 
+            string opVid = GetVidByLogicalName("Operator") ?? GetVidByLogicalName("UserID") ?? GetVidByLogicalName("User_ID");
+            string userId = (!string.IsNullOrEmpty(opVid) ? ExtractVidValue(reports, opVid) : null) ?? "UNKNOWN";
+
             var info = QueryBindingFromGateway(cid);
             string wo = info?.WorkOrder;
             List<string> panels = info?.Panels ?? new List<string>();
 
-            string res = await ProcessTrackInAsync(cid, wo, panels, "UNKNOWN");
+            string res = await ProcessTrackInAsync(cid, wo, panels, userId);
             if (res.StartsWith("PP-SELECT"))
             {
                 string[] p = res.Split('|');
@@ -315,7 +318,7 @@ namespace EAPDashboard.Models
                 bool cmdSuccess = await SendS2F41("PP-SELECT", parameters);
                 if (cmdSuccess)
                 {
-                    string fin = await ProcessTrackInFinalAsync(p[1], "UNKNOWN", cid);
+                    string fin = await ProcessTrackInFinalAsync(p[1], userId, cid);
                     OnLogReceived(LogLevel.Info, $"[AUTO] 進站報工完成: {fin}");
                 }
                 else
@@ -334,7 +337,10 @@ namespace EAPDashboard.Models
                 rid = "UNKNOWN";
             }
 
-            string res = await ProcessTrackOutAsync(rid, "1", "UNKNOWN", "UNKNOWN", new List<string>());
+            string opVid = GetVidByLogicalName("Operator") ?? GetVidByLogicalName("UserID") ?? GetVidByLogicalName("User_ID");
+            string userId = (!string.IsNullOrEmpty(opVid) ? ExtractVidValue(reports, opVid) : null) ?? "UNKNOWN";
+
+            string res = await ProcessTrackOutAsync(rid, "1", userId, "UNKNOWN", new List<string>());
             OnLogReceived(LogLevel.Info, $"[AUTO] 出站報工結果: {res}");
         }
 
