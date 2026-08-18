@@ -69,6 +69,15 @@ namespace EAPDashboard.Models
         public string NGUnit { get; set; }
     }
 
+    public class TotalCountItem
+    {
+        public string EquipmentId { get; set; } = string.Empty;
+        public string WorkOrder { get; set; } = string.Empty;
+        public string ReelCount { get; set; } = string.Empty;
+        public string QtyPerReel { get; set; } = string.Empty;
+        public DateTime UpdatedTime { get; set; } = DateTime.Now;
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
@@ -77,6 +86,32 @@ namespace EAPDashboard.Models
         private Dictionary<string, string> _alarmMappings = new Dictionary<string, string>();
         protected readonly ConcurrentDictionary<string, ConcurrentDictionary<string, NGCodeItem>> _workOrderNgCodesMap 
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, NGCodeItem>>(StringComparer.OrdinalIgnoreCase);
+        protected readonly ConcurrentDictionary<string, TotalCountItem> _workOrderTotalCountMap
+            = new ConcurrentDictionary<string, TotalCountItem>(StringComparer.OrdinalIgnoreCase);
+
+        public void RecordTotalCountReport(string workOrder, string reelCount, string qtyPerReel)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return;
+            string trimmedWo = workOrder.Trim();
+            var item = new TotalCountItem
+            {
+                EquipmentId = this.Id,
+                WorkOrder = trimmedWo,
+                ReelCount = reelCount?.Trim() ?? "",
+                QtyPerReel = qtyPerReel?.Trim() ?? "",
+                UpdatedTime = DateTime.Now
+            };
+            _workOrderTotalCountMap[trimmedWo] = item;
+            OnLogReceived(LogLevel.Info, $"[TotalCountReport] Recorded for Eqp: {Id}, WO: {item.WorkOrder}, ReelCount: {item.ReelCount}, QtyPerReel: {item.QtyPerReel}");
+        }
+
+        public TotalCountItem GetTotalCount(string workOrder)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return null;
+            return _workOrderTotalCountMap.TryGetValue(workOrder.Trim(), out var item) ? item : null;
+        }
+
+        public IReadOnlyDictionary<string, TotalCountItem> GetAllTotalCounts() => _workOrderTotalCountMap;
         private static readonly object _logLock = new object();
         private static readonly HttpClient _httpClient = new HttpClient();
         private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;

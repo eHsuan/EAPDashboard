@@ -8,6 +8,7 @@
 	"1003": "NGCodeReport",
 	"1004": "ReelIDReport",
 	"1005": "LastReelIDReport",
+	"1006": "TotalCountReport"
   },
   "Variables": {
     "1000": "WorkOrder",
@@ -33,6 +34,8 @@
 	"1020": "NGName",
 	"1021": "NGQty",
 	"1022": "NGUnit",
+	"1023": "ReelCount",
+	"1024": "QtyPerReel"
   },
   "StatusMapping": {
     "0": "Down",

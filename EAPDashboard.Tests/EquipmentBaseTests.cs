@@ -437,5 +437,36 @@ namespace EAPDashboard.Tests
             resultCode.Should().Be("ERR_INVALID_PARAM");
             message.Should().Contain("Missing WorkOrder ('WO20260817001') or NGCode ('')");
         }
+
+        [Fact]
+        public void RecordTotalCountReport_ValidData_ShouldStoreInMap()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            eq.RecordTotalCountReport("WO20260818001", "10", "500");
+
+            // Assert
+            var item = eq.GetTotalCount("WO20260818001");
+            item.Should().NotBeNull();
+            item.EquipmentId.Should().Be("EQ01");
+            item.WorkOrder.Should().Be("WO20260818001");
+            item.ReelCount.Should().Be("10");
+            item.QtyPerReel.Should().Be("500");
+        }
+
+        [Fact]
+        public void GetTotalCount_NonExistentWorkOrder_ShouldReturnNull()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var item = eq.GetTotalCount("NON_EXISTENT_WO");
+
+            // Assert
+            item.Should().BeNull();
+        }
     }
 }

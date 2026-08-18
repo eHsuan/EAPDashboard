@@ -2,7 +2,8 @@
   "Model": "MQTT_V1.0.1_Standard",
   "Events": {
     "500": "USER_VERIFY",
-    "501": "NGCodeReport"
+    "501": "NGCodeReport",
+    "502": "TotalCountReport"
   },
   "Variables": {
     "101": "UserID",
@@ -15,7 +16,9 @@
     "1020": "NGQty",
     "1021": "NGUnit",
     "1022": "NGName",
-    "1023": "WorkOrder"
+    "1023": "WorkOrder",
+    "1024": "ReelCount",
+    "1025": "QtyPerReel"
   },
   "StatusMapping": {
     "0": "Running",

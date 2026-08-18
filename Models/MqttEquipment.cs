@@ -548,6 +548,46 @@ namespace EAPDashboard.Models
                     }, evm);
                     break;
 
+                case "TOTAL_COUNT_REPORT":
+                case "TOTALCOUNTREPORT":
+                case "TOTAL_COUNT":
+                    string tcWo = getValByLogicalName("WorkOrder") ?? getValByLogicalName("WONO") ?? getValByLogicalName("WO");
+                    string tcReelCount = getValByLogicalName("ReelCount") ?? getValByLogicalName("Reel_Count");
+                    string tcQtyPerReel = getValByLogicalName("QtyPerReel") ?? getValByLogicalName("Qty_Per_Reel");
+
+                    bool hasWo = !string.IsNullOrWhiteSpace(tcWo);
+                    bool hasReelCount = !string.IsNullOrWhiteSpace(tcReelCount);
+                    bool hasQtyPerReel = !string.IsNullOrWhiteSpace(tcQtyPerReel);
+
+                    if (hasWo && hasReelCount && hasQtyPerReel)
+                    {
+                        RecordTotalCountReport(tcWo, tcReelCount, tcQtyPerReel);
+                        await SendReply(new ReplyEventReportMessage
+                        {
+                            CMD = CommandType.ReplyEventReport,
+                            RtnResult = RtnResult.PASS,
+                            RtnMsg = "TotalCountReport received successfully"
+                        }, evm);
+                    }
+                    else
+                    {
+                        var missingParams = new List<string>();
+                        if (!hasWo) missingParams.Add("WorkOrder");
+                        if (!hasReelCount) missingParams.Add("ReelCount");
+                        if (!hasQtyPerReel) missingParams.Add("QtyPerReel");
+
+                        string failMsg = $"TotalCountReport validation failed: Missing required parameters ({string.Join(", ", missingParams)}). WorkOrder, ReelCount, QtyPerReel must all have valid values.";
+                        OnLogReceived(LogLevel.Warn, $"[TotalCountReport] {Id} {failMsg}");
+
+                        await SendReply(new ReplyEventReportMessage
+                        {
+                            CMD = CommandType.ReplyEventReport,
+                            RtnResult = RtnResult.FAIL,
+                            RtnMsg = failMsg
+                        }, evm);
+                    }
+                    break;
+
                 case "KPIV_REPORT":
                     if (evm.Data != null && evm.Data.Count > 0)
                     {
