@@ -504,9 +504,17 @@ namespace EAPDashboard.Models
                     string ngName = getValByLogicalName("NGName") ?? getValByLogicalName("NG_Name");
                     string ngQty = getValByLogicalName("NGQty") ?? getValByLogicalName("NG_Qty") ?? getValByLogicalName("Qty");
                     string ngUnit = getValByLogicalName("NGUnit") ?? getValByLogicalName("NG_Unit") ?? getValByLogicalName("Unit");
+                    string ngUserId = getValByLogicalName("UserID") ?? getValByLogicalName("User_ID") ?? getValByLogicalName("Operator");
+                    string ngFlowId = getValByLogicalName("FlowID") ?? getValByLogicalName("Flow_ID") ?? "";
 
                     RecordNGCodeReport(ngWo, ngCode, ngName, ngQty, ngUnit);
-                    await SendReply(new ReplyEventReportMessage { CMD = CommandType.ReplyEventReport, RtnResult = RtnResult.PASS }, evm);
+
+                    var (wongPass, wongCode, wongMsg) = await ProcessEqpWONGAddAsync(ngWo, ngCode, ngQty, ngUnit, ngFlowId, ngUserId);
+                    await SendReply(new ReplyEventReportMessage { 
+                        CMD = CommandType.ReplyEventReport, 
+                        RtnResult = wongPass ? RtnResult.PASS : RtnResult.FAIL,
+                        RtnMsg = wongMsg
+                    }, evm);
                     break;
 
                 case "LEFTOVERS_REPORT":

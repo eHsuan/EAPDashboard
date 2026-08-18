@@ -835,6 +835,70 @@ namespace EAPDashboard.Models
             catch { }
         }
 
+        public async Task<(bool isSuccess, string resultCode, string message)> ProcessEqpWONGAddAsync(
+            string workOrder, 
+            string ngCode, 
+            string ngQty, 
+            string ngUnit = "", 
+            string flowId = "", 
+            string userId = null, 
+            string reportEqpId = null)
+        {
+            string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
+            string wo = workOrder?.Trim() ?? "";
+            string code = ngCode?.Trim() ?? "";
+            string qty = ngQty?.Trim() ?? "0";
+            string unit = ngUnit?.Trim() ?? "";
+            string fid = flowId?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(wo) || string.IsNullOrEmpty(code))
+            {
+                string err = $"Missing WorkOrder ('{wo}') or NGCode ('{code}')";
+                OnLogReceived(LogLevel.Warn, $"[EqpWONGAdd] {err}");
+                return (false, "ERR_INVALID_PARAM", err);
+            }
+
+            try
+            {
+                var req = new EqpWONGAddRequest
+                {
+                    WONo = wo,
+                    FlowID = fid,
+                    EqpNo = eid,
+                    UserID = userId ?? ""
+                };
+
+                var ngItems = new List<Protocol.MES.Messages.NGListItem>
+                {
+                    new Protocol.MES.Messages.NGListItem { NGCode = code, Value = qty, NGUnit = unit }
+                };
+                req.NGListDt = JsonConvert.SerializeObject(ngItems);
+
+                var addngTask = Task.Run(() => CallMesWithLog<EqpWONGAddRequest, EqpWONGAddReply>(req));
+                if (await Task.WhenAny(addngTask, Task.Delay(25000)) != addngTask)
+                {
+                    string timeoutMsg = $"MES EqpWONGAdd Timeout (25s) for WO: {wo}, NGCode: {code}";
+                    OnLogReceived(LogLevel.Error, $"[EqpWONGAdd] {timeoutMsg}");
+                    return (false, "T001", timeoutMsg);
+                }
+
+                var reply = await addngTask;
+                if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
+                {
+                    return (true, reply.ResultCode ?? "000", reply.Message ?? "Success");
+                }
+                else
+                {
+                    return (false, reply?.ResultCode ?? "ERR_MES", reply?.Message ?? "MES EqpWONGAdd Failed");
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[EqpWONGAdd] Exception: {ex.Message}");
+                return (false, "EXCEPTION", ex.Message);
+            }
+        }
+
         public async Task<(bool isSuccess, string message)> ProcessAddProductLeftoverAsync(string workOrder, string qty, string reelId, string userId = null, string reportEqpId = null)
         {
             string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;

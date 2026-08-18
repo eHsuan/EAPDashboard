@@ -407,5 +407,35 @@ namespace EAPDashboard.Tests
             isSuccess.Should().BeFalse();
             message.Should().Contain("Missing WorkOrder");
         }
+
+        [Fact]
+        public async Task ProcessEqpWONGAddAsync_MissingWO_ShouldFailValidation()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, resultCode, message) = await eq.ProcessEqpWONGAddAsync("", "UPNG501", "5", "PCS", userId: "OP001");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            resultCode.Should().Be("ERR_INVALID_PARAM");
+            message.Should().Contain("Missing WorkOrder");
+        }
+
+        [Fact]
+        public async Task ProcessEqpWONGAddAsync_MissingNGCode_ShouldFailValidation()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, resultCode, message) = await eq.ProcessEqpWONGAddAsync("WO20260817001", "", "5", "PCS", userId: "OP001");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            resultCode.Should().Be("ERR_INVALID_PARAM");
+            message.Should().Contain("Missing WorkOrder ('WO20260817001') or NGCode ('')");
+        }
     }
 }

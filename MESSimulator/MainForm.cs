@@ -519,6 +519,20 @@ namespace MESSimulator
                         reply["Message"] = "Simulation UseProductLeftover Success";
                         break;
 
+                    case "EQPWONGADD":
+                    case "EQP_WO_NG_ADD":
+                        string wongWono = req["WONo"]?.ToString() ?? req["WONO"]?.ToString() ?? "";
+                        string wongFlowId = req["FlowID"]?.ToString() ?? "";
+                        string wongEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        string wongUserId = req["UserID"]?.ToString() ?? "";
+                        string wongNgListDt = req["NGListDt"]?.ToString() ?? "";
+
+                        Log($"[EqpWONGAdd] Received WONo: {wongWono}, FlowID: {wongFlowId}, EqpNo: {wongEqpNo}, UserID: {wongUserId}, NGListDt: {wongNgListDt}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "000";
+                        reply["Message"] = "Simulation EqpWONGAdd Success";
+                        break;
+
                     default:
                         reply["Result"] = "FAIL";
                         reply["Message"] = $"Unsupported Transaction: {txn}";

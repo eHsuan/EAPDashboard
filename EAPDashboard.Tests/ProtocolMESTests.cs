@@ -96,5 +96,29 @@ namespace EAPDashboard.Tests
             req.WONO.Should().Be("WO20260701");
             req.ReelID.Should().Be("REEL001");
         }
+
+        [Fact]
+        public void EqpWONGAddRequest_Initialization_ShouldSetCorrectTransactionName()
+        {
+            var req = new Protocol.MES.Messages.EqpWONGAddRequest
+            {
+                WONo = "WO20260817001",
+                FlowID = "",
+                EqpNo = "EQ01",
+                UserID = "U001"
+            };
+            var list = new System.Collections.Generic.List<Protocol.MES.Messages.NGListItem>
+            {
+                new Protocol.MES.Messages.NGListItem { NGCode = "UPNG501", Value = "5", NGUnit = "PCS" }
+            };
+            req.NGListDt = Newtonsoft.Json.JsonConvert.SerializeObject(list);
+
+            req.TransactionName.Should().Be(MESTransactionName.EqpWONGAdd);
+            req.WONo.Should().Be("WO20260817001");
+            req.FlowID.Should().BeEmpty();
+            req.EqpNo.Should().Be("EQ01");
+            req.UserID.Should().Be("U001");
+            req.NGListDt.Should().Contain("UPNG501");
+        }
     }
 }

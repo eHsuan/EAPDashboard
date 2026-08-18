@@ -1,7 +1,7 @@
 {
   "EapId": "EAP01",
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
-  "MqttBrokerHost": "127.0.0.1",
+  "MqttBrokerHost": "192.168.1.78",
   "MqttBrokerPort": 1883,
   "HeartbeatIntervalSeconds": 10,
   "EqpStatusReportIntervalSeconds": 60,
@@ -50,6 +50,15 @@
       "DictionaryPath": "Dictionaries/AC3811.json",
       "StatusType": "Cyntec",
       "IsActive": false
+    },
+    {
+      "Id": "MK0158",
+      "Name": "MK0158",
+      "Protocol": "MQTT",
+      "Topic": "TN2/Floor2/Yellow/MK0158",
+      "DictionaryPath": "Dictionaries/MK0158.json",
+      "StatusType": "Delta",
+      "IsActive": true
     },
     {
       "Id": "ZZ0304",
