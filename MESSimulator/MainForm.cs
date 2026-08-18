@@ -284,7 +284,7 @@ namespace MESSimulator
                         }
                         catch { }
 
-                        string mockRecipe = "SIM_RECIPE_001";
+                        string mockRecipe = "";
                         if (!string.IsNullOrEmpty(customRecipe))
                         {
                             mockRecipe = customRecipe;
@@ -297,6 +297,10 @@ namespace MESSimulator
                         else if (wonoQry.IndexOf("DIFF", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             mockRecipe = $"SIM_RECIPE_DIFF_{wonoQry}";
+                        }
+                        else
+                        {
+                            mockRecipe = new Random().Next(1000, 9999).ToString();
                         }
 
                         var paramDt = new JArray();

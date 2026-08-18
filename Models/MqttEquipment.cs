@@ -292,13 +292,7 @@ namespace EAPDashboard.Models
                                 Panels = panels,
                                 TransactionID = ti.TransactionID
                             };
-                            string finalRecipe = "";
-                            if (this.IsMesSimulator) {
-                                finalRecipe = new Random().Next(1000, 9999).ToString();
-                                OnLogReceived(LogLevel.Info, string.Format("[SIM] MES Simulator detected. Random Recipe: {0}", finalRecipe));
-                            } else {
-                                finalRecipe = tp[2];
-                            }
+                            string finalRecipe = tp[2];
 
                             var rcmd = new RemoteCMDMessage { 
                                 CMD = CommandType.RemoteCMD, 
