@@ -89,6 +89,170 @@ namespace EAPDashboard.Models
         protected readonly ConcurrentDictionary<string, TotalCountItem> _workOrderTotalCountMap
             = new ConcurrentDictionary<string, TotalCountItem>(StringComparer.OrdinalIgnoreCase);
 
+        private static readonly object _totalCountFileLock = new object();
+        private static readonly object _ngCodeFileLock = new object();
+        public static string CustomCacheDirectory { get; set; } = null;
+
+        protected static string GetCacheDirectory()
+        {
+            if (!string.IsNullOrEmpty(CustomCacheDirectory))
+            {
+                if (!Directory.Exists(CustomCacheDirectory))
+                {
+                    Directory.CreateDirectory(CustomCacheDirectory);
+                }
+                return CustomCacheDirectory;
+            }
+
+            string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+            string cacheDir = Path.Combine(baseDir, "Cache");
+            if (!Directory.Exists(cacheDir))
+            {
+                Directory.CreateDirectory(cacheDir);
+            }
+            return cacheDir;
+        }
+
+        protected static string GetTotalCountCacheFilePath() => Path.Combine(GetCacheDirectory(), "total_count_cache.json");
+        protected static string GetNgCodeCacheFilePath() => Path.Combine(GetCacheDirectory(), "ng_code_cache.json");
+
+        public void LoadCachesFromDisk()
+        {
+            LoadTotalCountCache();
+            LoadNgCodeCache();
+        }
+
+        public void LoadTotalCountCache()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_totalCountFileLock)
+                {
+                    string filePath = GetTotalCountCacheFilePath();
+                    if (File.Exists(filePath))
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, TotalCountItem>>>(json);
+                        if (allCache != null && allCache.TryGetValue(this.Id, out var eqpCache) && eqpCache != null)
+                        {
+                            foreach (var kvp in eqpCache)
+                            {
+                                _workOrderTotalCountMap[kvp.Key] = kvp.Value;
+                            }
+                            OnLogReceived(LogLevel.Info, $"[TotalCountCache] Loaded {eqpCache.Count} item(s) from disk for {Id}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[TotalCountCache] Failed to load cache from disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void SaveTotalCountCacheToDisk()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_totalCountFileLock)
+                {
+                    string filePath = GetTotalCountCacheFilePath();
+                    Dictionary<string, Dictionary<string, TotalCountItem>> allCache = null;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string existingJson = File.ReadAllText(filePath);
+                            allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, TotalCountItem>>>(existingJson);
+                        }
+                        catch { }
+                    }
+                    allCache ??= new Dictionary<string, Dictionary<string, TotalCountItem>>(StringComparer.OrdinalIgnoreCase);
+                    allCache[this.Id] = new Dictionary<string, TotalCountItem>(_workOrderTotalCountMap, StringComparer.OrdinalIgnoreCase);
+
+                    string newJson = JsonConvert.SerializeObject(allCache, Formatting.Indented);
+                    File.WriteAllText(filePath, newJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[TotalCountCache] Failed to save cache to disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void LoadNgCodeCache()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_ngCodeFileLock)
+                {
+                    string filePath = GetNgCodeCacheFilePath();
+                    if (File.Exists(filePath))
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, Dictionary<string, NGCodeItem>>>>(json);
+                        if (allCache != null && allCache.TryGetValue(this.Id, out var eqpCache) && eqpCache != null)
+                        {
+                            foreach (var woKvp in eqpCache)
+                            {
+                                var ngDict = new ConcurrentDictionary<string, NGCodeItem>(StringComparer.OrdinalIgnoreCase);
+                                foreach (var ngKvp in woKvp.Value)
+                                {
+                                    ngDict[ngKvp.Key] = ngKvp.Value;
+                                }
+                                _workOrderNgCodesMap[woKvp.Key] = ngDict;
+                            }
+                            OnLogReceived(LogLevel.Info, $"[NgCodeCache] Loaded {eqpCache.Count} WO(s) from disk for {Id}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[NgCodeCache] Failed to load cache from disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void SaveNgCodeCacheToDisk()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_ngCodeFileLock)
+                {
+                    string filePath = GetNgCodeCacheFilePath();
+                    Dictionary<string, Dictionary<string, Dictionary<string, NGCodeItem>>> allCache = null;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string existingJson = File.ReadAllText(filePath);
+                            allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, Dictionary<string, NGCodeItem>>>>(existingJson);
+                        }
+                        catch { }
+                    }
+                    allCache ??= new Dictionary<string, Dictionary<string, Dictionary<string, NGCodeItem>>>(StringComparer.OrdinalIgnoreCase);
+
+                    var eqpMap = new Dictionary<string, Dictionary<string, NGCodeItem>>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var kvp in _workOrderNgCodesMap)
+                    {
+                        eqpMap[kvp.Key] = new Dictionary<string, NGCodeItem>(kvp.Value, StringComparer.OrdinalIgnoreCase);
+                    }
+                    allCache[this.Id] = eqpMap;
+
+                    string newJson = JsonConvert.SerializeObject(allCache, Formatting.Indented);
+                    File.WriteAllText(filePath, newJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[NgCodeCache] Failed to save cache to disk for {Id}: {ex.Message}");
+            }
+        }
+
         public void RecordTotalCountReport(string workOrder, string reelCount, string qtyPerReel)
         {
             if (string.IsNullOrWhiteSpace(workOrder)) return;
@@ -102,6 +266,7 @@ namespace EAPDashboard.Models
                 UpdatedTime = DateTime.Now
             };
             _workOrderTotalCountMap[trimmedWo] = item;
+            SaveTotalCountCacheToDisk();
             OnLogReceived(LogLevel.Info, $"[TotalCountReport] Recorded for Eqp: {Id}, WO: {item.WorkOrder}, ReelCount: {item.ReelCount}, QtyPerReel: {item.QtyPerReel}");
         }
 
@@ -588,6 +753,7 @@ namespace EAPDashboard.Models
                             if (ngDict.Count > 0)
                             {
                                 _workOrderNgCodesMap[wo] = ngDict;
+                                SaveNgCodeCacheToDisk();
                                 OnLogReceived(LogLevel.Info, $"[TrackIn] Loaded {ngDict.Count} NGCode(s) for WO {wo}: {string.Join(",", ngDict.Keys)}");
                             }
                         }
@@ -841,6 +1007,7 @@ namespace EAPDashboard.Models
                     item.NGQty = ngQty ?? "0";
                     if (!string.IsNullOrEmpty(ngUnit)) item.NGUnit = ngUnit.Trim();
                     if (!string.IsNullOrEmpty(ngName)) item.NGName = ngName.Trim();
+                    SaveNgCodeCacheToDisk();
                     OnLogReceived(LogLevel.Info, $"[NGCodeReport] Recorded WO: {trimmedWo}, NGCode: {trimmedCode} ({item.NGName}), Qty: {item.NGQty}, Unit: {item.NGUnit}");
                     return true;
                 }
@@ -1192,7 +1359,10 @@ namespace EAPDashboard.Models
                 foreach (var wo in validWos)
                 {
                     _workOrderNgCodesMap.TryRemove(wo, out _);
+                    _workOrderTotalCountMap.TryRemove(wo, out _);
                 }
+                SaveNgCodeCacheToDisk();
+                SaveTotalCountCacheToDisk();
 
                 if (EnableCassetteBinding)
                 {

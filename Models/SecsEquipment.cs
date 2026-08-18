@@ -58,6 +58,7 @@ namespace EAPDashboard.Models
                 if (File.Exists(fullDictPath)) _dictionary = SecsDictionary.Load(fullDictPath);
 
                 LoadAlarmMappings();
+                LoadCachesFromDisk();
                 _ = StartStatusBufferProcessor(_linkedCts.Token);
 
                 // 實例化 DLL 中的 SecsClient

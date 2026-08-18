@@ -468,5 +468,75 @@ namespace EAPDashboard.Tests
             // Assert
             item.Should().BeNull();
         }
+
+        [Fact]
+        public void TotalCountCache_Persistence_ShouldSurviveRestart()
+        {
+            // Arrange
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq1 = new TestableEquipment("EQ_PERSIST_01");
+                eq1.RecordTotalCountReport("WO_RESTART_001", "20", "1000");
+
+                // Act - Simulate EAP restart by creating a new instance and calling LoadTotalCountCache
+                var eq2 = new TestableEquipment("EQ_PERSIST_01");
+                eq2.LoadTotalCountCache();
+
+                // Assert
+                var restored = eq2.GetTotalCount("WO_RESTART_001");
+                restored.Should().NotBeNull();
+                restored.EquipmentId.Should().Be("EQ_PERSIST_01");
+                restored.WorkOrder.Should().Be("WO_RESTART_001");
+                restored.ReelCount.Should().Be("20");
+                restored.QtyPerReel.Should().Be("1000");
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task NgCodeCache_Persistence_ShouldSurviveRestart()
+        {
+            // Arrange
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq1 = new TestableEquipment("EQ_PERSIST_02");
+                var ngItems = new List<NGCodeItem>
+                {
+                    new NGCodeItem { NGCode = "NG001", NGName = "Defect A" },
+                    new NGCodeItem { NGCode = "NG002", NGName = "Defect B" }
+                };
+                eq1.SetWorkOrderNGCodesForTest("WO_RESTART_002", ngItems);
+                eq1.RecordNGCodeReport("WO_RESTART_002", "NG001", "Defect A", "5", "PCS");
+
+                // Act - Simulate EAP restart by creating a new instance and calling LoadNgCodeCache
+                var eq2 = new TestableEquipment("EQ_PERSIST_02");
+                eq2.LoadNgCodeCache();
+
+                // Assert
+                eq2.HasWorkOrderNGCodes("WO_RESTART_002").Should().BeTrue();
+                var (isSuccess, _, message) = await eq2.ProcessEqpWONGAddAsync("WO_RESTART_002", "NG001", "5", "PCS", "OP1");
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
     }
 }

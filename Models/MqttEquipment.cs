@@ -119,6 +119,7 @@ namespace EAPDashboard.Models
             _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
             LoadAlarmMappings();
             LoadDictionary();
+            LoadCachesFromDisk();
 
             _bus = bus;
             _heartbeatInterval = heartbeatIntervalSeconds;
