@@ -268,21 +268,28 @@ namespace MESSimulator
                         reply["CustomerDeliveryTime"] = "9999-12-31 00:00:00.000";
 
                         bool isRecipeMismatch = false;
+                        string customRecipe = "";
                         try
                         {
                             if (this.InvokeRequired)
                             {
                                 isRecipeMismatch = (bool)this.Invoke(new Func<bool>(() => chkRecipeMismatch != null && chkRecipeMismatch.Checked));
+                                customRecipe = (string)this.Invoke(new Func<string>(() => txtRecipeId?.Text?.Trim() ?? ""));
                             }
                             else
                             {
                                 isRecipeMismatch = chkRecipeMismatch != null && chkRecipeMismatch.Checked;
+                                customRecipe = txtRecipeId?.Text?.Trim() ?? "";
                             }
                         }
                         catch { }
 
                         string mockRecipe = "SIM_RECIPE_001";
-                        if (isRecipeMismatch)
+                        if (!string.IsNullOrEmpty(customRecipe))
+                        {
+                            mockRecipe = customRecipe;
+                        }
+                        else if (isRecipeMismatch)
                         {
                             int lastVal = !string.IsNullOrEmpty(wonoQry) ? (int)wonoQry[wonoQry.Length - 1] : 0;
                             mockRecipe = $"RECIPE_{(lastVal % 2 == 0 ? "A" : "B")}_{wonoQry}";

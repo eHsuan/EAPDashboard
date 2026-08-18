@@ -49,6 +49,8 @@ namespace MESSimulator
             chkEQPSTATUSPass = new System.Windows.Forms.CheckBox();
             chkRecipeMismatch = new System.Windows.Forms.CheckBox();
             chkEnableNGCodeList = new System.Windows.Forms.CheckBox();
+            lblRecipeId = new System.Windows.Forms.Label();
+            txtRecipeId = new System.Windows.Forms.TextBox();
             panelTop.Controls.Add(lblHandshakeResponses);
             panelTop.Controls.Add(chkUserVerifyPass);
             panelTop.Controls.Add(chkWOQRYPass);
@@ -61,6 +63,8 @@ namespace MESSimulator
             panelTop.Controls.Add(txtInRequireInputCode);
             panelTop.Controls.Add(lblOutRequireInputCode);
             panelTop.Controls.Add(txtOutRequireInputCode);
+            panelTop.Controls.Add(lblRecipeId);
+            panelTop.Controls.Add(txtRecipeId);
             panelTop.Controls.Add(btnStop);
             panelTop.Controls.Add(btnStart);
             panelTop.Controls.Add(txtPort);
@@ -70,7 +74,7 @@ namespace MESSimulator
             panelTop.Location = new System.Drawing.Point(0, 0);
             panelTop.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             panelTop.Name = "panelTop";
-            panelTop.Size = new System.Drawing.Size(1176, 80);
+            panelTop.Size = new System.Drawing.Size(1200, 80);
             panelTop.TabIndex = 0;
             // 
             // lblInRequireInputCode
@@ -110,6 +114,24 @@ namespace MESSimulator
             txtOutRequireInputCode.Size = new System.Drawing.Size(116, 23);
             txtOutRequireInputCode.TabIndex = 8;
             txtOutRequireInputCode.Text = "EX001";
+            // 
+            // lblRecipeId
+            // 
+            lblRecipeId.AutoSize = true;
+            lblRecipeId.Location = new System.Drawing.Point(930, 29);
+            lblRecipeId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            lblRecipeId.Name = "lblRecipeId";
+            lblRecipeId.Size = new System.Drawing.Size(115, 15);
+            lblRecipeId.TabIndex = 9;
+            lblRecipeId.Text = "PP_SELECT Recipe:";
+            // 
+            // txtRecipeId
+            // 
+            txtRecipeId.Location = new System.Drawing.Point(1050, 25);
+            txtRecipeId.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            txtRecipeId.Name = "txtRecipeId";
+            txtRecipeId.Size = new System.Drawing.Size(116, 23);
+            txtRecipeId.TabIndex = 10;
             // 
             // btnStop
             // 
@@ -353,6 +375,8 @@ namespace MESSimulator
         private System.Windows.Forms.TextBox txtInRequireInputCode;
         private System.Windows.Forms.Label lblOutRequireInputCode;
         private System.Windows.Forms.TextBox txtOutRequireInputCode;
+        private System.Windows.Forms.Label lblRecipeId;
+        private System.Windows.Forms.TextBox txtRecipeId;
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.Button btnStop;
         private System.Windows.Forms.SplitContainer splitContainer;
