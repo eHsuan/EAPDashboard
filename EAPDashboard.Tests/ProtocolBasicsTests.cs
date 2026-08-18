@@ -88,5 +88,27 @@ namespace EAPDashboard.Tests
             commandTopic.Should().Be("TN2/Floor2/Yellow/PL001/Command");
             reportTopic.Should().Be("TN2/Floor2/Yellow/PL001/Report");
         }
+
+        [Fact]
+        public void ReplyEventReportMessage_RtnResult_ShouldSerializeAsString()
+        {
+            // Arrange
+            var replyMsg = new ReplyEventReportMessage
+            {
+                CMD = CommandType.ReplyEventReport,
+                RtnResult = RtnResult.PASS,
+                RtnMsg = "123456",
+                TransactionID = "TID_001"
+            };
+
+            // Act - Using CyntecMqttLib's JsonUtil
+            string json = CyntecMqttLib.Util.JsonUtil.Serialize(replyMsg);
+            JObject parsed = JObject.Parse(json);
+
+            // Assert - RtnResult must be "PASS", not 1
+            parsed["RtnResult"].Value<string>().Should().Be("PASS");
+            parsed["CMD"].Value<string>().Should().Be("ReplyEventReport");
+            parsed["RtnMsg"].Value<string>().Should().Be("123456");
+        }
     }
 }
