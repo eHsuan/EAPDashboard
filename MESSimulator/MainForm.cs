@@ -151,6 +151,7 @@ namespace MESSimulator
             {
                 case "USERVERIFY":
                 case "USER_VERIFY":
+                case "USERIDVERIFY":
                     return chkUserVerifyPass == null || chkUserVerifyPass.Checked;
                 case "WOQRY":
                     return chkWOQRYPass == null || chkWOQRYPass.Checked;
@@ -194,17 +195,52 @@ namespace MESSimulator
                 {
                     case "USERVERIFY":
                     case "USER_VERIFY":
+                    case "USERIDVERIFY":
                         string barcode = req["User2DBarCode"]?.ToString() ?? "";
-                        string extractedId = req["UserID"]?.ToString() ?? "SIM_USER_001";
+                        string extractedId = req["UserID"]?.ToString() ?? "";
                         if (barcode.StartsWith("{{{{"))
                         {
                             var parts = barcode.Substring(4).Split('{');
                             if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
                                 extractedId = parts[0];
                         }
+                        else if (!string.IsNullOrEmpty(barcode))
+                        {
+                            var match = System.Text.RegularExpressions.Regex.Match(barcode, @"\d{6}");
+                            if (match.Success)
+                            {
+                                extractedId = match.Value;
+                            }
+                        }
+
+                        // 確保工號為 6 碼純數字 (例如: 123456)
+                        if (string.IsNullOrEmpty(extractedId))
+                        {
+                            extractedId = "123456";
+                        }
+                        else
+                        {
+                            string digitsOnly = new string(extractedId.Where(char.IsDigit).ToArray());
+                            if (string.IsNullOrEmpty(digitsOnly))
+                            {
+                                extractedId = "123456";
+                            }
+                            else if (digitsOnly.Length >= 6)
+                            {
+                                extractedId = digitsOnly.Substring(0, 6);
+                            }
+                            else
+                            {
+                                extractedId = digitsOnly.PadLeft(6, '0');
+                            }
+                        }
+
                         reply["UserID"] = extractedId;
                         reply["UserName"] = "模擬測試員";
                         reply["Result"] = "success";
+                        reply["ResultCode"] = "0000";
+                        reply["Message"] = extractedId;
+                        reply["RtnMsg"] = extractedId;
                         break;
 
                     case "WOQRY":

@@ -120,5 +120,21 @@ namespace EAPDashboard.Tests
             req.UserID.Should().Be("U001");
             req.NGListDt.Should().Contain("UPNG501");
         }
+
+        [Fact]
+        public void UserVerifyRequest_Initialization_ShouldSetCorrectTransactionName()
+        {
+            var req = new UserVerifyRequest
+            {
+                User2DBarCode = "{{{{123456{Dept",
+                UserID = "123456",
+                EqpNo = "EQ01"
+            };
+
+            req.TransactionName.Should().Be(MESTransactionName.UserVerify);
+            req.UserID.Should().Be("123456");
+            req.User2DBarCode.Should().Be("{{{{123456{Dept");
+            req.EqpNo.Should().Be("EQ01");
+        }
     }
 }

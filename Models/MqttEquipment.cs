@@ -454,6 +454,7 @@ namespace EAPDashboard.Models
             {
                 case "USER_VERIFY":
                 case "USERVERIFY":
+                case "USERIDVERIFY":
                     string userBarcode = null;
                     string userId = null;
                     string userPassword = null;
@@ -490,10 +491,11 @@ namespace EAPDashboard.Models
 
                     string uvRes = await ProcessUserVerifyAsync(userBarcode, userId, userPassword);
                     string[] uvp = uvRes.Split('|');
+                    string rtnMsg = uvp.Length > 2 && !string.IsNullOrEmpty(uvp[2]) ? uvp[2] : (uvp.Length > 3 ? uvp[3] : "");
                     await SendReply(new ReplyEventReportMessage { 
                         CMD = CommandType.ReplyEventReport, 
                         RtnResult = uvp[0] == "PASS" ? RtnResult.PASS : RtnResult.FAIL, 
-                        RtnMsg = uvp.Length > 2 ? uvp[2] : "" 
+                        RtnMsg = rtnMsg 
                     }, evm);
                     break;
 

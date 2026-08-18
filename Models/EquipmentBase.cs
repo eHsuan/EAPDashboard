@@ -448,7 +448,8 @@ namespace EAPDashboard.Models
 
                 var reply = await replyTask;
                 string resPrefix = (reply.Result == "success") ? "PASS" : "FAIL";
-                return $"{resPrefix}|{reply.ResultCode}|{reply.Message}|{reply.UserID}";
+                string returnMsg = !string.IsNullOrEmpty(reply.Message) ? reply.Message : reply.UserID;
+                return $"{resPrefix}|{reply.ResultCode}|{returnMsg}|{reply.UserID}";
             }
             catch (Exception ex) { return $"ERROR|UNKNOWN|Verify Failed: {ex.Message}"; }
         }
