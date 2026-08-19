@@ -35,10 +35,17 @@ namespace EAPDashboard
         public bool EnableCassetteBinding { get; set; } = false;
         public MesSettings MesSettings { get; set; }
         public GatewaySettings GatewaySettings { get; set; }
+        public YieldSettings YieldSettings { get; set; } = new YieldSettings();
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
         public PostgresDbSettings PostgresDbSettings { get; set; }
         public LogSettings LogSettings { get; set; }
         public List<EquipmentConfig> Equipments { get; set; }
+    }
+
+    public class YieldSettings
+    {
+        public double MinYieldRate { get; set; } = 0.95;
+        public double MaxYieldRate { get; set; } = 1.00;
     }
 
     public class GatewaySettings
@@ -229,6 +236,8 @@ namespace EAPDashboard
                             eq.EnableCassetteBinding = config.EnableCassetteBinding ?? _appConfig.EnableCassetteBinding;
                             eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? _appConfig.EqpStatusReportIntervalSeconds;
                             eq.PostgresConnectionString = _appConfig.PostgresDbSettings?.ConnectionString;
+                            eq.MinYieldRate = _appConfig.YieldSettings?.MinYieldRate ?? 0.95;
+                            eq.MaxYieldRate = _appConfig.YieldSettings?.MaxYieldRate ?? 1.00;
                             _equipments.Add(eq);
                         }
                     }

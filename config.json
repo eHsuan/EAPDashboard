@@ -15,6 +15,10 @@
     "PrimaryUrl": "http://127.0.0.1:5000",
     "SecondaryUrl": "http://127.0.0.1:5001"
   },
+  "YieldSettings": {
+    "MinYieldRate": 0.95,
+    "MaxYieldRate": 1.00
+  },
   "DbSettings": {
     "ConnectionString": "Server=twtpesqlqa2;Database=DIAEAP;User Id=DIAEAP;Password=D@08!aEAp;",
     "BindingTable": "EAP_CassetteBind",

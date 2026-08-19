@@ -43,6 +43,14 @@ namespace EAPDashboard.Tests
             _workOrderNgCodesMap[wo] = dict;
         }
         public bool HasWorkOrderNGCodes(string wo) => _workOrderNgCodesMap.ContainsKey(wo);
+        public NGCodeItem GetNGCodeItemForTest(string wo, string code)
+        {
+            if (_workOrderNgCodesMap.TryGetValue(wo, out var dict) && dict.TryGetValue(code, out var item))
+            {
+                return item;
+            }
+            return null;
+        }
         public override Task SendTimeCalibration() => Task.CompletedTask;
         public override void Start(System.Threading.CancellationToken externalCancellationToken, CyntecMqttLib.Interfaces.MqttBus bus = null, int heartbeatIntervalSeconds = 30) { }
     }
@@ -528,6 +536,182 @@ namespace EAPDashboard.Tests
                 // Assert
                 eq2.HasWorkOrderNGCodes("WO_RESTART_002").Should().BeTrue();
                 var (isSuccess, _, message) = await eq2.ProcessEqpWONGAddAsync("WO_RESTART_002", "NG001", "5", "PCS", "OP1");
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public void TpTrackOut_MissingReports_ShouldFail()
+        {
+            var eq = new TestableEquipment("TP001");
+            string wo = "WO_TP_001";
+
+            // Neither LeftoversReport nor TotalCountReport
+            var (ok1, msg1, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok1.Should().BeFalse();
+            msg1.Should().Contain("LeftoversReport").And.Contain("TotalCountReport");
+
+            // Only LeftoversReport reported
+            eq.RecordLeftoversReport(wo, "10", "REEL01");
+            var (ok2, msg2, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok2.Should().BeFalse();
+            msg2.Should().Contain("TotalCountReport");
+
+            // Now TotalCountReport also reported
+            eq.RecordTotalCountReport(wo, "10", "500");
+            eq.RecordWorkOrderInputQty(wo, 5010);
+            var (ok3, msg3, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok3.Should().BeTrue();
+        }
+
+        [Fact]
+        public void TpTrackOut_YieldBelowMin_ShouldFail()
+        {
+            var eq = new TestableEquipment("TP002");
+            eq.MinYieldRate = 0.95;
+            eq.MaxYieldRate = 1.00;
+            string wo = "WO_TP_002";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "9", "100"); // 900
+            eq.RecordLeftoversReport(wo, "40", "R01");  // 40 => PassQty = 940 => Yield = 94.0% < 95.0%
+
+            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeFalse();
+            msg.Should().Contain("良率過低異常").And.Contain("94.00%");
+        }
+
+        [Fact]
+        public void TpTrackOut_YieldAboveMax_ShouldFail()
+        {
+            var eq = new TestableEquipment("TP003");
+            eq.MinYieldRate = 0.95;
+            eq.MaxYieldRate = 1.00;
+            string wo = "WO_TP_003";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "10", "100"); // 1000
+            eq.RecordLeftoversReport(wo, "50", "R01");  // 50 => PassQty = 1050 => Yield = 105.0% > 100.0%
+
+            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeFalse();
+            msg.Should().Contain("良率過高/溢出異常").And.Contain("105.00%");
+        }
+
+        [Fact]
+        public void TpTrackOut_ConfigurableYieldRange_ShouldRespectThresholds()
+        {
+            var eq = new TestableEquipment("TP004");
+            eq.MinYieldRate = 0.90; // Configured to 90%
+            eq.MaxYieldRate = 1.10; // Configured to 110%
+            string wo = "WO_TP_004";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "9", "100"); // 900
+            eq.RecordLeftoversReport(wo, "20", "R01");  // 20 => PassQty = 920 => Yield = 92.0% (Between 90% and 110%)
+
+            var (ok, msg, calcNg) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeTrue();
+            calcNg.Should().Be(80); // 1000 - 920 = 80
+        }
+
+        [Fact]
+        public void TpTrackOut_SpecialNgSumExceedsCalcNg_ShouldFail()
+        {
+            var eq = new TestableEquipment("TP005");
+            string wo = "WO_TP_005";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "9", "100"); // 900
+            eq.RecordLeftoversReport(wo, "80", "R01");  // 80 => PassQty = 980 => CalcNG = 20
+
+            // Special NG items sum = 15 + 10 = 25 > CalcNG (20)
+            var ngList = new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "15" },
+                new NGCodeItem { NGCode = "NG_FREE", NGName = "免補料", NGQty = "10" }
+            };
+            eq.SetWorkOrderNGCodesForTest(wo, ngList);
+
+            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeFalse();
+            msg.Should().Contain("NG數溢出");
+        }
+
+        [Fact]
+        public void TpTrackOut_CalcNgLessThanTotalReported_ShouldDeductFromLargestNonSpecial()
+        {
+            var eq = new TestableEquipment("TP006");
+            string wo = "WO_TP_006";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "9", "100"); // 900
+            eq.RecordLeftoversReport(wo, "80", "R01");  // 80
+            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 970 => CalcNG = 30
+
+            // Reported NG items:
+            // Special: QC Keep Sample = 5, 免補料 = 5 (Total special = 10)
+            // Non-special: NG_DEF1 = 20, NG_DEF2 = 10 (Total reported = 40)
+            // CalcNG = 30. Diff to deduct = 40 - 30 = 10.
+            // NG_DEF1 is largest (20), so it should be deducted by 10 => becomes 10.
+            // Special items should remain 5 and 5.
+            var ngList = new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "5" },
+                new NGCodeItem { NGCode = "NG_FREE", NGName = "免補料", NGQty = "5" },
+                new NGCodeItem { NGCode = "NG_DEF1", NGName = "Card Issue", NGQty = "20" },
+                new NGCodeItem { NGCode = "NG_DEF2", NGName = "Broken", NGQty = "10" }
+            };
+            eq.SetWorkOrderNGCodesForTest(wo, ngList);
+
+            var (ok, msg, calcNg) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeTrue();
+            calcNg.Should().Be(30);
+
+            var itemQc = eq.GetNGCodeItemForTest(wo, "NG_QC");
+            var itemFree = eq.GetNGCodeItemForTest(wo, "NG_FREE");
+            var itemDef1 = eq.GetNGCodeItemForTest(wo, "NG_DEF1");
+            var itemDef2 = eq.GetNGCodeItemForTest(wo, "NG_DEF2");
+
+            itemQc.NGQty.Should().Be("5");
+            itemFree.NGQty.Should().Be("5");
+            itemDef1.NGQty.Should().Be("10"); // Deducted from 20 to 10
+            itemDef2.NGQty.Should().Be("10"); // Unchanged
+        }
+
+        [Fact]
+        public void LeftoversAndProductLeftoversCache_Persistence_ShouldSurviveRestart()
+        {
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq1 = new TestableEquipment("TP_PERSIST_01");
+                eq1.RecordLeftoversReport("WO_LEFT_01", "25", "REEL_X");
+                eq1.RecordProductLeftoverReport("WO_LEFT_01", "15", "0", "REEL_X", "WO_PREV", "B01");
+                eq1.RecordWorkOrderInputQty("WO_LEFT_01", 1200);
+
+                var eq2 = new TestableEquipment("TP_PERSIST_01");
+                eq2.LoadCachesFromDisk();
+
+                var leftover = eq2.GetLeftover("WO_LEFT_01");
+                leftover.Should().NotBeNull();
+                leftover.Qty.Should().Be("25");
+                leftover.ReelId.Should().Be("REEL_X");
+
+                var pLeftover = eq2.GetProductLeftover("WO_LEFT_01");
+                pLeftover.Should().NotBeNull();
+                pLeftover.AddQty.Should().Be("15");
+
+                eq2.GetWorkOrderInputQty("WO_LEFT_01").Should().Be(1200);
             }
             finally
             {

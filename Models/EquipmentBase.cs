@@ -78,6 +78,27 @@ namespace EAPDashboard.Models
         public DateTime UpdatedTime { get; set; } = DateTime.Now;
     }
 
+    public class LeftoverRecordItem
+    {
+        public string EquipmentId { get; set; } = string.Empty;
+        public string WorkOrder { get; set; } = string.Empty;
+        public string Qty { get; set; } = string.Empty;
+        public string ReelId { get; set; } = string.Empty;
+        public DateTime UpdatedTime { get; set; } = DateTime.Now;
+    }
+
+    public class ProductLeftoverRecordItem
+    {
+        public string EquipmentId { get; set; } = string.Empty;
+        public string WorkOrder { get; set; } = string.Empty;
+        public string AddQty { get; set; } = string.Empty;
+        public string GapQty { get; set; } = string.Empty;
+        public string ReelId { get; set; } = string.Empty;
+        public string LeftoverWorkOrder { get; set; } = string.Empty;
+        public string LeftoverBatchNo { get; set; } = string.Empty;
+        public DateTime UpdatedTime { get; set; } = DateTime.Now;
+    }
+
     public abstract class EquipmentBase : INotifyPropertyChanged
     {
         private ConnectionStatus _connectionStatus;
@@ -88,9 +109,21 @@ namespace EAPDashboard.Models
             = new ConcurrentDictionary<string, ConcurrentDictionary<string, NGCodeItem>>(StringComparer.OrdinalIgnoreCase);
         protected readonly ConcurrentDictionary<string, TotalCountItem> _workOrderTotalCountMap
             = new ConcurrentDictionary<string, TotalCountItem>(StringComparer.OrdinalIgnoreCase);
+        protected readonly ConcurrentDictionary<string, LeftoverRecordItem> _workOrderLeftoversMap
+            = new ConcurrentDictionary<string, LeftoverRecordItem>(StringComparer.OrdinalIgnoreCase);
+        protected readonly ConcurrentDictionary<string, ProductLeftoverRecordItem> _workOrderProductLeftoversMap
+            = new ConcurrentDictionary<string, ProductLeftoverRecordItem>(StringComparer.OrdinalIgnoreCase);
+        protected readonly ConcurrentDictionary<string, double> _workOrderInputQtyMap
+            = new ConcurrentDictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        public double MinYieldRate { get; set; } = 0.95;
+        public double MaxYieldRate { get; set; } = 1.00;
 
         private static readonly object _totalCountFileLock = new object();
         private static readonly object _ngCodeFileLock = new object();
+        private static readonly object _leftoversFileLock = new object();
+        private static readonly object _productLeftoversFileLock = new object();
+        private static readonly object _inputQtyFileLock = new object();
         public static string CustomCacheDirectory { get; set; } = null;
 
         protected static string GetCacheDirectory()
@@ -115,11 +148,17 @@ namespace EAPDashboard.Models
 
         protected static string GetTotalCountCacheFilePath() => Path.Combine(GetCacheDirectory(), "total_count_cache.json");
         protected static string GetNgCodeCacheFilePath() => Path.Combine(GetCacheDirectory(), "ng_code_cache.json");
+        protected static string GetLeftoversCacheFilePath() => Path.Combine(GetCacheDirectory(), "leftovers_cache.json");
+        protected static string GetProductLeftoversCacheFilePath() => Path.Combine(GetCacheDirectory(), "product_leftovers_cache.json");
+        protected static string GetInputQtyCacheFilePath() => Path.Combine(GetCacheDirectory(), "input_qty_cache.json");
 
         public void LoadCachesFromDisk()
         {
             LoadTotalCountCache();
             LoadNgCodeCache();
+            LoadLeftoversCache();
+            LoadProductLeftoversCache();
+            LoadInputQtyCache();
         }
 
         public void LoadTotalCountCache()
@@ -253,6 +292,186 @@ namespace EAPDashboard.Models
             }
         }
 
+        public void LoadLeftoversCache()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_leftoversFileLock)
+                {
+                    string filePath = GetLeftoversCacheFilePath();
+                    if (File.Exists(filePath))
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, LeftoverRecordItem>>>(json);
+                        if (allCache != null && allCache.TryGetValue(this.Id, out var eqpCache) && eqpCache != null)
+                        {
+                            foreach (var kvp in eqpCache)
+                            {
+                                _workOrderLeftoversMap[kvp.Key] = kvp.Value;
+                            }
+                            OnLogReceived(LogLevel.Info, $"[LeftoversCache] Loaded {eqpCache.Count} item(s) from disk for {Id}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[LeftoversCache] Failed to load cache from disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void SaveLeftoversCacheToDisk()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_leftoversFileLock)
+                {
+                    string filePath = GetLeftoversCacheFilePath();
+                    Dictionary<string, Dictionary<string, LeftoverRecordItem>> allCache = null;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string existingJson = File.ReadAllText(filePath);
+                            allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, LeftoverRecordItem>>>(existingJson);
+                        }
+                        catch { }
+                    }
+                    allCache ??= new Dictionary<string, Dictionary<string, LeftoverRecordItem>>(StringComparer.OrdinalIgnoreCase);
+                    allCache[this.Id] = new Dictionary<string, LeftoverRecordItem>(_workOrderLeftoversMap, StringComparer.OrdinalIgnoreCase);
+
+                    string newJson = JsonConvert.SerializeObject(allCache, Formatting.Indented);
+                    File.WriteAllText(filePath, newJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[LeftoversCache] Failed to save cache to disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void LoadProductLeftoversCache()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_productLeftoversFileLock)
+                {
+                    string filePath = GetProductLeftoversCacheFilePath();
+                    if (File.Exists(filePath))
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, ProductLeftoverRecordItem>>>(json);
+                        if (allCache != null && allCache.TryGetValue(this.Id, out var eqpCache) && eqpCache != null)
+                        {
+                            foreach (var kvp in eqpCache)
+                            {
+                                _workOrderProductLeftoversMap[kvp.Key] = kvp.Value;
+                            }
+                            OnLogReceived(LogLevel.Info, $"[ProductLeftoversCache] Loaded {eqpCache.Count} item(s) from disk for {Id}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[ProductLeftoversCache] Failed to load cache from disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void SaveProductLeftoversCacheToDisk()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_productLeftoversFileLock)
+                {
+                    string filePath = GetProductLeftoversCacheFilePath();
+                    Dictionary<string, Dictionary<string, ProductLeftoverRecordItem>> allCache = null;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string existingJson = File.ReadAllText(filePath);
+                            allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, ProductLeftoverRecordItem>>>(existingJson);
+                        }
+                        catch { }
+                    }
+                    allCache ??= new Dictionary<string, Dictionary<string, ProductLeftoverRecordItem>>(StringComparer.OrdinalIgnoreCase);
+                    allCache[this.Id] = new Dictionary<string, ProductLeftoverRecordItem>(_workOrderProductLeftoversMap, StringComparer.OrdinalIgnoreCase);
+
+                    string newJson = JsonConvert.SerializeObject(allCache, Formatting.Indented);
+                    File.WriteAllText(filePath, newJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[ProductLeftoversCache] Failed to save cache to disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void LoadInputQtyCache()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_inputQtyFileLock)
+                {
+                    string filePath = GetInputQtyCacheFilePath();
+                    if (File.Exists(filePath))
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, double>>>(json);
+                        if (allCache != null && allCache.TryGetValue(this.Id, out var eqpCache) && eqpCache != null)
+                        {
+                            foreach (var kvp in eqpCache)
+                            {
+                                _workOrderInputQtyMap[kvp.Key] = kvp.Value;
+                            }
+                            OnLogReceived(LogLevel.Info, $"[InputQtyCache] Loaded {eqpCache.Count} item(s) from disk for {Id}.");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[InputQtyCache] Failed to load cache from disk for {Id}: {ex.Message}");
+            }
+        }
+
+        public void SaveInputQtyCacheToDisk()
+        {
+            if (string.IsNullOrEmpty(this.Id)) return;
+            try
+            {
+                lock (_inputQtyFileLock)
+                {
+                    string filePath = GetInputQtyCacheFilePath();
+                    Dictionary<string, Dictionary<string, double>> allCache = null;
+                    if (File.Exists(filePath))
+                    {
+                        try
+                        {
+                            string existingJson = File.ReadAllText(filePath);
+                            allCache = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, double>>>(existingJson);
+                        }
+                        catch { }
+                    }
+                    allCache ??= new Dictionary<string, Dictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+                    allCache[this.Id] = new Dictionary<string, double>(_workOrderInputQtyMap, StringComparer.OrdinalIgnoreCase);
+
+                    string newJson = JsonConvert.SerializeObject(allCache, Formatting.Indented);
+                    File.WriteAllText(filePath, newJson);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[InputQtyCache] Failed to save cache to disk for {Id}: {ex.Message}");
+            }
+        }
+
         public void RecordTotalCountReport(string workOrder, string reelCount, string qtyPerReel)
         {
             if (string.IsNullOrWhiteSpace(workOrder)) return;
@@ -274,6 +493,198 @@ namespace EAPDashboard.Models
         {
             if (string.IsNullOrWhiteSpace(workOrder)) return null;
             return _workOrderTotalCountMap.TryGetValue(workOrder.Trim(), out var item) ? item : null;
+        }
+
+        public void RecordLeftoversReport(string workOrder, string qty, string reelId)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return;
+            string trimmedWo = workOrder.Trim();
+            var item = new LeftoverRecordItem
+            {
+                EquipmentId = this.Id,
+                WorkOrder = trimmedWo,
+                Qty = qty?.Trim() ?? "0",
+                ReelId = reelId?.Trim() ?? "",
+                UpdatedTime = DateTime.Now
+            };
+            _workOrderLeftoversMap[trimmedWo] = item;
+            SaveLeftoversCacheToDisk();
+            OnLogReceived(LogLevel.Info, $"[LeftoversReport] Recorded for Eqp: {Id}, WO: {item.WorkOrder}, ReelID: {item.ReelId}, Qty: {item.Qty}");
+        }
+
+        public LeftoverRecordItem GetLeftover(string workOrder)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return null;
+            return _workOrderLeftoversMap.TryGetValue(workOrder.Trim(), out var item) ? item : null;
+        }
+
+        public void RecordProductLeftoverReport(string workOrder, string addQty, string gapQty, string reelId, string leftoverWo, string leftoverBatch)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return;
+            string trimmedWo = workOrder.Trim();
+            var item = new ProductLeftoverRecordItem
+            {
+                EquipmentId = this.Id,
+                WorkOrder = trimmedWo,
+                AddQty = addQty?.Trim() ?? "0",
+                GapQty = gapQty?.Trim() ?? "0",
+                ReelId = reelId?.Trim() ?? "",
+                LeftoverWorkOrder = leftoverWo?.Trim() ?? "",
+                LeftoverBatchNo = leftoverBatch?.Trim() ?? "",
+                UpdatedTime = DateTime.Now
+            };
+            _workOrderProductLeftoversMap[trimmedWo] = item;
+            SaveProductLeftoversCacheToDisk();
+            OnLogReceived(LogLevel.Info, $"[ProductLeftoverReport] Recorded for Eqp: {Id}, WO: {item.WorkOrder}, AddQty: {item.AddQty}, GapQty: {item.GapQty}");
+        }
+
+        public ProductLeftoverRecordItem GetProductLeftover(string workOrder)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return null;
+            return _workOrderProductLeftoversMap.TryGetValue(workOrder.Trim(), out var item) ? item : null;
+        }
+
+        public void RecordWorkOrderInputQty(string workOrder, double inputQty)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return;
+            string trimmedWo = workOrder.Trim();
+            _workOrderInputQtyMap[trimmedWo] = inputQty;
+            SaveInputQtyCacheToDisk();
+            OnLogReceived(LogLevel.Info, $"[InputQty] Recorded for Eqp: {Id}, WO: {trimmedWo}, InputQty: {inputQty}");
+        }
+
+        public double GetWorkOrderInputQty(string workOrder)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder)) return 0;
+            return _workOrderInputQtyMap.TryGetValue(workOrder.Trim(), out double val) ? val : 0;
+        }
+
+        public (bool isSuccess, string message, int adjustedNgQty) ValidateAndAdjustTpTrackOut(string workOrder)
+        {
+            if (string.IsNullOrWhiteSpace(workOrder))
+            {
+                return (false, "WorkOrder is empty", 0);
+            }
+
+            string trimmedWo = workOrder.Trim();
+
+            // 1. 檢查是否具備 LeftoversReport 與 TotalCountReport
+            bool hasLeftovers = _workOrderLeftoversMap.TryGetValue(trimmedWo, out var leftoverItem);
+            bool hasTotalCount = _workOrderTotalCountMap.TryGetValue(trimmedWo, out var totalCountItem);
+
+            if (!hasLeftovers || !hasTotalCount)
+            {
+                var missingList = new List<string>();
+                if (!hasLeftovers) missingList.Add("LeftoversReport");
+                if (!hasTotalCount) missingList.Add("TotalCountReport");
+                string missingMsg = $"TrackOut rejected: TP equipment '{Id}' requires both LeftoversReport and TotalCountReport before TrackOut for WO '{trimmedWo}'. Missing: {string.Join(", ", missingList)}";
+                OnLogReceived(LogLevel.Warn, $"[TP TrackOut] {missingMsg}");
+                return (false, missingMsg, 0);
+            }
+
+            // 2. 提取數值與公式計算
+            double inputQty = 0;
+            if (_workOrderInputQtyMap.TryGetValue(trimmedWo, out double cachedInQty) && cachedInQty > 0)
+            {
+                inputQty = cachedInQty;
+            }
+            else
+            {
+                OnLogReceived(LogLevel.Warn, $"[TP TrackOut] InputQty for WO '{trimmedWo}' not found or <= 0. Defaulting to 0.");
+            }
+
+            double.TryParse(totalCountItem?.ReelCount, out double reelCount);
+            double.TryParse(totalCountItem?.QtyPerReel, out double qtyPerReel);
+            double.TryParse(leftoverItem?.Qty, out double leftoverQty);
+
+            double addQty = 0;
+            if (_workOrderProductLeftoversMap.TryGetValue(trimmedWo, out var pLeftoverItem))
+            {
+                double.TryParse(pLeftoverItem?.AddQty, out addQty);
+            }
+
+            double passQty = (reelCount * qtyPerReel) + leftoverQty - addQty;
+            double calcNg = inputQty - passQty;
+
+            OnLogReceived(LogLevel.Info, $"[TP TrackOut] WO: {trimmedWo}, InputQty: {inputQty}, ReelCount: {reelCount}, QtyPerReel: {qtyPerReel}, LeftoverQty: {leftoverQty}, AddQty: {addQty} => PassQty: {passQty}, CalcNG: {calcNg}");
+
+            // 3. 判斷 1: 良率異常判斷 (Yield Check)
+            if (inputQty > 0)
+            {
+                double yield = passQty / inputQty;
+                if (yield < MinYieldRate)
+                {
+                    string failYieldLowMsg = $"TrackOut rejected: 良率過低異常 (Yield: {yield:P2} < {MinYieldRate:P2}). InputQty: {inputQty}, PassQty: {passQty}, CalcNG: {calcNg}. 需要人員介入處理。";
+                    OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failYieldLowMsg}");
+                    return (false, failYieldLowMsg, 0);
+                }
+                if (yield > MaxYieldRate)
+                {
+                    string failYieldHighMsg = $"TrackOut rejected: 良率過高/溢出異常 (Yield: {yield:P2} > {MaxYieldRate:P2}). InputQty: {inputQty}, PassQty: {passQty}, CalcNG: {calcNg}. 需要人員介入處理。";
+                    OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failYieldHighMsg}");
+                    return (false, failYieldHighMsg, 0);
+                }
+            }
+
+            // 4. 判斷 2: NG 數特殊處理
+            if (_workOrderNgCodesMap.TryGetValue(trimmedWo, out var ngDict) && ngDict != null)
+            {
+                var reportedItems = ngDict.Values.Where(x => x.IsReported && double.TryParse(x.NGQty, out double q) && q > 0).ToList();
+
+                bool isSpecial(NGCodeItem it)
+                {
+                    string name = it.NGName?.Trim() ?? "";
+                    string code = it.NGCode?.Trim() ?? "";
+                    return name.Equals("QC Keep Sample", StringComparison.OrdinalIgnoreCase)
+                        || name.Equals("免補料", StringComparison.OrdinalIgnoreCase)
+                        || code.Equals("QC Keep Sample", StringComparison.OrdinalIgnoreCase)
+                        || code.Equals("免補料", StringComparison.OrdinalIgnoreCase);
+                }
+
+                var specialItems = reportedItems.Where(isSpecial).ToList();
+                var nonSpecialItems = reportedItems.Where(x => !isSpecial(x)).ToList();
+
+                double specialSum = specialItems.Sum(x => double.TryParse(x.NGQty, out double q) ? q : 0);
+                double totalReportedSum = reportedItems.Sum(x => double.TryParse(x.NGQty, out double q) ? q : 0);
+
+                // 狀況 a: 特殊項目總和 > CalcNG => NG數溢出
+                if (specialSum > calcNg)
+                {
+                    string failOverflowMsg = $"TrackOut rejected: NG數溢出 (Special NG items 'QC Keep Sample' and '免補料' total: {specialSum} > CalcNG: {calcNg}). 需要人員介入處理。";
+                    OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failOverflowMsg}");
+                    return (false, failOverflowMsg, 0);
+                }
+
+                // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 從數量最多的非特殊項目開始扣除
+                if (calcNg < totalReportedSum)
+                {
+                    double diff = totalReportedSum - calcNg;
+                    OnLogReceived(LogLevel.Info, $"[TP TrackOut] CalcNG ({calcNg}) < Total Reported NG ({totalReportedSum}). Diff to deduct: {diff}. Adjusting non-special items...");
+
+                    var orderedNonSpecial = nonSpecialItems
+                        .OrderByDescending(x => double.TryParse(x.NGQty, out double q) ? q : 0)
+                        .ThenBy(x => x.NGCode)
+                        .ToList();
+
+                    foreach (var item in orderedNonSpecial)
+                    {
+                        if (diff <= 0) break;
+                        double currentQty = double.TryParse(item.NGQty, out double q) ? q : 0;
+                        if (currentQty <= 0) continue;
+
+                        double deduct = Math.Min(currentQty, diff);
+                        double newQty = currentQty - deduct;
+                        item.NGQty = newQty.ToString();
+                        diff -= deduct;
+
+                        OnLogReceived(LogLevel.Info, $"[TP TrackOut] Deducted {deduct} from NGCode '{item.NGCode}' ({item.NGName}): {currentQty} -> {newQty}. Remaining diff: {diff}");
+                    }
+
+                    SaveNgCodeCacheToDisk();
+                }
+            }
+
+            return (true, "OK", (int)Math.Round(calcNg));
         }
 
         public IReadOnlyDictionary<string, TotalCountItem> GetAllTotalCounts() => _workOrderTotalCountMap;
@@ -762,6 +1173,17 @@ namespace EAPDashboard.Models
                             OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse NGCodeListDT failed for WO {wo}: {ex.Message}");
                         }
                     }
+
+                    // 收集工單投入數 (QTY / WIPQty)
+                    try
+                    {
+                        string rawQtyStr = (qryReply as dynamic)?.QTY?.ToString() ?? (qryReply as dynamic)?.WIPQty?.ToString();
+                        if (double.TryParse(rawQtyStr, out double inQty) && inQty > 0)
+                        {
+                            RecordWorkOrderInputQty(wo, inQty);
+                        }
+                    }
+                    catch { }
                 }
 
                 // 比對所有工單查到的 RECIPEID 是否一致
@@ -1138,6 +1560,7 @@ namespace EAPDashboard.Models
                 var reply = await leftoverTask;
                 if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
                 {
+                    RecordLeftoversReport(wo, q, rid);
                     return (true, reply.Message ?? "Success");
                 }
                 else
@@ -1194,6 +1617,7 @@ namespace EAPDashboard.Models
                 var reply = await useTask;
                 if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
                 {
+                    RecordProductLeftoverReport(wo, aQty, gQty, rid, lWo, lBatch);
                     return (true, reply.Message ?? "Success");
                 }
                 else
@@ -1360,9 +1784,15 @@ namespace EAPDashboard.Models
                 {
                     _workOrderNgCodesMap.TryRemove(wo, out _);
                     _workOrderTotalCountMap.TryRemove(wo, out _);
+                    _workOrderLeftoversMap.TryRemove(wo, out _);
+                    _workOrderProductLeftoversMap.TryRemove(wo, out _);
+                    _workOrderInputQtyMap.TryRemove(wo, out _);
                 }
                 SaveNgCodeCacheToDisk();
                 SaveTotalCountCacheToDisk();
+                SaveLeftoversCacheToDisk();
+                SaveProductLeftoversCacheToDisk();
+                SaveInputQtyCacheToDisk();
 
                 if (EnableCassetteBinding)
                 {

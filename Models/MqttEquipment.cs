@@ -360,6 +360,25 @@ namespace EAPDashboard.Models
                         }
                         List<string> toWos = to.WorkOrder ?? new List<string>();
                         List<string> toCassettes = to.CassetteID ?? new List<string>();
+
+                        if (!string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var wo in toWos)
+                            {
+                                var (tpOk, tpMsg, adjustedNg) = ValidateAndAdjustTpTrackOut(wo);
+                                if (!tpOk)
+                                {
+                                    await SendReply(new ReplyTrackOutReqMessage
+                                    {
+                                        CMD = CommandType.ReplyTrackOutReq,
+                                        RtnResult = RtnResult.FAIL,
+                                        RtnMsg = tpMsg
+                                    }, msg);
+                                    return;
+                                }
+                            }
+                        }
+
                         string tor = await ProcessTrackOutAsync(toWos, to.Qty.ToString(), to.UserID, toCassettes, toPanels);
                         string[] torParts = tor.Split('|');
                         string rtnMsg = torParts.Length > 2 ? torParts[2] : (torParts.Length > 1 ? torParts[1] : "");
