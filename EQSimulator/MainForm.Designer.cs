@@ -75,6 +75,12 @@ namespace EQSimulator
             _txtLeftoverQty = new System.Windows.Forms.TextBox();
             btnSendLeftover = new System.Windows.Forms.Button();
             btnSendUseLeftover = new System.Windows.Forms.Button();
+            pnlTotalCountGroup = new System.Windows.Forms.Panel();
+            lblTotalReelCount = new System.Windows.Forms.Label();
+            _txtTotalReelCount = new System.Windows.Forms.TextBox();
+            lblTotalQtyPerReel = new System.Windows.Forms.Label();
+            _txtTotalQtyPerReel = new System.Windows.Forms.TextBox();
+            btnSendTotalCount = new System.Windows.Forms.Button();
             _txtLog = new System.Windows.Forms.TextBox();
             panelTop.SuspendLayout();
             grpParams.SuspendLayout();
@@ -83,6 +89,7 @@ namespace EQSimulator
             pnlStatusReport.SuspendLayout();
             pnlNGGroup.SuspendLayout();
             pnlLeftoverGroup.SuspendLayout();
+            pnlTotalCountGroup.SuspendLayout();
             SuspendLayout();
             // 
             // panelTop
@@ -400,6 +407,7 @@ namespace EQSimulator
             flowActions.Controls.Add(pnlStatusReport);
             flowActions.Controls.Add(pnlNGGroup);
             flowActions.Controls.Add(pnlLeftoverGroup);
+            flowActions.Controls.Add(pnlTotalCountGroup);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Location = new System.Drawing.Point(4, 20);
             flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -693,6 +701,61 @@ namespace EQSimulator
             btnSendUseLeftover.UseVisualStyleBackColor = true;
             btnSendUseLeftover.Click += BtnSendUseLeftover_Click;
             // 
+            // pnlTotalCountGroup
+            // 
+            pnlTotalCountGroup.Controls.Add(lblTotalReelCount);
+            pnlTotalCountGroup.Controls.Add(_txtTotalReelCount);
+            pnlTotalCountGroup.Controls.Add(lblTotalQtyPerReel);
+            pnlTotalCountGroup.Controls.Add(_txtTotalQtyPerReel);
+            pnlTotalCountGroup.Controls.Add(btnSendTotalCount);
+            pnlTotalCountGroup.Location = new System.Drawing.Point(10, 131);
+            pnlTotalCountGroup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            pnlTotalCountGroup.Name = "pnlTotalCountGroup";
+            pnlTotalCountGroup.Size = new System.Drawing.Size(370, 38);
+            pnlTotalCountGroup.TabIndex = 12;
+            // 
+            // lblTotalReelCount
+            // 
+            lblTotalReelCount.Location = new System.Drawing.Point(4, 8);
+            lblTotalReelCount.Name = "lblTotalReelCount";
+            lblTotalReelCount.Size = new System.Drawing.Size(65, 23);
+            lblTotalReelCount.TabIndex = 0;
+            lblTotalReelCount.Text = "ReelCount:";
+            // 
+            // _txtTotalReelCount
+            // 
+            _txtTotalReelCount.Location = new System.Drawing.Point(72, 4);
+            _txtTotalReelCount.Name = "_txtTotalReelCount";
+            _txtTotalReelCount.Size = new System.Drawing.Size(45, 23);
+            _txtTotalReelCount.TabIndex = 1;
+            _txtTotalReelCount.Text = "10";
+            // 
+            // lblTotalQtyPerReel
+            // 
+            lblTotalQtyPerReel.Location = new System.Drawing.Point(122, 8);
+            lblTotalQtyPerReel.Name = "lblTotalQtyPerReel";
+            lblTotalQtyPerReel.Size = new System.Drawing.Size(75, 23);
+            lblTotalQtyPerReel.TabIndex = 2;
+            lblTotalQtyPerReel.Text = "QtyPerReel:";
+            // 
+            // _txtTotalQtyPerReel
+            // 
+            _txtTotalQtyPerReel.Location = new System.Drawing.Point(200, 4);
+            _txtTotalQtyPerReel.Name = "_txtTotalQtyPerReel";
+            _txtTotalQtyPerReel.Size = new System.Drawing.Size(55, 23);
+            _txtTotalQtyPerReel.TabIndex = 3;
+            _txtTotalQtyPerReel.Text = "500";
+            // 
+            // btnSendTotalCount
+            // 
+            btnSendTotalCount.Location = new System.Drawing.Point(262, 1);
+            btnSendTotalCount.Name = "btnSendTotalCount";
+            btnSendTotalCount.Size = new System.Drawing.Size(85, 29);
+            btnSendTotalCount.TabIndex = 4;
+            btnSendTotalCount.Text = "上報總數";
+            btnSendTotalCount.UseVisualStyleBackColor = true;
+            btnSendTotalCount.Click += BtnSendTotalCount_Click;
+            // 
             // _txtLog
             // 
             _txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -728,6 +791,8 @@ namespace EQSimulator
             pnlNGGroup.PerformLayout();
             pnlLeftoverGroup.ResumeLayout(false);
             pnlLeftoverGroup.PerformLayout();
+            pnlTotalCountGroup.ResumeLayout(false);
+            pnlTotalCountGroup.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -792,6 +857,12 @@ namespace EQSimulator
         private System.Windows.Forms.TextBox _txtLeftoverQty;
         private System.Windows.Forms.Button btnSendLeftover;
         private System.Windows.Forms.Button btnSendUseLeftover;
+        private System.Windows.Forms.Panel pnlTotalCountGroup;
+        private System.Windows.Forms.Label lblTotalReelCount;
+        private System.Windows.Forms.TextBox _txtTotalReelCount;
+        private System.Windows.Forms.Label lblTotalQtyPerReel;
+        private System.Windows.Forms.TextBox _txtTotalQtyPerReel;
+        private System.Windows.Forms.Button btnSendTotalCount;
         private System.Windows.Forms.TextBox _txtLog;
     }
 }

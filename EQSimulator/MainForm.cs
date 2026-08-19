@@ -356,6 +356,32 @@ namespace EQSimulator
             Log($"[ProductLeftoverReport] Sent WorkOrder: {wo}, ReelID: {reelId}, AddQty: {qty}");
         }
 
+        private void BtnSendTotalCount_Click(object sender, EventArgs e)
+        {
+            string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
+            string reelCount = _txtTotalReelCount.Text?.Trim() ?? "10";
+            string qtyPerReel = _txtTotalQtyPerReel.Text?.Trim() ?? "500";
+
+            string eventCeid = _dictionary.GetCeid("TotalCountReport") ?? "1006";
+            string woVid = _dictionary.GetVid("WorkOrder") ?? "WorkOrder";
+            string reelCountVid = _dictionary.GetVid("ReelCount") ?? "ReelCount";
+            string qtyPerReelVid = _dictionary.GetVid("QtyPerReel") ?? "QtyPerReel";
+
+            var evm = new EventReportMessage
+            {
+                CMD = CommandType.EventReport,
+                EventID = eventCeid,
+                Data = new List<EventItem>
+                {
+                    new EventItem { Parameter = woVid, Value = wo },
+                    new EventItem { Parameter = reelCountVid, Value = reelCount },
+                    new EventItem { Parameter = qtyPerReelVid, Value = qtyPerReel }
+                }
+            };
+            SendMessage(evm);
+            Log($"[TotalCountReport] Sent EventID: {eventCeid}, WorkOrder: {wo}, ReelCount: {reelCount}, QtyPerReel: {qtyPerReel}");
+        }
+
         private void HandleIncomingCommand(string json)
         {
             if (this.IsDisposed) return;
