@@ -554,21 +554,22 @@ namespace EAPDashboard.Tests
             string wo = "WO_TP_001";
 
             // Neither LeftoversReport nor TotalCountReport
-            var (ok1, msg1, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok1, msg1, _, _) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok1.Should().BeFalse();
             msg1.Should().Contain("LeftoversReport").And.Contain("TotalCountReport");
 
             // Only LeftoversReport reported
             eq.RecordLeftoversReport(wo, "10", "REEL01");
-            var (ok2, msg2, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok2, msg2, _, _) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok2.Should().BeFalse();
             msg2.Should().Contain("TotalCountReport");
 
             // Now TotalCountReport also reported
             eq.RecordTotalCountReport(wo, "10", "500");
             eq.RecordWorkOrderInputQty(wo, 5010);
-            var (ok3, msg3, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok3, msg3, _, passQty3) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok3.Should().BeTrue();
+            passQty3.Should().Be(5010); // 10 * 500 + 10 = 5010
         }
 
         [Fact]
@@ -583,7 +584,7 @@ namespace EAPDashboard.Tests
             eq.RecordTotalCountReport(wo, "9", "100"); // 900
             eq.RecordLeftoversReport(wo, "40", "R01");  // 40 => PassQty = 940 => Yield = 94.0% < 95.0%
 
-            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok, msg, _, _) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeFalse();
             msg.Should().Contain("良率過低異常").And.Contain("94.00%");
         }
@@ -600,7 +601,7 @@ namespace EAPDashboard.Tests
             eq.RecordTotalCountReport(wo, "10", "100"); // 1000
             eq.RecordLeftoversReport(wo, "50", "R01");  // 50 => PassQty = 1050 => Yield = 105.0% > 100.0%
 
-            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok, msg, _, _) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeFalse();
             msg.Should().Contain("良率過高/溢出異常").And.Contain("105.00%");
         }
@@ -617,9 +618,10 @@ namespace EAPDashboard.Tests
             eq.RecordTotalCountReport(wo, "9", "100"); // 900
             eq.RecordLeftoversReport(wo, "20", "R01");  // 20 => PassQty = 920 => Yield = 92.0% (Between 90% and 110%)
 
-            var (ok, msg, calcNg) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok, msg, calcNg, passQty) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeTrue();
             calcNg.Should().Be(80); // 1000 - 920 = 80
+            passQty.Should().Be(920);
         }
 
         [Fact]
@@ -640,7 +642,7 @@ namespace EAPDashboard.Tests
             };
             eq.SetWorkOrderNGCodesForTest(wo, ngList);
 
-            var (ok, msg, _) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok, msg, _, _) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeFalse();
             msg.Should().Contain("NG數溢出");
         }
@@ -671,9 +673,10 @@ namespace EAPDashboard.Tests
             };
             eq.SetWorkOrderNGCodesForTest(wo, ngList);
 
-            var (ok, msg, calcNg) = eq.ValidateAndAdjustTpTrackOut(wo);
+            var (ok, msg, calcNg, passQty) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeTrue();
             calcNg.Should().Be(30);
+            passQty.Should().Be(970);
 
             var itemQc = eq.GetNGCodeItemForTest(wo, "NG_QC");
             var itemFree = eq.GetNGCodeItemForTest(wo, "NG_FREE");

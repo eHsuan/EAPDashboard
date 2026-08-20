@@ -559,11 +559,11 @@ namespace EAPDashboard.Models
             return _workOrderInputQtyMap.TryGetValue(workOrder.Trim(), out double val) ? val : 0;
         }
 
-        public (bool isSuccess, string message, int adjustedNgQty) ValidateAndAdjustTpTrackOut(string workOrder)
+        public (bool isSuccess, string message, int adjustedNgQty, double passQty) ValidateAndAdjustTpTrackOut(string workOrder)
         {
             if (string.IsNullOrWhiteSpace(workOrder))
             {
-                return (false, "WorkOrder is empty", 0);
+                return (false, "WorkOrder is empty", 0, 0);
             }
 
             string trimmedWo = workOrder.Trim();
@@ -579,7 +579,7 @@ namespace EAPDashboard.Models
                 if (!hasTotalCount) missingList.Add("TotalCountReport");
                 string missingMsg = $"TrackOut rejected: TP equipment '{Id}' requires both LeftoversReport and TotalCountReport before TrackOut for WO '{trimmedWo}'. Missing: {string.Join(", ", missingList)}";
                 OnLogReceived(LogLevel.Warn, $"[TP TrackOut] {missingMsg}");
-                return (false, missingMsg, 0);
+                return (false, missingMsg, 0, 0);
             }
 
             // 2. 提取數值與公式計算
@@ -616,13 +616,13 @@ namespace EAPDashboard.Models
                 {
                     string failYieldLowMsg = $"TrackOut rejected: 良率過低異常 (Yield: {yield:P2} < {MinYieldRate:P2}). InputQty: {inputQty}, PassQty: {passQty}, CalcNG: {calcNg}. 需要人員介入處理。";
                     OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failYieldLowMsg}");
-                    return (false, failYieldLowMsg, 0);
+                    return (false, failYieldLowMsg, 0, passQty);
                 }
                 if (yield > MaxYieldRate)
                 {
                     string failYieldHighMsg = $"TrackOut rejected: 良率過高/溢出異常 (Yield: {yield:P2} > {MaxYieldRate:P2}). InputQty: {inputQty}, PassQty: {passQty}, CalcNG: {calcNg}. 需要人員介入處理。";
                     OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failYieldHighMsg}");
-                    return (false, failYieldHighMsg, 0);
+                    return (false, failYieldHighMsg, 0, passQty);
                 }
             }
 
@@ -652,7 +652,7 @@ namespace EAPDashboard.Models
                 {
                     string failOverflowMsg = $"TrackOut rejected: NG數溢出 (Special NG items 'QC Keep Sample' and '免補料' total: {specialSum} > CalcNG: {calcNg}). 需要人員介入處理。";
                     OnLogReceived(LogLevel.Error, $"[TP TrackOut] {failOverflowMsg}");
-                    return (false, failOverflowMsg, 0);
+                    return (false, failOverflowMsg, 0, passQty);
                 }
 
                 // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 從數量最多的非特殊項目開始扣除
@@ -684,7 +684,7 @@ namespace EAPDashboard.Models
                 }
             }
 
-            return (true, "OK", (int)Math.Round(calcNg));
+            return (true, "OK", (int)Math.Round(calcNg), passQty);
         }
 
         public IReadOnlyDictionary<string, TotalCountItem> GetAllTotalCounts() => _workOrderTotalCountMap;

@@ -423,6 +423,7 @@ namespace EQSimulator
             {
                 case 0: // 情境 1: 正常出站 (PASS 980 / 投入 1000, 一般 NG 平減)
                     _txtWorkOrder.Text = "WO_TP_NORM_01";
+                    _txtQty.Text = "980";
                     _txtTotalReelCount.Text = "9";
                     _txtTotalQtyPerReel.Text = "100"; // 900
                     _txtLeftoverReel.Text = "REEL001";

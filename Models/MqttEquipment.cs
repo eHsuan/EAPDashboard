@@ -361,11 +361,13 @@ namespace EAPDashboard.Models
                         List<string> toWos = to.WorkOrder ?? new List<string>();
                         List<string> toCassettes = to.CassetteID ?? new List<string>();
 
+                        string torQty = to.Qty?.ToString() ?? "0";
                         if (!string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase))
                         {
+                            double tpPassQtyTotal = 0;
                             foreach (var wo in toWos)
                             {
-                                var (tpOk, tpMsg, adjustedNg) = ValidateAndAdjustTpTrackOut(wo);
+                                var (tpOk, tpMsg, adjustedNg, passQty) = ValidateAndAdjustTpTrackOut(wo);
                                 if (!tpOk)
                                 {
                                     await SendReply(new ReplyTrackOutReqMessage
@@ -376,10 +378,12 @@ namespace EAPDashboard.Models
                                     }, msg);
                                     return;
                                 }
+                                tpPassQtyTotal += passQty;
                             }
+                            torQty = tpPassQtyTotal.ToString();
                         }
 
-                        string tor = await ProcessTrackOutAsync(toWos, to.Qty.ToString(), to.UserID, toCassettes, toPanels);
+                        string tor = await ProcessTrackOutAsync(toWos, torQty, to.UserID, toCassettes, toPanels);
                         string[] torParts = tor.Split('|');
                         string rtnMsg = torParts.Length > 2 ? torParts[2] : (torParts.Length > 1 ? torParts[1] : "");
                         await SendReply(new ReplyTrackOutReqMessage { CMD = CommandType.ReplyTrackOutReq, RtnResult = tor.StartsWith("PASS") ? RtnResult.PASS : RtnResult.FAIL, RtnMsg = rtnMsg }, msg);
