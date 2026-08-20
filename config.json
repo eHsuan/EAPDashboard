@@ -3,8 +3,8 @@
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
   "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
-  "HeartbeatIntervalSeconds": 10,
-  "EqpStatusReportIntervalSeconds": 60,
+  "HeartbeatIntervalSeconds": 30,
+  "EqpStatusReportIntervalSeconds": 0,
   "EnableCassetteBinding": false,
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",

@@ -1174,16 +1174,23 @@ namespace EAPDashboard.Models
                         }
                     }
 
-                    // 收集工單投入數 (QTY / WIPQty)
+                    // 收集工單投入數 (MES WOQRY WIPQty)
                     try
                     {
-                        string rawQtyStr = (qryReply as dynamic)?.QTY?.ToString() ?? (qryReply as dynamic)?.WIPQty?.ToString();
+                        string rawQtyStr = (qryReply as dynamic)?.WIPQty?.ToString();
                         if (double.TryParse(rawQtyStr, out double inQty) && inQty > 0)
                         {
                             RecordWorkOrderInputQty(wo, inQty);
                         }
+                        else
+                        {
+                            OnLogReceived(LogLevel.Warn, $"[TrackIn] WIPQty for WO {wo} is invalid or empty: '{rawQtyStr}'");
+                        }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse WIPQty failed for WO {wo}: {ex.Message}");
+                    }
                 }
 
                 // 比對所有工單查到的 RECIPEID 是否一致
