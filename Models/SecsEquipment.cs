@@ -304,9 +304,8 @@ namespace EAPDashboard.Models
             string opVid = GetVidByLogicalName("Operator") ?? GetVidByLogicalName("UserID") ?? GetVidByLogicalName("User_ID");
             string userId = (!string.IsNullOrEmpty(opVid) ? ExtractVidValue(reports, opVid) : null) ?? "UNKNOWN";
 
-            var info = QueryBindingFromGateway(cid);
-            string wo = info?.WorkOrder;
-            List<string> panels = info?.Panels ?? new List<string>();
+            string wo = ExtractVidValue(reports, "310") ?? ExtractVidValue(reports, "301") ?? "";
+            List<string> panels = new List<string>();
 
             string res = await ProcessTrackInAsync(cid, wo, panels, userId);
             if (res.StartsWith("PP-SELECT"))

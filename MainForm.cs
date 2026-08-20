@@ -34,7 +34,6 @@ namespace EAPDashboard
         public int EqpStatusReportIntervalSeconds { get; set; } = 60;
         public bool EnableCassetteBinding { get; set; } = false;
         public MesSettings MesSettings { get; set; }
-        public GatewaySettings GatewaySettings { get; set; }
         public YieldSettings YieldSettings { get; set; } = new YieldSettings();
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
         public PostgresDbSettings PostgresDbSettings { get; set; }
@@ -46,12 +45,6 @@ namespace EAPDashboard
     {
         public double MinYieldRate { get; set; } = 0.95;
         public double MaxYieldRate { get; set; } = 1.00;
-    }
-
-    public class GatewaySettings
-    {
-        public string PrimaryUrl { get; set; }
-        public string SecondaryUrl { get; set; }
     }
 
     public class MesSettings
@@ -196,7 +189,6 @@ namespace EAPDashboard
                         if (!config.IsActive) continue;
 
                         EquipmentBase eq = null;
-                        var gConfig = _appConfig.GatewaySettings != null ? new GatewayConfig { PrimaryUrl = _appConfig.GatewaySettings.PrimaryUrl, SecondaryUrl = _appConfig.GatewaySettings.SecondaryUrl } : null;
 
                         string dictPath = !string.IsNullOrEmpty(config.DictionaryPath)
                             ? (Path.IsPathRooted(config.DictionaryPath) ? config.DictionaryPath : Path.Combine(Application.StartupPath, config.DictionaryPath))
@@ -210,7 +202,6 @@ namespace EAPDashboard
                                 StatusType = config.StatusType ?? "Delta",
                                 DictionaryPath = dictPath,
                                 DbConfig = _appConfig.DbSettings,
-                                GatewayConfig = gConfig,
                                 IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
                                 LocalDataServiceInstance = _localDataService
                             };
@@ -225,7 +216,6 @@ namespace EAPDashboard
                                 IsActive = config.IsActive, 
                                 DictionaryPath = dictPath, 
                                 DbConfig = _appConfig.DbSettings, 
-                                GatewayConfig = gConfig,
                                 TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat,
                                 LocalDataServiceInstance = _localDataService
                             };

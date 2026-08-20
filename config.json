@@ -11,10 +11,6 @@
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
     "ActiveEnvironment": "Test"
   },
-  "GatewaySettings": {
-    "PrimaryUrl": "http://127.0.0.1:5000",
-    "SecondaryUrl": "http://127.0.0.1:5001"
-  },
   "YieldSettings": {
     "MinYieldRate": 0.95,
     "MaxYieldRate": 1.00
@@ -43,6 +39,15 @@
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
+      "StatusType": "Cyntec",
+      "IsActive": true
+    },
+    {
+      "Id": "ET0023",
+      "Name": "微蝕刻",
+      "Protocol": "MQTT",
+      "Topic": "factory/LOCAL/machine/ET0023",
+      "DictionaryPath": "Dictionaries/ET0023.json",
       "StatusType": "Cyntec",
       "IsActive": true
     },

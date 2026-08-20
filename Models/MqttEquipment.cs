@@ -274,13 +274,7 @@ namespace EAPDashboard.Models
                         var ti = (TrackInReqMessage)msg;
                         List<string> tiCassettes = ti.CassetteID ?? new List<string>();
                         List<string> tiWos = ti.WorkOrder ?? new List<string>();
-                        
-                        var info = QueryBindingFromGateway(tiCassettes.FirstOrDefault());
-                        if (info != null && !string.IsNullOrEmpty(info.WorkOrder))
-                        {
-                            tiWos = new List<string> { info.WorkOrder };
-                        }
-                        List<string> panels = info?.Panels ?? new List<string>();
+                        List<string> panels = new List<string>();
                         string tir = await ProcessTrackInAsync(tiCassettes, tiWos, panels, ti.UserID);
                         if (tir.StartsWith("PP-SELECT")) {
                             string[] tp = tir.Split('|');

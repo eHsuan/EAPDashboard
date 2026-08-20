@@ -41,12 +41,6 @@ namespace EAPDashboard.Models
         public string WoColumn { get; set; }
     }
 
-    public class GatewayConfig 
-    { 
-        public string PrimaryUrl { get; set; } 
-        public string SecondaryUrl { get; set; } 
-    }
-
     public class BindingInfo
     {
         public string WorkOrder { get; set; }
@@ -690,7 +684,6 @@ namespace EAPDashboard.Models
         public IReadOnlyDictionary<string, TotalCountItem> GetAllTotalCounts() => _workOrderTotalCountMap;
         private static readonly object _logLock = new object();
         private static readonly HttpClient _httpClient = new HttpClient();
-        private readonly IAsyncPolicy<HttpResponseMessage> _resiliencePolicy;
 
         protected TReply CallMesWithLog<TRequest, TReply>(TRequest request) where TRequest : MESBaseMessage where TReply : MESBaseMessage
         {
@@ -743,7 +736,6 @@ namespace EAPDashboard.Models
         public bool EnableCassetteBinding { get; set; } = false;
         public int StatusReportIntervalSeconds { get; set; } = 60;
         public LocalDataService LocalDataServiceInstance { get; set; }
-        public GatewayConfig GatewayConfig { get; set; }
         public DbSettings DbConfig { get; set; }
         public string DictionaryPath { get; set; } = string.Empty;
 
@@ -972,17 +964,6 @@ namespace EAPDashboard.Models
 
         public EquipmentBase()
         {
-            var fallbackPolicy = Policy.HandleResult<HttpResponseMessage>(r => !r.IsSuccessStatusCode)
-                .Or<HttpRequestException>()
-                .Or<TaskCanceledException>()
-                .FallbackAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
-                    OnLogReceived(LogLevel.Warn, "[GATEWAY] Resilience triggered: switching to backup logic.");
-                    return new HttpResponseMessage(System.Net.HttpStatusCode.ServiceUnavailable);
-                }));
-
-            var timeoutPolicy = Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromSeconds(5));
-
-            _resiliencePolicy = Policy.WrapAsync<HttpResponseMessage>(fallbackPolicy, timeoutPolicy);
         }
 
         private readonly ConcurrentDictionary<string, string> _managementItems = new ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -1350,15 +1331,6 @@ namespace EAPDashboard.Models
                 {
                     OnLogReceived(LogLevel.Error, $"[TrackIn] MES WOCHECKIN Failed for WOs {combinedWo}. Code: {resultCode}, Message: {resultMessage}");
                     return $"{resPrefix}|{resultCode}|MES WOCHECKIN Failed for WOs {combinedWo}: {resultMessage}";
-                }
-
-                if (EnableCassetteBinding)
-                {
-                    foreach (var cid in validCids)
-                    {
-                        bool ok = await UnbindFromDbAsync(cid);
-                        if (!ok) await SavePendingUnbindingAsync(cid);
-                    }
                 }
 
                 foreach (var wo in validWos)
@@ -1801,17 +1773,6 @@ namespace EAPDashboard.Models
                 SaveProductLeftoversCacheToDisk();
                 SaveInputQtyCacheToDisk();
 
-                if (EnableCassetteBinding)
-                {
-                    for (int i = 0; i < Math.Max(cids.Count, wos.Count); i++)
-                    {
-                        string cid = i < cids.Count ? cids[i] : (cids.FirstOrDefault() ?? "UNKNOWN");
-                        string wo = i < wos.Count ? wos[i] : (wos.FirstOrDefault() ?? "");
-                        bool dbOk = await UpdateBindingInDbAsync(cid, wo, panels);
-                        if (!dbOk) await SavePendingBindingAsync(cid, wo, panels);
-                    }
-                }
-
                 if (int.TryParse(qty, out int outQty))
                 {
                     foreach (var wo in validWos)
@@ -1832,143 +1793,6 @@ namespace EAPDashboard.Models
                 qty, userId,
                 string.IsNullOrEmpty(cassetteId) ? new List<string>() : new List<string> { cassetteId },
                 panels, reportEqpId);
-        }
-
-        protected BindingInfo QueryBindingFromGateway(string cassetteId)
-        {
-            if (!EnableCassetteBinding || GatewayConfig == null) return null;
-            try
-            {
-                var queryPolicy = Policy<HttpResponseMessage>
-                    .Handle<Exception>()
-                    .FallbackAsync(async (ct) => {
-                        OnLogReceived(LogLevel.Warn, "[GATEWAY] Query Primary failed, trying Secondary...");
-                        return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}/{2}", GatewayConfig.SecondaryUrl, this.Id, cassetteId), ct);
-                    });
-
-                return Task.Run(async () => {
-                    var resp = await queryPolicy.ExecuteAsync(async (ct) => {
-                        using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5)))
-                        {
-                            return await _httpClient.GetAsync(string.Format("{0}/api/binding/query/{1}/{2}", GatewayConfig.PrimaryUrl, this.Id, cassetteId), cts.Token);
-                        }
-                    }, CancellationToken.None);
-
-                    if (resp.IsSuccessStatusCode) 
-                    {
-                        string json = await resp.Content.ReadAsStringAsync();
-                        return JsonConvert.DeserializeObject<BindingInfo>(json);
-                    }
-                    return null;
-                }).GetAwaiter().GetResult();
-            }
-            catch (Exception ex) 
-            { 
-                OnLogReceived(LogLevel.Error, string.Format("[GATEWAY] Binding Query Failed Final: {0}", ex.Message));
-                return null; 
-            }
-        }
-
-        protected async Task<bool> UpdateBindingInDbAsync(string cassetteId, string workOrder, List<string> panels)
-        {
-            if (GatewayConfig == null) return false;
-            try
-            {
-                var req = new { EqpId = this.Id, CassetteId = cassetteId, WorkOrder = workOrder, Panels = panels };
-                var content = new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json");
-
-                var resp = await _resiliencePolicy.ExecuteAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
-                    try {
-                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/bind", GatewayConfig.PrimaryUrl), content, ct);
-                    } catch {
-                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/bind", GatewayConfig.SecondaryUrl), content, ct);
-                    }
-                }), CancellationToken.None);
-
-                if (resp.IsSuccessStatusCode) {
-                    OnLogReceived(LogLevel.Info, string.Format("[DB] {0} Successfully bound Cassette {1} to WO {2} via Gateway.", this.Id, cassetteId, workOrder));
-                    return true;
-                }
-                return false;
-            }
-            catch { return false; }
-        }
-
-        protected async Task<bool> UnbindFromDbAsync(string cassetteId)
-        {
-            if (GatewayConfig == null) return false;
-            try
-            {
-                var req = new { EqpId = this.Id, CassetteId = cassetteId };
-                var content = new StringContent(JsonConvert.SerializeObject(req), Encoding.UTF8, "application/json");
-
-                var resp = await _resiliencePolicy.ExecuteAsync(new Func<CancellationToken, Task<HttpResponseMessage>>(async (ct) => {
-                    try {
-                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/unbind", GatewayConfig.PrimaryUrl), content, ct);
-                    } catch {
-                        return await _httpClient.PostAsync(string.Format("{0}/api/binding/unbind", GatewayConfig.SecondaryUrl), content, ct);
-                    }
-                }), CancellationToken.None);
-
-                if (resp.IsSuccessStatusCode) {
-                    OnLogReceived(LogLevel.Info, string.Format("[DB] {0} Successfully unbound Cassette {1} via Gateway.", this.Id, cassetteId));
-                    return true;
-                }
-                return false;
-            }
-            catch { return false; }
-        }
-
-        private async Task SavePendingBindingAsync(string cid, string wo, List<string> panels)
-        {
-            try {
-                using (var conn = DatabaseHelper.GetConnection()) {
-                    await conn.OpenAsync();
-                    string sql = "INSERT INTO Local_Binding_Buffer (EqpId, CassetteID, WorkOrder, PanelList) VALUES (@eqid, @cid, @wo, @json)";
-                    using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
-                        cmd.Parameters.AddWithValue("@eqid", this.Id);
-                        cmd.Parameters.AddWithValue("@cid", cid); cmd.Parameters.AddWithValue("@wo", wo);
-                        cmd.Parameters.AddWithValue("@json", JsonConvert.SerializeObject(panels));
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            } catch { }
-        }
-
-        private async Task SavePendingUnbindingAsync(string cid)
-        {
-            try {
-                using (var conn = DatabaseHelper.GetConnection()) {
-                    await conn.OpenAsync();
-                    string sql = "INSERT INTO Local_Unbinding_Buffer (EqpId, CassetteID) VALUES (@eqid, @cid)";
-                    using (var cmd = new System.Data.SQLite.SQLiteCommand(sql, conn)) {
-                        cmd.Parameters.AddWithValue("@eqid", this.Id);
-                        cmd.Parameters.AddWithValue("@cid", cid);
-                        await cmd.ExecuteNonQueryAsync();
-                    }
-                }
-            } catch { }
-        }
-
-        protected async Task StartBindingRetryProcessor(CancellationToken ct)
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                try
-                {
-                    var pendings = DatabaseHelper.GetPendingBindings(this.Id);
-                    foreach (var p in pendings) {
-                        var panels = JsonConvert.DeserializeObject<List<string>>(p.PanelList);
-                        if (await UpdateBindingInDbAsync(p.CassetteID, p.WorkOrder, panels)) DatabaseHelper.DeletePendingBinding(p.Id);
-                    }
-                    var unpendings = DatabaseHelper.GetPendingUnbindings(this.Id);
-                    foreach (var cid in unpendings) {
-                        if (await UnbindFromDbAsync(cid)) DatabaseHelper.DeletePendingUnbinding(cid);
-                    }
-                }
-                catch { }
-                await Task.Delay(30000, ct);
-            }
         }
 
         public async Task<string> ProcessStatusChangeAsync(string oldStatus, string newStatus, string reportEqpId = null)
