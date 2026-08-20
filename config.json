@@ -1,7 +1,7 @@
 {
   "EapId": "EAP01",
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
-  "MqttBrokerHost": "192.168.1.78",
+  "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
   "HeartbeatIntervalSeconds": 10,
   "EqpStatusReportIntervalSeconds": 60,
@@ -43,6 +43,15 @@
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
+      "StatusType": "Cyntec",
+      "IsActive": true
+    },
+    {
+      "Id": "TP0013",
+      "Name": "TP0013",
+      "Protocol": "MQTT",
+      "Topic": "factory/LOCAL/machine/TP0013",
+      "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
       "IsActive": true
     },

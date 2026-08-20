@@ -49,6 +49,27 @@ namespace EQSimulator
         {
             // 自動載入設定
             LoadSettings();
+            InitializeScenarioCombo();
+        }
+
+        private void InitializeScenarioCombo()
+        {
+            if (_cboScenario != null)
+            {
+                _cboScenario.Items.Clear();
+                _cboScenario.Items.AddRange(new object[]
+                {
+                    "[情境 1] 正常出站 (投入1000, PASS 980, 一般NG自動平減)",
+                    "[情境 2] 缺報總數或剩料 (未報 TotalCount/Leftovers 阻擋)",
+                    "[情境 3] 良率過低異常 (<95%, PASS 800/投入1000 阻擋)",
+                    "[情境 4] 良率過高/溢出 (>100%, PASS 1100/投入1000 阻擋)",
+                    "[情境 5] NG 數溢出 (特殊NG總和25 > 算出的NG 20 阻擋)"
+                });
+                if (_cboScenario.Items.Count > 0)
+                {
+                    _cboScenario.SelectedIndex = 0;
+                }
+            }
         }
 
         private string GetPanelListRaw()
@@ -252,6 +273,12 @@ namespace EQSimulator
                 case "UPNG503":
                     _txtNGName.Text = "工程驗證抽片";
                     break;
+                case "QC_KEEP":
+                    _txtNGName.Text = "QC Keep Sample";
+                    break;
+                case "FREE_SUP":
+                    _txtNGName.Text = "免補料";
+                    break;
             }
         }
 
@@ -285,9 +312,11 @@ namespace EQSimulator
             string wo = (_txtWorkOrder.Text ?? "").Split(',').FirstOrDefault()?.Trim() ?? "";
             var defaultList = new[]
             {
-                ("UPNG501", "機台卡片", "1", "PCS"),
-                ("UPNG502", "人為疏失折片", "0", "PCS"),
-                ("UPNG503", "工程驗證抽片", "0", "PCS")
+                ("UPNG501", "機台卡片", "20", "PCS"),
+                ("UPNG502", "人為疏失折片", "10", "PCS"),
+                ("UPNG503", "工程驗證抽片", "0", "PCS"),
+                ("QC_KEEP", "QC Keep Sample", "5", "PCS"),
+                ("FREE_SUP", "免補料", "5", "PCS")
             };
 
             foreach (var (code, name, qty, unit) in defaultList)
@@ -306,8 +335,8 @@ namespace EQSimulator
                     }
                 };
                 SendMessage(evm);
-                Log($"[NGCodeReport] Auto sent NGCode: {code}, Qty: {qty}, Unit: {unit} for WO: {wo}");
-                await Task.Delay(100);
+                Log($"[NGCodeReport] Auto sent NGCode: {code} ({name}), Qty: {qty}, Unit: {unit} for WO: {wo}");
+                await Task.Delay(50);
             }
         }
 
@@ -380,6 +409,62 @@ namespace EQSimulator
             };
             SendMessage(evm);
             Log($"[TotalCountReport] Sent EventID: {eventCeid}, WorkOrder: {wo}, ReelCount: {reelCount}, QtyPerReel: {qtyPerReel}");
+        }
+
+        private void BtnApplyScenario_Click(object sender, EventArgs e)
+        {
+            int idx = _cboScenario?.SelectedIndex ?? 0;
+            _txtEqId.Text = "TP0001";
+            _txtBroker.Text = "127.0.0.1";
+            _txtPort.Text = "1883";
+            _txtTopic.Text = "factory/LOCAL/machine/TP0001";
+
+            switch (idx)
+            {
+                case 0: // 情境 1: 正常出站 (PASS 980 / 投入 1000, 一般 NG 平減)
+                    _txtWorkOrder.Text = "WO_TP_NORM_01";
+                    _txtTotalReelCount.Text = "9";
+                    _txtTotalQtyPerReel.Text = "100"; // 900
+                    _txtLeftoverReel.Text = "REEL001";
+                    _txtLeftoverQty.Text = "80";      // 剩料 80 (補料0 => PASS 980, NG 20)
+                    _cboNGCode.Text = "UPNG501";
+                    _txtNGName.Text = "機台卡片";
+                    _txtNGQty.Text = "30";
+                    Log("[Scenario 1 載入完成] 正常出站: 投入1000, 總數9*100=900, 剩料80 => PASS=980 (良率98%), NG=20。請依序發送: TrackIn -> 剩料上報 -> 總數上報 -> 上報全部NG -> TrackOut。");
+                    break;
+
+                case 1: // 情境 2: 缺報總數或剩料
+                    _txtWorkOrder.Text = "WO_TP_MISS_02";
+                    Log("[Scenario 2 載入完成] 缺報總數/剩料: 請在 TrackIn 後直接點擊 TrackOut，觀察 EAP 阻擋並回覆缺少報告。");
+                    break;
+
+                case 2: // 情境 3: 良率過低 (<95%)
+                    _txtWorkOrder.Text = "WO_TP_LOW_03";
+                    _txtTotalReelCount.Text = "8";
+                    _txtTotalQtyPerReel.Text = "100"; // 800
+                    _txtLeftoverQty.Text = "0";       // PASS=800 / 投入1000 = 80.0% < 95%
+                    Log("[Scenario 3 載入完成] 良率過低異常: 投入1000, PASS=800 (良率80% < 95%)。請依序發送: 剩料0 -> 總數8*100 -> TrackOut，觀察良率過低阻擋。");
+                    break;
+
+                case 3: // 情境 4: 良率過高 (>100%)
+                    _txtWorkOrder.Text = "WO_TP_HIGH_04";
+                    _txtTotalReelCount.Text = "11";
+                    _txtTotalQtyPerReel.Text = "100"; // 1100
+                    _txtLeftoverQty.Text = "0";       // PASS=1100 / 投入1000 = 110.0% > 100%
+                    Log("[Scenario 4 載入完成] 良率過高異常: 投入1000, PASS=1100 (良率110% > 100%)。請依序發送: 剩料0 -> 總數11*100 -> TrackOut，觀察良率過高阻擋。");
+                    break;
+
+                case 4: // 情境 5: NG 數溢出
+                    _txtWorkOrder.Text = "WO_TP_OVR_05";
+                    _txtTotalReelCount.Text = "9";
+                    _txtTotalQtyPerReel.Text = "100"; // 900
+                    _txtLeftoverQty.Text = "80";      // PASS=980, CalcNG=20
+                    _cboNGCode.Text = "QC_KEEP";
+                    _txtNGName.Text = "QC Keep Sample";
+                    _txtNGQty.Text = "25";            // 特殊項目 25 > 20
+                    Log("[Scenario 5 載入完成] NG數溢出: 投入1000, PASS=980 => CalcNG=20。請上報 QC Keep Sample 25顆 -> 剩料80 -> 總數9*100 -> TrackOut，觀察溢出阻擋。");
+                    break;
+            }
         }
 
         private void HandleIncomingCommand(string json)

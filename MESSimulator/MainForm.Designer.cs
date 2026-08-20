@@ -51,6 +51,8 @@ namespace MESSimulator
             chkEnableNGCodeList = new System.Windows.Forms.CheckBox();
             lblRecipeId = new System.Windows.Forms.Label();
             txtRecipeId = new System.Windows.Forms.TextBox();
+            lblWipQty = new System.Windows.Forms.Label();
+            txtWipQty = new System.Windows.Forms.TextBox();
             panelTop.Controls.Add(lblHandshakeResponses);
             panelTop.Controls.Add(chkUserVerifyPass);
             panelTop.Controls.Add(chkWOQRYPass);
@@ -59,6 +61,8 @@ namespace MESSimulator
             panelTop.Controls.Add(chkEQPSTATUSPass);
             panelTop.Controls.Add(chkRecipeMismatch);
             panelTop.Controls.Add(chkEnableNGCodeList);
+            panelTop.Controls.Add(lblWipQty);
+            panelTop.Controls.Add(txtWipQty);
             panelTop.Controls.Add(lblInRequireInputCode);
             panelTop.Controls.Add(txtInRequireInputCode);
             panelTop.Controls.Add(lblOutRequireInputCode);
@@ -260,12 +264,29 @@ namespace MESSimulator
             chkEnableNGCodeList.AutoSize = true;
             chkEnableNGCodeList.Checked = true;
             chkEnableNGCodeList.CheckState = System.Windows.Forms.CheckState.Checked;
-            chkEnableNGCodeList.Location = new System.Drawing.Point(845, 50);
+            chkEnableNGCodeList.Location = new System.Drawing.Point(820, 50);
             chkEnableNGCodeList.Name = "chkEnableNGCodeList";
-            chkEnableNGCodeList.Size = new System.Drawing.Size(165, 19);
+            chkEnableNGCodeList.Size = new System.Drawing.Size(155, 19);
             chkEnableNGCodeList.TabIndex = 16;
             chkEnableNGCodeList.Text = "啟用 NGCodeListDT 模擬";
             chkEnableNGCodeList.UseVisualStyleBackColor = true;
+            // 
+            // lblWipQty
+            // 
+            lblWipQty.AutoSize = true;
+            lblWipQty.Location = new System.Drawing.Point(985, 52);
+            lblWipQty.Name = "lblWipQty";
+            lblWipQty.Size = new System.Drawing.Size(103, 15);
+            lblWipQty.TabIndex = 17;
+            lblWipQty.Text = "工單投入數 (QTY):";
+            // 
+            // txtWipQty
+            // 
+            txtWipQty.Location = new System.Drawing.Point(1095, 48);
+            txtWipQty.Name = "txtWipQty";
+            txtWipQty.Size = new System.Drawing.Size(70, 23);
+            txtWipQty.TabIndex = 18;
+            txtWipQty.Text = "1000";
             // 
             // splitContainer
             // 
@@ -392,5 +413,7 @@ namespace MESSimulator
         private System.Windows.Forms.CheckBox chkEQPSTATUSPass;
         private System.Windows.Forms.CheckBox chkRecipeMismatch;
         private System.Windows.Forms.CheckBox chkEnableNGCodeList;
+        private System.Windows.Forms.Label lblWipQty;
+        private System.Windows.Forms.TextBox txtWipQty;
     }
 }

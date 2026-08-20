@@ -246,6 +246,19 @@ namespace MESSimulator
                     case "WOQRY":
                         string wonoQry = req["WONO"]?.ToString() ?? "";
                         bool alreadyIn = _woAlreadyInMap.TryGetValue(wonoQry, out bool isIn) && isIn;
+                        string customWipQty = "1000";
+                        try
+                        {
+                            if (this.InvokeRequired)
+                            {
+                                customWipQty = (string)this.Invoke(new Func<string>(() => txtWipQty?.Text?.Trim() ?? "1000"));
+                            }
+                            else
+                            {
+                                customWipQty = txtWipQty?.Text?.Trim() ?? "1000";
+                            }
+                        }
+                        catch { }
 
                         reply["Result"] = "success";
                         reply["ResultCode"] = "W001";
@@ -253,7 +266,8 @@ namespace MESSimulator
                         reply["MatGroupNo"] = "CL";
                         reply["LineCode"] = "CL01";
                         reply["MatNo"] = "9032910N06N";
-                        reply["WIPQty"] = "20.0";
+                        reply["WIPQty"] = customWipQty;
+                        reply["QTY"] = customWipQty;
                         reply["MatClassCode"] = "01005D";
                         reply["WorkCenterNo"] = "CLEX0008";
                         reply["FlowID"] = "100";
@@ -366,7 +380,9 @@ namespace MESSimulator
                             {
                                 new JObject { ["NGCode"] = "UPNG501", ["NGName"] = "機台卡片" },
                                 new JObject { ["NGCode"] = "UPNG502", ["NGName"] = "人為疏失折片" },
-                                new JObject { ["NGCode"] = "UPNG503", ["NGName"] = "工程驗證抽片" }
+                                new JObject { ["NGCode"] = "UPNG503", ["NGName"] = "工程驗證抽片" },
+                                new JObject { ["NGCode"] = "QC_KEEP", ["NGName"] = "QC Keep Sample" },
+                                new JObject { ["NGCode"] = "FREE_SUP", ["NGName"] = "免補料" }
                             };
                             reply["NGCodeListDT"] = ngArray.ToString(Newtonsoft.Json.Formatting.None);
                         }

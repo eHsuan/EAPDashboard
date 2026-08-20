@@ -81,6 +81,10 @@ namespace EQSimulator
             lblTotalQtyPerReel = new System.Windows.Forms.Label();
             _txtTotalQtyPerReel = new System.Windows.Forms.TextBox();
             btnSendTotalCount = new System.Windows.Forms.Button();
+            pnlScenarioGroup = new System.Windows.Forms.Panel();
+            lblScenario = new System.Windows.Forms.Label();
+            _cboScenario = new System.Windows.Forms.ComboBox();
+            btnApplyScenario = new System.Windows.Forms.Button();
             _txtLog = new System.Windows.Forms.TextBox();
             panelTop.SuspendLayout();
             grpParams.SuspendLayout();
@@ -90,6 +94,7 @@ namespace EQSimulator
             pnlNGGroup.SuspendLayout();
             pnlLeftoverGroup.SuspendLayout();
             pnlTotalCountGroup.SuspendLayout();
+            pnlScenarioGroup.SuspendLayout();
             SuspendLayout();
             // 
             // panelTop
@@ -408,6 +413,7 @@ namespace EQSimulator
             flowActions.Controls.Add(pnlNGGroup);
             flowActions.Controls.Add(pnlLeftoverGroup);
             flowActions.Controls.Add(pnlTotalCountGroup);
+            flowActions.Controls.Add(pnlScenarioGroup);
             flowActions.Dock = System.Windows.Forms.DockStyle.Fill;
             flowActions.Location = new System.Drawing.Point(4, 20);
             flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -583,7 +589,7 @@ namespace EQSimulator
             // _cboNGCode
             // 
             _cboNGCode.FormattingEnabled = true;
-            _cboNGCode.Items.AddRange(new object[] { "UPNG501", "UPNG502", "UPNG503" });
+            _cboNGCode.Items.AddRange(new object[] { "UPNG501", "UPNG502", "UPNG503", "QC_KEEP", "FREE_SUP" });
             _cboNGCode.Location = new System.Drawing.Point(38, 4);
             _cboNGCode.Name = "_cboNGCode";
             _cboNGCode.Size = new System.Drawing.Size(95, 23);
@@ -756,6 +762,44 @@ namespace EQSimulator
             btnSendTotalCount.UseVisualStyleBackColor = true;
             btnSendTotalCount.Click += BtnSendTotalCount_Click;
             // 
+            // pnlScenarioGroup
+            // 
+            pnlScenarioGroup.Controls.Add(lblScenario);
+            pnlScenarioGroup.Controls.Add(_cboScenario);
+            pnlScenarioGroup.Controls.Add(btnApplyScenario);
+            pnlScenarioGroup.Location = new System.Drawing.Point(10, 175);
+            pnlScenarioGroup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            pnlScenarioGroup.Name = "pnlScenarioGroup";
+            pnlScenarioGroup.Size = new System.Drawing.Size(550, 38);
+            pnlScenarioGroup.TabIndex = 13;
+            // 
+            // lblScenario
+            // 
+            lblScenario.Location = new System.Drawing.Point(4, 8);
+            lblScenario.Name = "lblScenario";
+            lblScenario.Size = new System.Drawing.Size(85, 23);
+            lblScenario.TabIndex = 0;
+            lblScenario.Text = "TP 測試情境:";
+            // 
+            // _cboScenario
+            // 
+            _cboScenario.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            _cboScenario.FormattingEnabled = true;
+            _cboScenario.Location = new System.Drawing.Point(92, 4);
+            _cboScenario.Name = "_cboScenario";
+            _cboScenario.Size = new System.Drawing.Size(320, 23);
+            _cboScenario.TabIndex = 1;
+            // 
+            // btnApplyScenario
+            // 
+            btnApplyScenario.Location = new System.Drawing.Point(420, 1);
+            btnApplyScenario.Name = "btnApplyScenario";
+            btnApplyScenario.Size = new System.Drawing.Size(120, 29);
+            btnApplyScenario.TabIndex = 2;
+            btnApplyScenario.Text = "載入情境參數";
+            btnApplyScenario.UseVisualStyleBackColor = true;
+            btnApplyScenario.Click += BtnApplyScenario_Click;
+            // 
             // _txtLog
             // 
             _txtLog.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -793,6 +837,8 @@ namespace EQSimulator
             pnlLeftoverGroup.PerformLayout();
             pnlTotalCountGroup.ResumeLayout(false);
             pnlTotalCountGroup.PerformLayout();
+            pnlScenarioGroup.ResumeLayout(false);
+            pnlScenarioGroup.PerformLayout();
             ResumeLayout(false);
             PerformLayout();
         }
@@ -863,6 +909,10 @@ namespace EQSimulator
         private System.Windows.Forms.Label lblTotalQtyPerReel;
         private System.Windows.Forms.TextBox _txtTotalQtyPerReel;
         private System.Windows.Forms.Button btnSendTotalCount;
+        private System.Windows.Forms.Panel pnlScenarioGroup;
+        private System.Windows.Forms.Label lblScenario;
+        private System.Windows.Forms.ComboBox _cboScenario;
+        private System.Windows.Forms.Button btnApplyScenario;
         private System.Windows.Forms.TextBox _txtLog;
     }
 }
