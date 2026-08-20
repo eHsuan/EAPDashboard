@@ -393,13 +393,14 @@ namespace EQSimulator
             _grpActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             _grpActions.Name = "_grpActions";
             _grpActions.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            _grpActions.Size = new System.Drawing.Size(915, 205);
+            _grpActions.Size = new System.Drawing.Size(960, 270);
             _grpActions.TabIndex = 2;
             _grpActions.TabStop = false;
             _grpActions.Text = "Simulation Actions";
             // 
             // flowActions
             // 
+            flowActions.AutoScroll = true;
             flowActions.Controls.Add(btnUser);
             flowActions.Controls.Add(btnTrackIn);
             flowActions.Controls.Add(btnTrackOut);
@@ -419,7 +420,7 @@ namespace EQSimulator
             flowActions.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             flowActions.Name = "flowActions";
             flowActions.Padding = new System.Windows.Forms.Padding(6, 6, 6, 6);
-            flowActions.Size = new System.Drawing.Size(907, 181);
+            flowActions.Size = new System.Drawing.Size(952, 246);
             flowActions.TabIndex = 0;
             // 
             // btnUser
@@ -815,7 +816,7 @@ namespace EQSimulator
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(915, 720);
+            ClientSize = new System.Drawing.Size(960, 780);
             Controls.Add(_txtLog);
             Controls.Add(_grpActions);
             Controls.Add(grpParams);

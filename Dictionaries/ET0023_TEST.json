@@ -1,7 +1,8 @@
 {
-  "Model": "TOWA_YPM",
+  "Model": "ET0023",
   "Events": {
     "103": "KPIV_Report",
+	"104": "USER_VERIFY"
   },
   "Variables": {
     "1030": "蝕刻段上噴壓-U",
@@ -50,5 +51,9 @@
     "E004": "ALM_EMERGENCY_STOP",
     "E001": "ALM_SAFETY_DOOR_OPEN",
     "E002": "ALM_AIR_PRESSURE_LOW"
+  },
+  "ManagementItems":{
+	  "TE003": "Y",
+	  "EX001": "Y",
   }
 }
