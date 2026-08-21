@@ -648,7 +648,7 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
-        public void TpTrackOut_CalcNgLessThanTotalReported_ShouldDeductFromLargestNonSpecial()
+        public void TpTrackOut_CalcNgLessThanTotalReported_ShouldDeductEvenlyFromNonSpecial()
         {
             var eq = new TestableEquipment("TP006");
             string wo = "WO_TP_006";
@@ -662,8 +662,9 @@ namespace EAPDashboard.Tests
             // Special: QC Keep Sample = 5, 免補料 = 5 (Total special = 10)
             // Non-special: NG_DEF1 = 20, NG_DEF2 = 10 (Total reported = 40)
             // CalcNG = 30. Diff to deduct = 40 - 30 = 10.
-            // NG_DEF1 is largest (20), so it should be deducted by 10 => becomes 10.
-            // Special items should remain 5 and 5.
+            // Even deduction: 10 / 2 = 5 each.
+            // NG_DEF1 becomes 15 (20 - 5), NG_DEF2 becomes 5 (10 - 5).
+            // Special items should strictly remain 5 and 5.
             var ngList = new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "5" },
@@ -683,10 +684,53 @@ namespace EAPDashboard.Tests
             var itemDef1 = eq.GetNGCodeItemForTest(wo, "NG_DEF1");
             var itemDef2 = eq.GetNGCodeItemForTest(wo, "NG_DEF2");
 
+            itemQc.NGQty.Should().Be("5"); // Untouched
+            itemFree.NGQty.Should().Be("5"); // Untouched
+            itemDef1.NGQty.Should().Be("15"); // Evenly deducted 5
+            itemDef2.NGQty.Should().Be("5"); // Evenly deducted 5
+        }
+
+        [Fact]
+        public void TpTrackOut_CalcNgLessThanTotalReported_MultiItemExceedingShare_ShouldCascadeDeductions()
+        {
+            var eq = new TestableEquipment("TP007");
+            string wo = "WO_TP_007";
+
+            eq.RecordWorkOrderInputQty(wo, 1000);
+            eq.RecordTotalCountReport(wo, "9", "100"); // 900
+            eq.RecordLeftoversReport(wo, "80", "R01");  // 80
+            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 970 => CalcNG = 30
+
+            // Special: QC Keep Sample = 5 (Total 5)
+            // Non-special: NG_SMALL = 2, NG_BIG1 = 20, NG_BIG2 = 20 (Total reported = 47)
+            // CalcNG = 30. Diff to deduct = 47 - 30 = 17.
+            // Fair even allocation of 17 across [2, 20, 20]:
+            // Round 1: share = 17/3 = 5. NG_SMALL only has 2 -> deducts 2 (becomes 0). Remaining diff = 15.
+            // Round 2: share = 15/2 = 7. NG_BIG1 deducts 7 (becomes 13), NG_BIG2 deducts 7 (becomes 13). Remaining diff = 1.
+            // Round 3: remaining 1 goes to NG_BIG1 (largest) -> becomes 12.
+            // Total deducted: 2 + 8 + 7 = 17.
+            var ngList = new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "5" },
+                new NGCodeItem { NGCode = "NG_SMALL", NGName = "Small Scratch", NGQty = "2" },
+                new NGCodeItem { NGCode = "NG_BIG1", NGName = "Broken", NGQty = "20" },
+                new NGCodeItem { NGCode = "NG_BIG2", NGName = "Dirty", NGQty = "20" }
+            };
+            eq.SetWorkOrderNGCodesForTest(wo, ngList);
+
+            var (ok, msg, calcNg, passQty) = eq.ValidateAndAdjustTpTrackOut(wo);
+            ok.Should().BeTrue();
+            calcNg.Should().Be(30);
+
+            var itemQc = eq.GetNGCodeItemForTest(wo, "NG_QC");
+            var itemSmall = eq.GetNGCodeItemForTest(wo, "NG_SMALL");
+            var itemBig1 = eq.GetNGCodeItemForTest(wo, "NG_BIG1");
+            var itemBig2 = eq.GetNGCodeItemForTest(wo, "NG_BIG2");
+
             itemQc.NGQty.Should().Be("5");
-            itemFree.NGQty.Should().Be("5");
-            itemDef1.NGQty.Should().Be("10"); // Deducted from 20 to 10
-            itemDef2.NGQty.Should().Be("10"); // Unchanged
+            itemSmall.NGQty.Should().Be("0");
+            itemBig1.NGQty.Should().Be("12");
+            itemBig2.NGQty.Should().Be("13");
         }
 
         [Fact]

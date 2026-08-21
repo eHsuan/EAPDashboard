@@ -649,29 +649,61 @@ namespace EAPDashboard.Models
                     return (false, failOverflowMsg, 0, passQty);
                 }
 
-                // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 從數量最多的非特殊項目開始扣除
+                // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 盡可能平均平攤扣除非特殊項目 (特殊項目 QC Keep Sample 與 免補料 嚴格不扣)
                 if (calcNg < totalReportedSum)
                 {
                     double diff = totalReportedSum - calcNg;
-                    OnLogReceived(LogLevel.Info, $"[TP TrackOut] CalcNG ({calcNg}) < Total Reported NG ({totalReportedSum}). Diff to deduct: {diff}. Adjusting non-special items...");
+                    OnLogReceived(LogLevel.Info, $"[TP TrackOut] CalcNG ({calcNg}) < Total Reported NG ({totalReportedSum}). Diff to deduct: {diff}. Evenly adjusting non-special items...");
 
-                    var orderedNonSpecial = nonSpecialItems
-                        .OrderByDescending(x => double.TryParse(x.NGQty, out double q) ? q : 0)
-                        .ThenBy(x => x.NGCode)
+                    var candidateItems = nonSpecialItems
+                        .Where(x => double.TryParse(x.NGQty, out double q) && q > 0)
+                        .Select(x => new { Item = x, Qty = double.Parse(x.NGQty) })
                         .ToList();
 
-                    foreach (var item in orderedNonSpecial)
+                    var deductions = candidateItems.ToDictionary(x => x.Item, x => 0.0);
+                    double remainingDiff = diff;
+
+                    while (remainingDiff > 0.0001)
                     {
-                        if (diff <= 0) break;
-                        double currentQty = double.TryParse(item.NGQty, out double q) ? q : 0;
-                        if (currentQty <= 0) continue;
+                        var active = candidateItems
+                            .Where(x => (x.Qty - deductions[x.Item]) > 0.0001)
+                            .OrderByDescending(x => x.Qty - deductions[x.Item])
+                            .ThenBy(x => x.Item.NGCode)
+                            .ToList();
 
-                        double deduct = Math.Min(currentQty, diff);
-                        double newQty = currentQty - deduct;
-                        item.NGQty = newQty.ToString();
-                        diff -= deduct;
+                        if (active.Count == 0) break;
 
-                        OnLogReceived(LogLevel.Info, $"[TP TrackOut] Deducted {deduct} from NGCode '{item.NGCode}' ({item.NGName}): {currentQty} -> {newQty}. Remaining diff: {diff}");
+                        double perItemDeduct = Math.Floor(remainingDiff / active.Count);
+                        if (perItemDeduct <= 0) perItemDeduct = 1;
+
+                        bool allocatedAny = false;
+                        foreach (var c in active)
+                        {
+                            if (remainingDiff <= 0.0001) break;
+
+                            double available = c.Qty - deductions[c.Item];
+                            double deduct = Math.Min(available, Math.Min(perItemDeduct, remainingDiff));
+
+                            if (deduct > 0)
+                            {
+                                deductions[c.Item] += deduct;
+                                remainingDiff -= deduct;
+                                allocatedAny = true;
+                            }
+                        }
+
+                        if (!allocatedAny) break;
+                    }
+
+                    foreach (var c in candidateItems)
+                    {
+                        double deduct = deductions[c.Item];
+                        if (deduct > 0)
+                        {
+                            double newQty = Math.Max(0, c.Qty - deduct);
+                            c.Item.NGQty = newQty.ToString();
+                            OnLogReceived(LogLevel.Info, $"[TP TrackOut] Evenly deducted {deduct} from NGCode '{c.Item.NGCode}' ({c.Item.NGName}): {c.Qty} -> {newQty}.");
+                        }
                     }
 
                     SaveNgCodeCacheToDisk();
