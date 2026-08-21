@@ -414,10 +414,6 @@ namespace EQSimulator
         private void BtnApplyScenario_Click(object sender, EventArgs e)
         {
             int idx = _cboScenario?.SelectedIndex ?? 0;
-            _txtEqId.Text = "TP0001";
-            _txtBroker.Text = "127.0.0.1";
-            _txtPort.Text = "1883";
-            _txtTopic.Text = "factory/LOCAL/machine/TP0001";
 
             switch (idx)
             {
