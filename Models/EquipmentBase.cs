@@ -1227,6 +1227,28 @@ namespace EAPDashboard.Models
                 }
 
                 string unifiedRecipe = distinctRecipes.FirstOrDefault() ?? "";
+
+                // 單工單或查無 Recipe ID / 模擬 Recipe 異常判定
+                if (validWos.Count == 1 && (string.IsNullOrWhiteSpace(unifiedRecipe) 
+                    || unifiedRecipe.Equals("UNKNOWN", StringComparison.OrdinalIgnoreCase) 
+                    || unifiedRecipe.Equals("ERROR", StringComparison.OrdinalIgnoreCase) 
+                    || unifiedRecipe.StartsWith("RECIPE_MISMATCH_", StringComparison.OrdinalIgnoreCase) 
+                    || unifiedRecipe.StartsWith("SIM_RECIPE_DIFF_", StringComparison.OrdinalIgnoreCase)))
+                {
+                    string errorMsg = "在MES找不到RECIPEID";
+                    OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    return $"FAIL|Y94|{errorMsg}|[]";
+                }
+
+                if (string.IsNullOrWhiteSpace(unifiedRecipe) 
+                    || unifiedRecipe.Equals("UNKNOWN", StringComparison.OrdinalIgnoreCase) 
+                    || unifiedRecipe.Equals("ERROR", StringComparison.OrdinalIgnoreCase))
+                {
+                    string errorMsg = "在MES找不到RECIPEID";
+                    OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    return $"FAIL|Y94|{errorMsg}|[]";
+                }
+
                 _trackInRequireInputMap[combinedWo] = allReqInputCodes.ToList();
 
                 string panelsJson = JsonConvert.SerializeObject(currentPanels);

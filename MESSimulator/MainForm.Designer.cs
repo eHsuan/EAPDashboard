@@ -157,7 +157,7 @@ namespace MESSimulator
             chkRecipeMismatch.Name = "chkRecipeMismatch";
             chkRecipeMismatch.Size = new System.Drawing.Size(200, 19);
             chkRecipeMismatch.TabIndex = 15;
-            chkRecipeMismatch.Text = "多工單 Recipe 不一致 (模擬 Fail)";
+            chkRecipeMismatch.Text = "工單 Recipe 不一致 (模擬 Fail)";
             chkRecipeMismatch.UseVisualStyleBackColor = true;
             // 
             // chkEnableNGCodeList

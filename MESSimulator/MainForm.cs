@@ -302,7 +302,7 @@ namespace MESSimulator
                         if (isRecipeMismatch)
                         {
                             int lastVal = !string.IsNullOrEmpty(wonoQry) ? (int)wonoQry[wonoQry.Length - 1] : 0;
-                            mockRecipe = $"RECIPE_{(lastVal % 2 == 0 ? "A" : "B")}_{wonoQry}";
+                            mockRecipe = $"RECIPE_MISMATCH_{(lastVal % 2 == 0 ? "A" : "B")}_{wonoQry}";
                         }
                         else if (!string.IsNullOrEmpty(customRecipe))
                         {

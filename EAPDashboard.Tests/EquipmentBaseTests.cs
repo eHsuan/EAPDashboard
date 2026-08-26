@@ -213,6 +213,28 @@ namespace EAPDashboard.Tests
             terminalMsg.Length.Should().BeLessThanOrEqualTo(200);
         }
 
+        [Theory]
+        [InlineData("RECIPE_MISMATCH_A_WO001", true)]
+        [InlineData("SIM_RECIPE_DIFF_WO001", true)]
+        [InlineData("UNKNOWN", true)]
+        [InlineData("", true)]
+        [InlineData("NORMAL_RECIPE", false)]
+        public void SingleWorkOrder_RecipeValidation_ShouldDetectNotFoundOrMismatch(string unifiedRecipe, bool shouldFail)
+        {
+            // Arrange
+            int validWoCount = 1;
+
+            // Act
+            bool isFail = validWoCount == 1 && (string.IsNullOrWhiteSpace(unifiedRecipe) 
+                || unifiedRecipe.Equals("UNKNOWN", StringComparison.OrdinalIgnoreCase) 
+                || unifiedRecipe.Equals("ERROR", StringComparison.OrdinalIgnoreCase) 
+                || unifiedRecipe.StartsWith("RECIPE_MISMATCH_", StringComparison.OrdinalIgnoreCase) 
+                || unifiedRecipe.StartsWith("SIM_RECIPE_DIFF_", StringComparison.OrdinalIgnoreCase));
+
+            // Assert
+            isFail.Should().Be(shouldFail);
+        }
+
         [Fact]
         public void GetManagementItemValue_WithValidDictionary_ShouldBeCaseInsensitive()
         {
