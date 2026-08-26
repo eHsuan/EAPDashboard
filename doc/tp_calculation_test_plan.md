@@ -141,40 +141,47 @@ flowchart TD
 
 ---
 
-## ▍ 4. 非特殊 NG 平準化平攤扣除演算法流程圖 (Fair Water-Filling Algorithm)
+## ▍ 4. 非特殊 NG 剩餘量平準化演算法流程圖 (Water-Level Remaining Balance Allocation)
 
 ```mermaid
 flowchart TD
-    DeductStart([開始 NG 平攤扣除]) --> InitDiff["計算總差額:
+    DeductStart([開始 NG 平準化修約]) --> InitRemaining["計算目標剩餘總額:
+    NonSpecialSum = sum(非特殊項目原始數量)
     Diff = TotalReportedNG - CalcNG
-    剩餘需扣額 remainingDiff = Diff"]
+    目標剩餘總數 targetRemainingTotal = NonSpecialSum - Diff
+    待分配剩餘數 remainingToAllocate = targetRemainingTotal"]
     
-    InitDiff --> FilterNonSpecial["篩選非特殊 NG 項目 (排除 QC Keep Sample 與 免補料)
-    建立候選清單 candidateItems 與扣除額字典 deductions[item] = 0"]
+    InitRemaining --> InitAlloc["初始化各非特殊項目剩餘量:
+    remainingAllocations[item] = 0"]
 
-    FilterNonSpecial --> LoopStart{remainingDiff > 0.0001?}
+    InitAlloc --> LoopStart{remainingToAllocate > 0.0001?}
     
-    LoopStart -- 否 (差額扣除完畢) --> ApplyChanges[回寫新數量至 NGCodeItem: newQty = Qty - deductions]
-    LoopStart -- 是 --> FindActive["找出當前可用餘額 > 0 的項目:
-    active = items where (Qty - deductions) > 0"]
-
-    FindActive --> CheckActiveCount{active 數量 > 0?}
-    CheckActiveCount -- 否 (無可扣項目) --> ApplyChanges
-    CheckActiveCount -- 是 --> CalcShare["計算本輪每項應扣額:
-    perItemDeduct = floor(remainingDiff / active.Count)
-    若 perItemDeduct <= 0 則設為 1 (輪流扣 1 顆)"]
-
-    CalcShare --> IterItems[依序走訪 active 項目]
-    IterItems --> DistributeShare["計算單項扣除額:
-    available = Qty - deductions[item]
-    deduct = min(available, perItemDeduct, remainingDiff)
-    deductions[item] += deduct
-    remainingDiff -= deduct"]
+    LoopStart -- 否 (目標剩餘量分配完畢) --> ApplyChanges["計算各項目扣除額並回寫:
+    newQty = remainingAllocations[item]
+    deduct = OriginalQty - newQty
+    item.NGQty = newQty"]
     
-    DistributeShare --> LoopStart
+    LoopStart -- 是 --> FindEligible["找出尚未達原始上限的項目:
+    eligible = items where remainingAllocations < OriginalQty"]
+
+    FindEligible --> CheckEligibleCount{eligible 數量 > 0?}
+    CheckEligibleCount -- 否 (所有項目皆達上限) --> ApplyChanges
+    CheckEligibleCount -- 是 --> FindLowest["取得當前最低水位 minAlloc 與最低水位項目群 lowestGroup"]
+
+    FindLowest --> CalcStep["計算本輪每項分配增量:
+    step = floor(remainingToAllocate / lowestGroup.Count)
+    若 step <= 0 則設為 1 (輪流分配 1 顆)"]
+
+    CalcStep --> DistributeLevel["依序向 lowestGroup 各項目注入剩餘量:
+    maxAdd = OriginalQty - remainingAllocations[item]
+    toAdd = min(maxAdd, step, remainingToAllocate)
+    remainingAllocations[item] += toAdd
+    remainingToAllocate -= toAdd"]
+    
+    DistributeLevel --> LoopStart
 
     ApplyChanges --> SaveDisk[儲存更新至 ng_code_cache.json 磁碟快取]
-    SaveDisk --> DeductEnd([扣除完成，進入 MES 報工])
+    SaveDisk --> DeductEnd([修約完成，進入 MES 報工])
 ```
 
 ---
@@ -183,12 +190,12 @@ flowchart TD
 
 | 編號 | 測試情境 | 投入數 (Input) | 上報參數 (總數/剩料/補料) | 上報 NG 清單 (Reported NG) | 預期計算 PassQty / NG | 預期結果與行為 |
 | :---: | :--- | :---: | :--- | :--- | :---: | :--- |
-| **TC-01** | **正常出站 (非特殊 NG 平均平攤)** | 1000 | 盤數: 9, 單盤: 100 (900)<br>剩料: 80, 補料: 0 | QC Keep Sample: 5<br>免補料: 5<br>DEF1 (Card): 20<br>DEF2 (Broken): 10 | $\text{PassQty} = 980$<br>$\text{CalcNG} = 20$<br>$\text{Yield} = 98.0\%$ | **PASS 出站成功**<br>Diff = 20。<br>特殊項目不扣 (各5)。<br>DEF1 扣 15 ($\rightarrow 5$)，DEF2 扣 5 ($\rightarrow 5$)。<br>MES OutPut = 980。 |
+| **TC-01** | **正常出站 (剩餘量平準化修約)** | 1000 | 盤數: 9, 單盤: 100 (900)<br>剩料: 90, 補料: 10 | QC Keep Sample: 5<br>免補料: 5<br>UPNG501 (Card): 20<br>UPNG502 (Broken): 10 | $\text{PassQty} = 980$<br>$\text{CalcNG} = 20$<br>$\text{Yield} = 98.0\%$ | **PASS 出站成功**<br>Diff = 20，目標剩餘 = 10。<br>特殊項目不扣 (各5)。<br>UPNG501 扣 15 ($\rightarrow 5$)，UPNG502 扣 5 ($\rightarrow 5$)。<br>兩者剩餘數量皆平準為 5 顆。<br>MES OutPut = 980。 |
 | **TC-02** | **缺報總數或剩料** | 1000 | 未發送總數或剩料上報 | DEF1: 10 | 無法計算 | **FAIL 阻擋出站**<br>回覆 `Missing TotalCountReport / LeftoversReport`。 |
 | **TC-03** | **良率過低異常 (<95%)** | 1000 | 盤數: 8, 單盤: 100 (800)<br>剩料: 0, 補料: 0 | DEF1: 200 | $\text{PassQty} = 800$<br>$\text{CalcNG} = 200$<br>$\text{Yield} = 80.0\%$ | **FAIL 阻擋出站**<br>回覆 `Yield rate (80.0%) below minimum limit (95.0%)`。 |
 | **TC-04** | **良率過高異常 (>100%)** | 1000 | 盤數: 11, 單盤: 100 (1100)<br>剩料: 0, 補料: 0 | 無 | $\text{PassQty} = 1100$<br>$\text{CalcNG} = -100$<br>$\text{Yield} = 110.0\%$ | **FAIL 阻擋出站**<br>回覆 `Yield rate (110.0%) above maximum limit (100.0%)`。 |
 | **TC-05** | **特殊 NG 數溢出** | 1000 | 盤數: 9, 單盤: 100 (900)<br>剩料: 80, 補料: 0 | QC Keep Sample: 25<br>免補料: 0 | $\text{PassQty} = 980$<br>$\text{CalcNG} = 20$ | **FAIL 阻擋出站**<br>SpecialNGSum (25) > CalcNG (20)，回覆 `NG數溢出，需要人員介入處理`。 |
-| **TC-06** | **多項目非特殊 NG 級聯平攤** | 1000 | 盤數: 9, 單盤: 100 (900)<br>剩料: 80, 補料: 10 | QC Keep Sample: 5<br>SMALL: 2<br>BIG1: 20<br>BIG2: 20 | $\text{PassQty} = 970$<br>$\text{CalcNG} = 30$ | **PASS 出站成功**<br>Diff = 17。<br>QC 不扣 (5)。<br>SMALL 扣至 0，BIG1 扣至 12，BIG2 扣至 13。<br>MES OutPut = 970。 |
+| **TC-06** | **多項目含小額缺陷平準化** | 1000 | 盤數: 9, 單盤: 100 (900)<br>剩料: 93, 補料: 10 | QC Keep Sample: 5<br>SMALL: 2<br>BIG1: 20<br>BIG2: 10 | $\text{PassQty} = 983$<br>$\text{CalcNG} = 17$ | **PASS 出站成功**<br>Diff = 20，目標剩餘 = 12。<br>QC 不扣 (5)。<br>SMALL 保留上限 2 (扣 0)，BIG1 扣 15 ($\rightarrow 5$)，BIG2 扣 5 ($\rightarrow 5$)。<br>MES OutPut = 983。 |
 | **TC-07** | **重啟持久化快取驗證** | 1000 | 上報總數、剩料、NG 代碼 | 各類 NG | 相同 PassQty | **PASS 驗證通過**<br>EAP 重啟後讀取 `Cache/*.json` 快取，各項數據不遺失並順利完成出站。 |
 
 ---

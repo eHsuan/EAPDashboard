@@ -648,79 +648,83 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
-        public void TpTrackOut_CalcNgLessThanTotalReported_ShouldDeductEvenlyFromNonSpecial()
+        public void TpTrackOut_CalcNgLessThanTotalReported_LevelingBalance_ShouldLevelRemainingQuantities()
         {
             var eq = new TestableEquipment("TP006");
             string wo = "WO_TP_006";
 
             eq.RecordWorkOrderInputQty(wo, 1000);
             eq.RecordTotalCountReport(wo, "9", "100"); // 900
-            eq.RecordLeftoversReport(wo, "80", "R01");  // 80
-            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 970 => CalcNG = 30
+            eq.RecordLeftoversReport(wo, "90", "R01");  // 90
+            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 980 => CalcNG = 20
 
             // Reported NG items:
             // Special: QC Keep Sample = 5, 免補料 = 5 (Total special = 10)
-            // Non-special: NG_DEF1 = 20, NG_DEF2 = 10 (Total reported = 40)
-            // CalcNG = 30. Diff to deduct = 40 - 30 = 10.
-            // Even deduction: 10 / 2 = 5 each.
-            // NG_DEF1 becomes 15 (20 - 5), NG_DEF2 becomes 5 (10 - 5).
-            // Special items should strictly remain 5 and 5.
+            // Non-special: UPNG501 = 20, UPNG502 = 10 (Total non-special = 30, Total reported = 40)
+            // CalcNG = 20. Diff to deduct = 40 - 20 = 20.
+            // Target remaining non-special = 30 - 20 = 10.
+            // Leveling remaining allocation: 10 / 2 = 5 each.
+            // UPNG501 (20) -> deducts 15 -> remaining 5.
+            // UPNG502 (10) -> deducts 5 -> remaining 5.
+            // Special items strictly remain 5 and 5.
             var ngList = new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "5" },
                 new NGCodeItem { NGCode = "NG_FREE", NGName = "免補料", NGQty = "5" },
-                new NGCodeItem { NGCode = "NG_DEF1", NGName = "Card Issue", NGQty = "20" },
-                new NGCodeItem { NGCode = "NG_DEF2", NGName = "Broken", NGQty = "10" }
+                new NGCodeItem { NGCode = "UPNG501", NGName = "Card Issue", NGQty = "20" },
+                new NGCodeItem { NGCode = "UPNG502", NGName = "Broken", NGQty = "10" }
             };
             eq.SetWorkOrderNGCodesForTest(wo, ngList);
 
             var (ok, msg, calcNg, passQty) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeTrue();
-            calcNg.Should().Be(30);
-            passQty.Should().Be(970);
+            calcNg.Should().Be(20);
+            passQty.Should().Be(980);
 
             var itemQc = eq.GetNGCodeItemForTest(wo, "NG_QC");
             var itemFree = eq.GetNGCodeItemForTest(wo, "NG_FREE");
-            var itemDef1 = eq.GetNGCodeItemForTest(wo, "NG_DEF1");
-            var itemDef2 = eq.GetNGCodeItemForTest(wo, "NG_DEF2");
+            var item501 = eq.GetNGCodeItemForTest(wo, "UPNG501");
+            var item502 = eq.GetNGCodeItemForTest(wo, "UPNG502");
 
             itemQc.NGQty.Should().Be("5"); // Untouched
             itemFree.NGQty.Should().Be("5"); // Untouched
-            itemDef1.NGQty.Should().Be("15"); // Evenly deducted 5
-            itemDef2.NGQty.Should().Be("5"); // Evenly deducted 5
+            item501.NGQty.Should().Be("5"); // Level-balanced remaining: 20 - 15 = 5
+            item502.NGQty.Should().Be("5"); // Level-balanced remaining: 10 - 5 = 5
         }
 
         [Fact]
-        public void TpTrackOut_CalcNgLessThanTotalReported_MultiItemExceedingShare_ShouldCascadeDeductions()
+        public void TpTrackOut_CalcNgLessThanTotalReported_MultiItemExceedingShare_ShouldBalanceRemainingLevels()
         {
             var eq = new TestableEquipment("TP007");
             string wo = "WO_TP_007";
 
             eq.RecordWorkOrderInputQty(wo, 1000);
             eq.RecordTotalCountReport(wo, "9", "100"); // 900
-            eq.RecordLeftoversReport(wo, "80", "R01");  // 80
-            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 970 => CalcNG = 30
+            eq.RecordLeftoversReport(wo, "93", "R01");  // 93
+            eq.RecordProductLeftoverReport(wo, "10", "0", "R01", "WO_PREV", "B01"); // AddQty = 10 => PassQty = 983 => CalcNG = 17
 
             // Special: QC Keep Sample = 5 (Total 5)
-            // Non-special: NG_SMALL = 2, NG_BIG1 = 20, NG_BIG2 = 20 (Total reported = 47)
-            // CalcNG = 30. Diff to deduct = 47 - 30 = 17.
-            // Fair even allocation of 17 across [2, 20, 20]:
-            // Round 1: share = 17/3 = 5. NG_SMALL only has 2 -> deducts 2 (becomes 0). Remaining diff = 15.
-            // Round 2: share = 15/2 = 7. NG_BIG1 deducts 7 (becomes 13), NG_BIG2 deducts 7 (becomes 13). Remaining diff = 1.
-            // Round 3: remaining 1 goes to NG_BIG1 (largest) -> becomes 12.
-            // Total deducted: 2 + 8 + 7 = 17.
+            // Non-special: NG_SMALL = 2, NG_BIG1 = 20, NG_BIG2 = 10 (Total non-special = 32, Total reported = 37)
+            // CalcNG = 17. Diff to deduct = 37 - 17 = 20.
+            // Target remaining non-special = 32 - 20 = 12.
+            // Leveling remaining allocation of 12 across [2, 20, 10]:
+            // NG_SMALL capped at 2 (deducted 0, remaining 2).
+            // Remaining 10 allocated evenly to NG_BIG1 and NG_BIG2: 10 / 2 = 5 each.
+            // NG_BIG1 (20) -> deducts 15 -> remaining 5.
+            // NG_BIG2 (10) -> deducts 5 -> remaining 5.
+            // Total remaining: 2 + 5 + 5 = 12. Total non-special deducted: 0 + 15 + 5 = 20.
             var ngList = new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "NG_QC", NGName = "QC Keep Sample", NGQty = "5" },
                 new NGCodeItem { NGCode = "NG_SMALL", NGName = "Small Scratch", NGQty = "2" },
                 new NGCodeItem { NGCode = "NG_BIG1", NGName = "Broken", NGQty = "20" },
-                new NGCodeItem { NGCode = "NG_BIG2", NGName = "Dirty", NGQty = "20" }
+                new NGCodeItem { NGCode = "NG_BIG2", NGName = "Dirty", NGQty = "10" }
             };
             eq.SetWorkOrderNGCodesForTest(wo, ngList);
 
             var (ok, msg, calcNg, passQty) = eq.ValidateAndAdjustTpTrackOut(wo);
             ok.Should().BeTrue();
-            calcNg.Should().Be(30);
+            calcNg.Should().Be(17);
 
             var itemQc = eq.GetNGCodeItemForTest(wo, "NG_QC");
             var itemSmall = eq.GetNGCodeItemForTest(wo, "NG_SMALL");
@@ -728,9 +732,9 @@ namespace EAPDashboard.Tests
             var itemBig2 = eq.GetNGCodeItemForTest(wo, "NG_BIG2");
 
             itemQc.NGQty.Should().Be("5");
-            itemSmall.NGQty.Should().Be("0");
-            itemBig1.NGQty.Should().Be("12");
-            itemBig2.NGQty.Should().Be("13");
+            itemSmall.NGQty.Should().Be("2"); // Capped at original 2 (deducted 0)
+            itemBig1.NGQty.Should().Be("5");  // 20 - 15 = 5
+            itemBig2.NGQty.Should().Be("5");  // 10 - 5 = 5
         }
 
         [Fact]

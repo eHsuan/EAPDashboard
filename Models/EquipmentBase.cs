@@ -649,64 +649,72 @@ namespace EAPDashboard.Models
                     return (false, failOverflowMsg, 0, passQty);
                 }
 
-                // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 盡可能平均平攤扣除非特殊項目 (特殊項目 QC Keep Sample 與 免補料 嚴格不扣)
+                // 狀況 b: CalcNG < 機台上報所有 NG 總和 => 剩餘量平準化扣除非特殊項目 (特殊項目 QC Keep Sample 與 免補料 嚴格不扣)
                 if (calcNg < totalReportedSum)
                 {
                     double diff = totalReportedSum - calcNg;
-                    OnLogReceived(LogLevel.Info, $"[TP TrackOut] CalcNG ({calcNg}) < Total Reported NG ({totalReportedSum}). Diff to deduct: {diff}. Evenly adjusting non-special items...");
+                    OnLogReceived(LogLevel.Info, $"[TP TrackOut] CalcNG ({calcNg}) < Total Reported NG ({totalReportedSum}). Diff to deduct: {diff}. Balancing remaining levels of non-special items...");
 
                     var candidateItems = nonSpecialItems
                         .Where(x => double.TryParse(x.NGQty, out double q) && q > 0)
-                        .Select(x => new { Item = x, Qty = double.Parse(x.NGQty) })
+                        .Select(x => new { Item = x, OriginalQty = double.Parse(x.NGQty) })
                         .ToList();
 
-                    var deductions = candidateItems.ToDictionary(x => x.Item, x => 0.0);
-                    double remainingDiff = diff;
-
-                    while (remainingDiff > 0.0001)
+                    if (candidateItems.Count > 0)
                     {
-                        var active = candidateItems
-                            .Where(x => (x.Qty - deductions[x.Item]) > 0.0001)
-                            .OrderByDescending(x => x.Qty - deductions[x.Item])
-                            .ThenBy(x => x.Item.NGCode)
-                            .ToList();
+                        double nonSpecialOriginalSum = candidateItems.Sum(x => x.OriginalQty);
+                        double targetRemainingTotal = Math.Max(0, nonSpecialOriginalSum - diff); // 目標非特殊剩餘總數 = CalcNG - SpecialSum
 
-                        if (active.Count == 0) break;
+                        var remainingAllocations = candidateItems.ToDictionary(x => x.Item, x => 0.0);
+                        double remainingToAllocate = targetRemainingTotal;
 
-                        double perItemDeduct = Math.Floor(remainingDiff / active.Count);
-                        if (perItemDeduct <= 0) perItemDeduct = 1;
-
-                        bool allocatedAny = false;
-                        foreach (var c in active)
+                        // 水位平準化分配 (Water-Level Fill)：由剩餘量最低者開始填補，上限為其 OriginalQty
+                        while (remainingToAllocate > 0.0001)
                         {
-                            if (remainingDiff <= 0.0001) break;
+                            var eligible = candidateItems
+                                .Where(x => remainingAllocations[x.Item] < x.OriginalQty - 0.0001)
+                                .OrderBy(x => remainingAllocations[x.Item])
+                                .ThenBy(x => x.OriginalQty)
+                                .ThenBy(x => x.Item.NGCode)
+                                .ToList();
 
-                            double available = c.Qty - deductions[c.Item];
-                            double deduct = Math.Min(available, Math.Min(perItemDeduct, remainingDiff));
+                            if (eligible.Count == 0) break;
 
-                            if (deduct > 0)
+                            double minAlloc = remainingAllocations[eligible.First().Item];
+                            var lowestGroup = eligible.Where(x => Math.Abs(remainingAllocations[x.Item] - minAlloc) < 0.0001).ToList();
+
+                            double step = Math.Floor(remainingToAllocate / lowestGroup.Count);
+                            if (step <= 0) step = 1;
+
+                            bool allocatedAny = false;
+                            foreach (var c in lowestGroup)
                             {
-                                deductions[c.Item] += deduct;
-                                remainingDiff -= deduct;
-                                allocatedAny = true;
+                                if (remainingToAllocate <= 0.0001) break;
+
+                                double maxAdd = c.OriginalQty - remainingAllocations[c.Item];
+                                double toAdd = Math.Min(maxAdd, Math.Min(step, remainingToAllocate));
+
+                                if (toAdd > 0)
+                                {
+                                    remainingAllocations[c.Item] += toAdd;
+                                    remainingToAllocate -= toAdd;
+                                    allocatedAny = true;
+                                }
                             }
+
+                            if (!allocatedAny) break;
                         }
 
-                        if (!allocatedAny) break;
-                    }
-
-                    foreach (var c in candidateItems)
-                    {
-                        double deduct = deductions[c.Item];
-                        if (deduct > 0)
+                        foreach (var c in candidateItems)
                         {
-                            double newQty = Math.Max(0, c.Qty - deduct);
+                            double newQty = remainingAllocations[c.Item];
+                            double deduct = c.OriginalQty - newQty;
                             c.Item.NGQty = newQty.ToString();
-                            OnLogReceived(LogLevel.Info, $"[TP TrackOut] Evenly deducted {deduct} from NGCode '{c.Item.NGCode}' ({c.Item.NGName}): {c.Qty} -> {newQty}.");
+                            OnLogReceived(LogLevel.Info, $"[TP TrackOut] Level-adjusted NGCode '{c.Item.NGCode}' ({c.Item.NGName}): Original {c.OriginalQty} -> Deducted {deduct} -> Remaining {newQty}.");
                         }
-                    }
 
-                    SaveNgCodeCacheToDisk();
+                        SaveNgCodeCacheToDisk();
+                    }
                 }
             }
 
