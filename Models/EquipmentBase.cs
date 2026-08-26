@@ -1223,6 +1223,16 @@ namespace EAPDashboard.Models
                     string errorMsg = $"Recipe Mismatch! {string.Join(",", details)}";
                     
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    try
+                    {
+                        string safeTerminalMsg = errorMsg.Length > 200 ? errorMsg.Substring(0, 197) + "..." : errorMsg;
+                        await SendTerminalDisplay(safeTerminalMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                    }
+
                     return $"FAIL|R001|{errorMsg}|[]";
                 }
 
@@ -1237,6 +1247,15 @@ namespace EAPDashboard.Models
                 {
                     string errorMsg = "在MES找不到RECIPEID";
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    try
+                    {
+                        await SendTerminalDisplay(errorMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                    }
+
                     return $"FAIL|Y94|{errorMsg}|[]";
                 }
 
@@ -1246,6 +1265,15 @@ namespace EAPDashboard.Models
                 {
                     string errorMsg = "在MES找不到RECIPEID";
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    try
+                    {
+                        await SendTerminalDisplay(errorMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                    }
+
                     return $"FAIL|Y94|{errorMsg}|[]";
                 }
 
