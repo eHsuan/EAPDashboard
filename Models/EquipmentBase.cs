@@ -1218,22 +1218,12 @@ namespace EAPDashboard.Models
                 var distinctRecipes = woRecipeMap.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 if (distinctRecipes.Count > 1)
                 {
-                    // Recipe 不一致，跳過 PP_SELECT，發送 Terminal Display 並直接回傳 TrackIn FAIL
+                    // Recipe 不一致，跳過 PP_SELECT，記錄錯誤日誌並直接回傳 TrackIn FAIL
                     var details = woRecipeMap.Select((kv, idx) => $"WO_{idx + 1}:{kv.Key}[{kv.Value}]");
-                    string terminalMsg = $"Recipe Mismatch! {string.Join(",", details)}";
+                    string errorMsg = $"Recipe Mismatch! {string.Join(",", details)}";
                     
-                    OnLogReceived(LogLevel.Error, $"[TrackIn] {terminalMsg}");
-                    try
-                    {
-                        string safeTerminalMsg = terminalMsg.Length > 200 ? terminalMsg.Substring(0, 197) + "..." : terminalMsg;
-                        await SendTerminalDisplay(safeTerminalMsg);
-                    }
-                    catch (Exception ex)
-                    {
-                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
-                    }
-
-                    return $"FAIL|R001|{terminalMsg}|[]";
+                    OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+                    return $"FAIL|R001|{errorMsg}|[]";
                 }
 
                 string unifiedRecipe = distinctRecipes.FirstOrDefault() ?? "";

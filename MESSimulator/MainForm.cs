@@ -299,14 +299,14 @@ namespace MESSimulator
                         catch { }
 
                         string mockRecipe = "";
-                        if (!string.IsNullOrEmpty(customRecipe))
-                        {
-                            mockRecipe = customRecipe;
-                        }
-                        else if (isRecipeMismatch)
+                        if (isRecipeMismatch)
                         {
                             int lastVal = !string.IsNullOrEmpty(wonoQry) ? (int)wonoQry[wonoQry.Length - 1] : 0;
                             mockRecipe = $"RECIPE_{(lastVal % 2 == 0 ? "A" : "B")}_{wonoQry}";
+                        }
+                        else if (!string.IsNullOrEmpty(customRecipe))
+                        {
+                            mockRecipe = customRecipe;
                         }
                         else if (wonoQry.IndexOf("DIFF", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
