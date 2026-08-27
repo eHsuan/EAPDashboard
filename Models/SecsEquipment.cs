@@ -505,7 +505,11 @@ namespace EAPDashboard.Models
 
         public override async Task SendTerminalDisplay(string message)
         {
-            await SendS10F3(message);
+            string safeMsg = SanitizeTerminalMessage(message);
+            if (!string.IsNullOrEmpty(safeMsg))
+            {
+                await SendS10F3(safeMsg);
+            }
         }
 
         private string GetVidByLogicalName(string logicalName)

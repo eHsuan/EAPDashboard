@@ -9,7 +9,7 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Test"
+    "ActiveEnvironment": "Production"
   },
   "YieldSettings": {
     "MinYieldRate": 0.95,
@@ -40,13 +40,13 @@
       "Topic": "factory/LOCAL/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "ET0023",
       "Name": "微蝕刻",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/ET0023",
+      "Topic": "TN2/YELLOW/machine/ET0023",
       "DictionaryPath": "Dictionaries/ET0023.json",
       "StatusType": "Cyntec",
       "IsActive": true
@@ -58,7 +58,7 @@
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "AC3811",
@@ -76,7 +76,7 @@
       "Topic": "TN2/Floor2/Yellow/MK0158",
       "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "ZZ0304",
@@ -85,7 +85,7 @@
       "Topic": "factory/LOCAL/machine/ZZ0304",
       "DictionaryPath": "Dictionaries/ZZ0304.json",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "OV0097",

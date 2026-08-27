@@ -1249,7 +1249,7 @@ namespace EAPDashboard.Models
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
                     try
                     {
-                        await SendTerminalDisplay(errorMsg);
+                        await SendTerminalDisplay("RECIPEID NOT FOUND IN MES");
                     }
                     catch (Exception ex)
                     {
@@ -1267,7 +1267,7 @@ namespace EAPDashboard.Models
                     OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
                     try
                     {
-                        await SendTerminalDisplay(errorMsg);
+                        await SendTerminalDisplay("RECIPEID NOT FOUND IN MES");
                     }
                     catch (Exception ex)
                     {
@@ -2153,6 +2153,36 @@ namespace EAPDashboard.Models
         public abstract void Start(CancellationToken externalCancellationToken, MqttBus bus = null, int heartbeatIntervalSeconds = 30);
         public abstract Task SendTimeCalibration();
         public virtual Task SendTerminalDisplay(string message) => Task.CompletedTask;
+        public static string SanitizeTerminalMessage(string message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return string.Empty;
+
+            // 針對常見中文錯誤進行標準英文化轉譯
+            string text = message;
+            if (text.IndexOf("在MES找不到RECIPEID", StringComparison.OrdinalIgnoreCase) >= 0
+                || text.IndexOf("找不到RECIPEID", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                text = "RECIPEID NOT FOUND IN MES";
+            }
+
+            // 僅保留標準 ASCII 可列印字元 (32-126) 及換行符號
+            var sb = new StringBuilder();
+            foreach (char c in text)
+            {
+                if ((c >= 32 && c <= 126) || c == '\r' || c == '\n')
+                {
+                    sb.Append(c);
+                }
+            }
+
+            string result = sb.ToString().Trim();
+            if (result.Length > 200)
+            {
+                result = result.Substring(0, 197) + "...";
+            }
+
+            return result;
+        }
         public virtual void Stop() { }
         public static Color GetColorForState(EquipmentState state) { switch (state) { case EquipmentState.Running: return Color.LimeGreen; case EquipmentState.Alarm: case EquipmentState.Down: return Color.Crimson; case EquipmentState.Paused: case EquipmentState.Idle: return Color.Gold; default: return Color.Black; } }
     }

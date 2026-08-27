@@ -235,6 +235,22 @@ namespace EAPDashboard.Tests
             isFail.Should().Be(shouldFail);
         }
 
+        [Theory]
+        [InlineData("在MES找不到RECIPEID", "RECIPEID NOT FOUND IN MES")]
+        [InlineData("Hello World 123!", "Hello World 123!")]
+        [InlineData("機台警告: WO001 Recipe Mismatch", ": WO001 Recipe Mismatch")]
+        [InlineData("EQ_WARN: WO001 Recipe Mismatch", "EQ_WARN: WO001 Recipe Mismatch")]
+        [InlineData("", "")]
+        [InlineData(null, "")]
+        public void SanitizeTerminalMessage_ShouldEnsureAsciiAlphanumericOnly(string input, string expected)
+        {
+            // Act
+            string result = EquipmentBase.SanitizeTerminalMessage(input);
+
+            // Assert
+            result.Should().Be(expected);
+        }
+
         [Fact]
         public void GetManagementItemValue_WithValidDictionary_ShouldBeCaseInsensitive()
         {

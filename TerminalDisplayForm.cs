@@ -120,10 +120,17 @@ namespace EAPDashboard
                 return;
             }
 
-            string msg = txtMessage.Text?.Trim();
-            if (string.IsNullOrEmpty(msg))
+            string rawMsg = txtMessage.Text?.Trim();
+            if (string.IsNullOrEmpty(rawMsg))
             {
                 MessageBox.Show("請輸入欲發送的訊息內容！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            string sanitizedMsg = EquipmentBase.SanitizeTerminalMessage(rawMsg);
+            if (string.IsNullOrEmpty(sanitizedMsg))
+            {
+                MessageBox.Show("訊息內容必須包含英文字母或數字！(Terminal 僅支援 ASCII 字元)", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -131,8 +138,8 @@ namespace EAPDashboard
             btnSend.Enabled = false;
             try
             {
-                await targetEq.SendTerminalDisplay(msg);
-                MessageBox.Show($"訊息已成功發送至設備 [{targetEq.Id}]！", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await targetEq.SendTerminalDisplay(sanitizedMsg);
+                MessageBox.Show($"訊息已成功發送至設備 [{targetEq.Id}]！\n發送內容: {sanitizedMsg}", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 this.Close();
             }
             catch (Exception ex)
