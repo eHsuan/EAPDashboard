@@ -1,0 +1,216 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Serialization;
+using Protocol.MES.Base;
+using Protocol.MES.Enums;
+
+namespace EAPDashboard.Models
+{
+    /// <summary>
+    /// MES 專屬 JSON 序列化解析器：
+    /// 依據白名單設定（預設為 WOCHECKIN_MULTI, WOCHECKOUT_MULTI，亦可由 config.json 動態指定），
+    /// 當發送特定的 MES API 請求時，自動將值為 NULL、空字串、空白字元、空集合或空 JSON 陣列/物件的欄位自酬載中剔除。
+    /// 未列入白名單的 API 則 100% 保持原始序列化行為。
+    /// </summary>
+    public class MesJsonContractResolver : DefaultContractResolver
+    {
+        public static readonly MesJsonContractResolver Instance = new MesJsonContractResolver();
+
+        private static bool _isConfigured = false;
+        private static readonly object _configLock = new object();
+
+        private static readonly HashSet<string> _whitelist = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "WOCHECKIN_MULTI",
+            "WOCHECKOUT_MULTI"
+        };
+        private static readonly object _whitelistLock = new object();
+
+        /// <summary>
+        /// 設定白名單 API 清單 (例如來自 config.json 的 FilterNullApis)
+        /// </summary>
+        public static void SetWhitelist(IEnumerable<string> apis)
+        {
+            if (apis == null) return;
+            lock (_whitelistLock)
+            {
+                _whitelist.Clear();
+                foreach (var api in apis)
+                {
+                    if (!string.IsNullOrWhiteSpace(api))
+                    {
+                        _whitelist.Add(api.Trim());
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 取得目前生效的白名單清單副本
+        /// </summary>
+        public static IReadOnlyCollection<string> GetWhitelist()
+        {
+            lock (_whitelistLock)
+            {
+                return _whitelist.ToList();
+            }
+        }
+
+        /// <summary>
+        /// 判斷指定之 MES 交易是否啟用了 NULL/空集合過濾
+        /// </summary>
+        public static bool IsFilterEnabled(MESTransactionName transactionName)
+        {
+            return IsFilterEnabled(transactionName.ToString());
+        }
+
+        /// <summary>
+        /// 判斷指定之交易名稱是否啟用了 NULL/空集合過濾 (支援大小寫與底線正規化比對)
+        /// </summary>
+        public static bool IsFilterEnabled(string transactionName)
+        {
+            if (string.IsNullOrWhiteSpace(transactionName)) return false;
+
+            lock (_whitelistLock)
+            {
+                if (_whitelist.Count == 0) return false;
+
+                // 1. 直接比對 (忽略大小寫)
+                if (_whitelist.Contains(transactionName)) return true;
+
+                // 2. 正規化比對 (去除底線與連字號)
+                string normalizedTxn = NormalizeName(transactionName);
+                return _whitelist.Any(w => NormalizeName(w).Equals(normalizedTxn, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+        private static string NormalizeName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return string.Empty;
+            return name.Replace("_", "").Replace("-", "").Trim();
+        }
+
+        /// <summary>
+        /// 設定 Newtonsoft.Json 全域預設序列化設定，使 Protocol.MES 內部與 EAP 均套用此解析器
+        /// </summary>
+        public static void ConfigureDefaultSettings()
+        {
+            if (_isConfigured) return;
+            lock (_configLock)
+            {
+                if (_isConfigured) return;
+
+                var existingFactory = JsonConvert.DefaultSettings;
+                JsonConvert.DefaultSettings = () =>
+                {
+                    var settings = existingFactory != null ? existingFactory() : new JsonSerializerSettings();
+                    settings.ContractResolver = Instance;
+                    return settings;
+                };
+
+                _isConfigured = true;
+            }
+        }
+
+        /// <summary>
+        /// 序列化 MES 物件為 JSON 字串
+        /// </summary>
+        public static string Serialize(object obj, Formatting formatting = Formatting.Indented)
+        {
+            if (obj == null) return string.Empty;
+
+            var settings = new JsonSerializerSettings
+            {
+                Formatting = formatting,
+                ContractResolver = Instance
+            };
+
+            return JsonConvert.SerializeObject(obj, settings);
+        }
+
+        protected override JsonProperty CreateProperty(MemberInfo member, MemberSerialization memberSerialization)
+        {
+            var property = base.CreateProperty(member, memberSerialization);
+
+            // 檢查宣告型別是否為 MES 相關型別 (繼承自 MESBaseMessage 或位於 Protocol.MES 命名空間)
+            bool isMesType = typeof(MESBaseMessage).IsAssignableFrom(member.DeclaringType)
+                             || (member.DeclaringType?.Namespace != null && member.DeclaringType.Namespace.StartsWith("Protocol.MES"));
+
+            if (isMesType)
+            {
+                var prevShouldSerialize = property.ShouldSerialize;
+                property.ShouldSerialize = instance =>
+                {
+                    if (prevShouldSerialize != null && !prevShouldSerialize(instance))
+                        return false;
+
+                    // 檢查當前實例是否為 MES 訊息，且其交易名稱是否在過濾白名單內
+                    bool filterActive = false;
+                    if (instance is MESBaseMessage mesMsg)
+                    {
+                        filterActive = IsFilterEnabled(mesMsg.TransactionName);
+                    }
+
+                    // 若未啟用過濾 (不在白名單內)，100% 保持原始行為
+                    if (!filterActive)
+                        return true;
+
+                    object val = null;
+                    try
+                    {
+                        val = property.ValueProvider.GetValue(instance);
+                    }
+                    catch
+                    {
+                        return true;
+                    }
+
+                    // 1. NULL 值剔除
+                    if (val == null)
+                        return false;
+
+                    // 2. 字串判斷：若為空字串、純空白、或代表空陣列/空物件的 JSON 字串 ("[]", "{}") 則不序列化 (刪除該欄位)
+                    if (val is string str)
+                    {
+                        string trimmed = str.Trim();
+                        if (string.IsNullOrEmpty(trimmed) || trimmed == "[]" || trimmed == "{}")
+                            return false;
+                    }
+
+                    // 3. 實體集合判斷 (Array, List, ICollection, IEnumerable 但排除 string)
+                    if (val is IEnumerable enumerable && !(val is string))
+                    {
+                        var enumerator = enumerable.GetEnumerator();
+                        if (!enumerator.MoveNext())
+                            return false;
+                    }
+
+                    // 4. JToken 集合判斷
+                    if (val is JArray jarr && jarr.Count == 0)
+                        return false;
+                    if (val is JObject jobj && jobj.Count == 0)
+                        return false;
+                    if (val is JValue jval)
+                    {
+                        if (jval.Value == null) return false;
+                        if (jval.Type == JTokenType.String)
+                        {
+                            string s = jval.Value.ToString().Trim();
+                            if (string.IsNullOrEmpty(s) || s == "[]" || s == "{}")
+                                return false;
+                        }
+                    }
+
+                    return true;
+                };
+            }
+
+            return property;
+        }
+    }
+}

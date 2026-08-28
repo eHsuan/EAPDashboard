@@ -731,7 +731,7 @@ namespace EAPDashboard.Models
 
             try
             {
-                string prettyReq = JsonConvert.SerializeObject((object)request, Newtonsoft.Json.Formatting.Indented);
+                string prettyReq = MesJsonContractResolver.Serialize(request, Newtonsoft.Json.Formatting.Indented);
                 OnLogReceived(LogLevel.Info, $"[SEND] MES {request.TransactionName}:\n{prettyReq}");
             }
             catch
@@ -745,7 +745,7 @@ namespace EAPDashboard.Models
             {
                 try
                 {
-                    string prettyReply = JsonConvert.SerializeObject((object)reply, Newtonsoft.Json.Formatting.Indented);
+                    string prettyReply = MesJsonContractResolver.Serialize(reply, Newtonsoft.Json.Formatting.Indented);
                     dynamic dReply = reply;
                     string resStr = dReply?.Result?.ToString() ?? "";
                     LogLevel level = (resStr.Equals("success", StringComparison.OrdinalIgnoreCase) || resStr.Equals("PASS", StringComparison.OrdinalIgnoreCase)) ? LogLevel.Info : LogLevel.Error;
@@ -1000,6 +1000,11 @@ namespace EAPDashboard.Models
             {
                 OnLogReceived(LogLevel.Error, $"ClearAlarm LocalDb Error: {ex.Message}");
             }
+        }
+
+        static EquipmentBase()
+        {
+            MesJsonContractResolver.ConfigureDefaultSettings();
         }
 
         public EquipmentBase()

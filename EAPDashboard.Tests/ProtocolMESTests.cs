@@ -136,5 +136,139 @@ namespace EAPDashboard.Tests
             req.User2DBarCode.Should().Be("{{{{123456{Dept");
             req.EqpNo.Should().Be("EQ01");
         }
+
+        [Fact]
+        public void WOCHECKIN_MULTIRequest_WithWhitelist_ShouldOmitNullAndEmptyFields()
+        {
+            // Arrange: 確保白名單包含 WOCHECKIN_MULTI
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
+
+            var req = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO20260701\"}]",
+                EqpNo = "EQ01",
+                UserID = "U001",
+                WOCarrierDt = "[]",
+                InputListDt = "   "
+            };
+
+            // Act
+            string json = Models.MesJsonContractResolver.Serialize(req, Newtonsoft.Json.Formatting.None);
+
+            // Assert
+            json.Should().Contain("\"WoNoDt\":\"[{\\\"WoNo\\\":\\\"WO20260701\\\"}]\"");
+            json.Should().Contain("\"EqpNo\":\"EQ01\"");
+            json.Should().Contain("\"UserID\":\"U001\"");
+            json.Should().Contain("\"TransactionName\":\"WOCHECKIN_MULTI\"");
+
+            // 確保所有 null、空字串與 "[]" 欄位均被完全剔除
+            json.Should().NotContain("InputListDt");
+            json.Should().NotContain("WOCarrierDt");
+            json.Should().NotContain("CheckItemDt");
+            json.Should().NotContain("ParmListDt");
+            json.Should().NotContain("EqpItemDt");
+            json.Should().NotContain("UserPassword");
+            json.Should().NotContain("User2DBarCode");
+        }
+
+        [Fact]
+        public void WOCHECKOUT_MULTIRequest_WithWhitelist_ShouldOmitNullAndEmptyFields()
+        {
+            // Arrange: 確保白名單包含 WOCHECKOUT_MULTI
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
+
+            var req = new WOCHECKOUT_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO20260701\"}]",
+                EqpNo = "EQ01",
+                UserID = "U001",
+                Operator = "U001",
+                OutPut = "100"
+            };
+
+            // Act
+            string json = Models.MesJsonContractResolver.Serialize(req, Newtonsoft.Json.Formatting.None);
+
+            // Assert
+            json.Should().Contain("\"WoNoDt\":\"[{\\\"WoNo\\\":\\\"WO20260701\\\"}]\"");
+            json.Should().Contain("\"OutPut\":\"100\"");
+            json.Should().Contain("\"Operator\":\"U001\"");
+            json.Should().NotContain("NGListDt");
+            json.Should().NotContain("InputListDt");
+            json.Should().NotContain("CheckItemDt");
+            json.Should().NotContain("ParmListDt");
+            json.Should().NotContain("EqpItemDt");
+            json.Should().NotContain("UserPassword");
+            json.Should().NotContain("User2DBarCode");
+        }
+
+        [Fact]
+        public void NonWhitelistedApi_SingleWOCHECKIN_ShouldPreserveDefaultFields()
+        {
+            // Arrange: 白名單只有 MULTI，不包含單工單 WOCHECKIN
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
+
+            var req = new WOCHECKINRequest
+            {
+                WONO = "WO20260701",
+                EqpNo = "EQ01",
+                UserID = "U001"
+            };
+
+            // Act
+            string json = Models.MesJsonContractResolver.Serialize(req, Newtonsoft.Json.Formatting.None);
+
+            // Assert: 非白名單 API 應 100% 維持原有序列化 (包含原本的 null 欄位)
+            json.Should().Contain("\"WONO\":\"WO20260701\"");
+            json.Should().Contain("\"ComponentBatchIn\":null");
+            json.Should().Contain("\"EqpListDt\":null");
+        }
+
+        [Fact]
+        public void Whitelist_CaseAndUnderscore_Tolerance_ShouldMatchCorrectly()
+        {
+            // Arrange: 測試大小寫與底線容錯
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "wocheckin_multi", "WOCHECKOUTMULTI" });
+
+            // Act & Assert
+            Models.MesJsonContractResolver.IsFilterEnabled(MESTransactionName.WOCHECKIN_MULTI).Should().BeTrue();
+            Models.MesJsonContractResolver.IsFilterEnabled(MESTransactionName.WOCHECKOUT_MULTI).Should().BeTrue();
+            Models.MesJsonContractResolver.IsFilterEnabled(MESTransactionName.WOCHECKIN).Should().BeFalse();
+            Models.MesJsonContractResolver.IsFilterEnabled(MESTransactionName.EQPSTATUS).Should().BeFalse();
+        }
+
+        [Fact]
+        public void Whitelist_DynamicConfiguration_ShouldImmediatelyTakeEffect()
+        {
+            // Arrange 1: 僅加入 EQPSTATUS
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "EQPSTATUS" });
+            var eqpReq = new EQPSTATUSRequest
+            {
+                EqpNo = "ET0023",
+                StatusCode = "3",
+                ErrorCode = null
+            };
+
+            // Act 1
+            string json1 = Models.MesJsonContractResolver.Serialize(eqpReq, Newtonsoft.Json.Formatting.None);
+
+            // Assert 1: EQPSTATUS 在白名單內，ErrorCode (null) 被刪除
+            json1.Should().NotContain("ErrorCode");
+
+            // Arrange 2: 白名單重設為空
+            Models.MesJsonContractResolver.SetWhitelist(new string[0]);
+
+            // Act 2
+            string json2 = Models.MesJsonContractResolver.Serialize(eqpReq, Newtonsoft.Json.Formatting.None);
+
+            // Assert 2: 不在白名單內，ErrorCode 保留 null
+            json2.Should().Contain("\"ErrorCode\":null");
+
+            // 還原預設白名單
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
+        }
     }
 }

@@ -9,7 +9,11 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Production"
+    "ActiveEnvironment": "Production",
+    "FilterNullApis": [
+      "WOCHECKIN_MULTI",
+      "WOCHECKOUT_MULTI"
+    ]
   },
   "YieldSettings": {
     "MinYieldRate": 0.95,
@@ -37,7 +41,7 @@
       "Id": "ET0026",
       "Name": "鎳鉻蝕刻",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/ET0026",
+      "Topic": "TN2/YELLOW/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
       "IsActive": false
@@ -58,7 +62,7 @@
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "AC3811",

@@ -52,6 +52,7 @@ namespace EAPDashboard
         public string ProductionUrl { get; set; }
         public string TestUrl { get; set; }
         public string ActiveEnvironment { get; set; }
+        public List<string> FilterNullApis { get; set; } = new List<string>();
     }
 
     public class EquipmentConfig
@@ -141,6 +142,11 @@ namespace EAPDashboard
                                 }
                             }
                         } catch { }
+                    }
+
+                    if (_appConfig.MesSettings.FilterNullApis != null && _appConfig.MesSettings.FilterNullApis.Count > 0)
+                    {
+                        MesJsonContractResolver.SetWhitelist(_appConfig.MesSettings.FilterNullApis);
                     }
                 }
                 bool isSim = !(_appConfig.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);

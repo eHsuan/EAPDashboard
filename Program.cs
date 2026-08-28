@@ -11,6 +11,9 @@ namespace EAPDashboard
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            // 初始化 MES 專屬 JSON 序列化器設定 (白名單過濾機制)
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+
             // 初始化 SQLite 資料庫
             try
             {
