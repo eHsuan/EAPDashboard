@@ -217,7 +217,7 @@ namespace EAPDashboard.Models
 
         public void LoadNgCodeCache()
         {
-            if (string.IsNullOrEmpty(this.Id)) return;
+            if (string.IsNullOrEmpty(this.Id) || !IsTpEquipment) return;
             try
             {
                 lock (_ngCodeFileLock)
@@ -251,7 +251,7 @@ namespace EAPDashboard.Models
 
         public void SaveNgCodeCacheToDisk()
         {
-            if (string.IsNullOrEmpty(this.Id)) return;
+            if (string.IsNullOrEmpty(this.Id) || !IsTpEquipment) return;
             try
             {
                 lock (_ngCodeFileLock)
@@ -725,7 +725,7 @@ namespace EAPDashboard.Models
         private static readonly object _logLock = new object();
         private static readonly HttpClient _httpClient = new HttpClient();
 
-        protected TReply CallMesWithLog<TRequest, TReply>(TRequest request) where TRequest : MESBaseMessage where TReply : MESBaseMessage
+        protected virtual TReply CallMesWithLog<TRequest, TReply>(TRequest request) where TRequest : MESBaseMessage where TReply : MESBaseMessage
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
@@ -768,6 +768,7 @@ namespace EAPDashboard.Models
         protected System.Timers.Timer _hourlyAvailabilityTimer;
 
         public string Id { get; set; }
+        public bool IsTpEquipment => !string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase);
         public string Name { get; set; }
         public string Protocol { get; set; }
         public bool IsActive { get; set; } = true;
@@ -1115,9 +1116,12 @@ namespace EAPDashboard.Models
                 string combinedWo = string.Join(",", validWos);
                 var woRecipeMap = new Dictionary<string, string>();
                 var allReqInputCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var alreadyInWos = new List<string>();
                 string lastResultCode = "W001";
                 string lastMessage = "";
                 string lastInputParamListDT = "";
+
+                bool isTp = (!string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id)?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true;
 
                 // 分次逐筆向 MES 查詢工單 (WOQRY)
                 foreach (var wo in validWos)
@@ -1139,6 +1143,19 @@ namespace EAPDashboard.Models
                         return $"FAIL|{qryReply?.ResultCode ?? "ERR_MES"}|{failMsg}|[]";
                     }
 
+                    // 檢查 AlreadyInFlag (是否已進站)
+                    string alreadyInFlag = null;
+                    try
+                    {
+                        alreadyInFlag = (qryReply as dynamic)?.AlreadyInFlag?.ToString()?.Trim();
+                    }
+                    catch { }
+
+                    if ("Y".Equals(alreadyInFlag, StringComparison.OrdinalIgnoreCase))
+                    {
+                        alreadyInWos.Add(wo);
+                    }
+
                     lastResultCode = qryReply.ResultCode ?? "W001";
                     lastMessage = qryReply.Message ?? "";
                     lastInputParamListDT = qryReply.InputParamListDT ?? "";
@@ -1158,45 +1175,48 @@ namespace EAPDashboard.Models
                         }
                     }
 
-                    // 檢查並收集工單的 NG 碼清單 (NGCodeListDT)
-                    string ngCodeListDtStr = null;
-                    try
+                    // 檢查並收集工單的 NG 碼清單 (NGCodeListDT) - 僅限 TP 設備
+                    if (isTp)
                     {
-                        ngCodeListDtStr = (qryReply as dynamic)?.NGCodeListDT?.ToString();
-                    }
-                    catch { }
-
-                    if (!string.IsNullOrWhiteSpace(ngCodeListDtStr) && ngCodeListDtStr != "[]")
-                    {
+                        string ngCodeListDtStr = null;
                         try
                         {
-                            var ngArray = JArray.Parse(ngCodeListDtStr);
-                            var ngDict = new ConcurrentDictionary<string, NGCodeItem>(StringComparer.OrdinalIgnoreCase);
-                            foreach (var item in ngArray)
+                            ngCodeListDtStr = (qryReply as dynamic)?.NGCodeListDT?.ToString();
+                        }
+                        catch { }
+
+                        if (!string.IsNullOrWhiteSpace(ngCodeListDtStr) && ngCodeListDtStr != "[]")
+                        {
+                            try
                             {
-                                string code = item["NGCode"]?.ToString()?.Trim();
-                                string name = item["NGName"]?.ToString()?.Trim();
-                                if (!string.IsNullOrEmpty(code))
+                                var ngArray = JArray.Parse(ngCodeListDtStr);
+                                var ngDict = new ConcurrentDictionary<string, NGCodeItem>(StringComparer.OrdinalIgnoreCase);
+                                foreach (var item in ngArray)
                                 {
-                                    ngDict[code] = new NGCodeItem
+                                    string code = item["NGCode"]?.ToString()?.Trim();
+                                    string name = item["NGName"]?.ToString()?.Trim();
+                                    if (!string.IsNullOrEmpty(code))
                                     {
-                                        NGCode = code,
-                                        NGName = name ?? "",
-                                        NGQty = null,
-                                        NGUnit = ""
-                                    };
+                                        ngDict[code] = new NGCodeItem
+                                        {
+                                            NGCode = code,
+                                            NGName = name ?? "",
+                                            NGQty = null,
+                                            NGUnit = ""
+                                        };
+                                    }
+                                }
+                                if (ngDict.Count > 0)
+                                {
+                                    _workOrderNgCodesMap[wo] = ngDict;
+                                    SaveNgCodeCacheToDisk();
+                                    OnLogReceived(LogLevel.Info, $"[TrackIn] Loaded {ngDict.Count} NGCode(s) for WO {wo}: {string.Join(",", ngDict.Keys)}");
                                 }
                             }
-                            if (ngDict.Count > 0)
+                            catch (Exception ex)
                             {
-                                _workOrderNgCodesMap[wo] = ngDict;
-                                SaveNgCodeCacheToDisk();
-                                OnLogReceived(LogLevel.Info, $"[TrackIn] Loaded {ngDict.Count} NGCode(s) for WO {wo}: {string.Join(",", ngDict.Keys)}");
+                                OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse NGCodeListDT failed for WO {wo}: {ex.Message}");
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse NGCodeListDT failed for WO {wo}: {ex.Message}");
                         }
                     }
 
@@ -1217,6 +1237,27 @@ namespace EAPDashboard.Models
                     {
                         OnLogReceived(LogLevel.Warn, $"[TrackIn] Parse WIPQty failed for WO {wo}: {ex.Message}");
                     }
+                }
+
+                // 檢查是否已進站 (單工單與多工單皆防呆阻擋)
+                if (alreadyInWos.Count > 0)
+                {
+                    string alreadyInList = string.Join(",", alreadyInWos);
+                    string errorMsg = $"{alreadyInList} 已進站，禁止重複進站";
+                    OnLogReceived(LogLevel.Error, $"[TrackIn] {errorMsg}");
+
+                    try
+                    {
+                        string terminalMsg = $"WO ALREADY CHECKED IN: {alreadyInList}";
+                        if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                        await SendTerminalDisplay(terminalMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                    }
+
+                    return $"FAIL|ERR_ALREADY_IN|{errorMsg}|[]";
                 }
 
                 // 比對所有工單查到的 RECIPEID 是否一致
@@ -1709,17 +1750,21 @@ namespace EAPDashboard.Models
 
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
 
-                // 檢核所有工單的 NGCode 是否皆已全數上報
-                foreach (var wo in validWos)
+                // 僅 TP 開頭設備檢核所有工單的 NGCode 是否皆已全數上報
+                bool isTp = (!string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id)?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true;
+                if (isTp)
                 {
-                    if (_workOrderNgCodesMap.TryGetValue(wo, out var ngDict) && ngDict != null && ngDict.Count > 0)
+                    foreach (var wo in validWos)
                     {
-                        var missingCodes = ngDict.Values.Where(x => !x.IsReported).Select(x => x.NGCode).ToList();
-                        if (missingCodes.Count > 0)
+                        if (_workOrderNgCodesMap.TryGetValue(wo, out var ngDict) && ngDict != null && ngDict.Count > 0)
                         {
-                            string missingListStr = string.Join(",", missingCodes);
-                            OnLogReceived(LogLevel.Error, $"[TrackOut] Rejected WO {wo}: Unreported NGCode(s): [{missingListStr}]");
-                            return $"FAIL|NG_CHECK_FAIL|Unreported NGCode(s): {missingListStr}";
+                            var missingCodes = ngDict.Values.Where(x => !x.IsReported).Select(x => x.NGCode).ToList();
+                            if (missingCodes.Count > 0)
+                            {
+                                string missingListStr = string.Join(",", missingCodes);
+                                OnLogReceived(LogLevel.Error, $"[TrackOut] Rejected WO {wo}: Unreported NGCode(s): [{missingListStr}]");
+                                return $"FAIL|NG_CHECK_FAIL|Unreported NGCode(s): {missingListStr}";
+                            }
                         }
                     }
                 }

@@ -4,7 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using EAPDashboard.Models;
 using FluentAssertions;
+using Protocol.MES.Base;
+using Protocol.MES.Messages;
 using Xunit;
+using NGCodeItem = EAPDashboard.Models.NGCodeItem;
 
 namespace EAPDashboard.Tests
 {
@@ -12,6 +15,7 @@ namespace EAPDashboard.Tests
     {
         public List<string> LogHistory { get; } = new List<string>();
         public string LastTerminalDisplayMessage { get; private set; }
+        public Func<MESBaseMessage, MESBaseMessage> MesCallHandler { get; set; }
 
         public TestableEquipment(string id)
         {
@@ -30,6 +34,19 @@ namespace EAPDashboard.Tests
         {
             LastTerminalDisplayMessage = message;
             return Task.CompletedTask;
+        }
+
+        protected override TReply CallMesWithLog<TRequest, TReply>(TRequest request)
+        {
+            if (MesCallHandler != null)
+            {
+                var result = MesCallHandler(request);
+                if (result is TReply typedReply)
+                {
+                    return typedReply;
+                }
+            }
+            return base.CallMesWithLog<TRequest, TReply>(request);
         }
 
         public string GetMesParamValueTest(string dt, string name) => GetMesParamValue(dt, name);
@@ -322,10 +339,10 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
-        public async Task ProcessTrackOutAsync_WhenUnreportedNGCodesExist_ShouldRejectWithCommaSeparatedList()
+        public async Task ProcessTrackOutAsync_WhenUnreportedNGCodesExist_TpEquipment_ShouldRejectWithCommaSeparatedList()
         {
-            // Arrange
-            var eq = new TestableEquipment("EQ01");
+            // Arrange: TP 開頭設備應檢查並阻擋未回報之 NG 碼
+            var eq = new TestableEquipment("TP0013");
             eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = "1", NGUnit = "PCS" },
@@ -348,10 +365,33 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public async Task ProcessTrackOutAsync_WhenUnreportedNGCodesExist_NonTpEquipment_ShouldNotCheckAndProceed()
+        {
+            // Arrange: 非 TP 開頭設備 (如 EQ01, TS0003) 不受 NG 碼未申報阻擋
+            var eq = new TestableEquipment("EQ01");
+            eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = null },
+                new NGCodeItem { NGCode = "UPNG502", NGName = "折片", NGQty = null }
+            });
+
+            // Act
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO100" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            // Assert: 非 TP 設備不會被 NG_CHECK_FAIL 阻擋
+            result.Should().NotStartWith("FAIL|NG_CHECK_FAIL|");
+        }
+
+        [Fact]
         public async Task ProcessTrackOutAsync_WhenAllNGCodesReported_ShouldProceed()
         {
             // Arrange
-            var eq = new TestableEquipment("EQ01");
+            var eq = new TestableEquipment("TP0013");
             eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = "1", NGUnit = "PCS" },
@@ -550,7 +590,7 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
-        public async Task NgCodeCache_Persistence_ShouldSurviveRestart()
+        public async Task NgCodeCache_Persistence_TpEquipment_ShouldSurviveRestart()
         {
             // Arrange
             string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
@@ -558,22 +598,57 @@ namespace EAPDashboard.Tests
 
             try
             {
-                var eq1 = new TestableEquipment("EQ_PERSIST_02");
+                var eq1 = new TestableEquipment("TP_PERSIST_02");
                 var ngItems = new List<NGCodeItem>
                 {
                     new NGCodeItem { NGCode = "NG001", NGName = "Defect A" },
                     new NGCodeItem { NGCode = "NG002", NGName = "Defect B" }
                 };
                 eq1.SetWorkOrderNGCodesForTest("WO_RESTART_002", ngItems);
+                eq1.SaveNgCodeCacheToDisk();
                 eq1.RecordNGCodeReport("WO_RESTART_002", "NG001", "Defect A", "5", "PCS");
 
                 // Act - Simulate EAP restart by creating a new instance and calling LoadNgCodeCache
-                var eq2 = new TestableEquipment("EQ_PERSIST_02");
+                var eq2 = new TestableEquipment("TP_PERSIST_02");
                 eq2.LoadNgCodeCache();
 
                 // Assert
                 eq2.HasWorkOrderNGCodes("WO_RESTART_002").Should().BeTrue();
                 var (isSuccess, _, message) = await eq2.ProcessEqpWONGAddAsync("WO_RESTART_002", "NG001", "5", "PCS", "OP1");
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public void NgCodeCache_NonTpEquipment_ShouldNotSaveOrLoadCache()
+        {
+            // Arrange
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq1 = new TestableEquipment("EQ_NON_TP");
+                var ngItems = new List<NGCodeItem>
+                {
+                    new NGCodeItem { NGCode = "NG001", NGName = "Defect A" }
+                };
+                eq1.SetWorkOrderNGCodesForTest("WO_NON_TP", ngItems);
+                eq1.SaveNgCodeCacheToDisk();
+
+                string cacheFile = System.IO.Path.Combine(tempDir, "ng_code_cache.json");
+                System.IO.File.Exists(cacheFile).Should().BeFalse();
+
+                var eq2 = new TestableEquipment("EQ_NON_TP");
+                eq2.LoadNgCodeCache();
+                eq2.HasWorkOrderNGCodes("WO_NON_TP").Should().BeFalse();
             }
             finally
             {
@@ -801,6 +876,180 @@ namespace EAPDashboard.Tests
                 pLeftover.AddQty.Should().Be("15");
 
                 eq2.GetWorkOrderInputQty("WO_LEFT_01").Should().Be(1200);
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_SingleWorkOrder_AlreadyInFlagY_ShouldFailAndSendTerminalDisplay()
+        {
+            // Arrange
+            var eq = new TestableEquipment("TP0013");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is WOQRYRequest)
+                {
+                    var reply = new WOQRYReply
+                    {
+                        Result = "success",
+                        ResultCode = "W001",
+                        Message = "",
+                        InputParamListDT = "[{\"ParamName\":\"RECIPEID\",\"DefaultValue\":\"RCP_01\"}]"
+                    };
+                    try { ((dynamic)reply).AlreadyInFlag = "Y"; } catch { }
+                    return reply;
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackInAsync(
+                cassetteIds: new List<string> { "C001" },
+                workOrders: new List<string> { "WO2026001" },
+                panels: new List<string>(),
+                userId: "U001");
+
+            // Assert
+            result.Should().StartWith("FAIL|ERR_ALREADY_IN|");
+            result.Should().Contain("WO2026001 已進站，禁止重複進站");
+            eq.LastTerminalDisplayMessage.Should().Be("WO ALREADY CHECKED IN: WO2026001");
+        }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_MultipleWorkOrders_AlreadyInFlagY_ShouldFailAndSendTerminalDisplay()
+        {
+            // Arrange
+            var eq = new TestableEquipment("TP0013");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is WOQRYRequest qry)
+                {
+                    var reply = new WOQRYReply
+                    {
+                        Result = "success",
+                        ResultCode = "W001",
+                        Message = "",
+                        InputParamListDT = "[{\"ParamName\":\"RECIPEID\",\"DefaultValue\":\"RCP_01\"}]"
+                    };
+                    // WO2026002 已進站
+                    string flag = (qry.WONO == "WO2026002" || qry.WONO == "WO2026003") ? "Y" : "N";
+                    try { ((dynamic)reply).AlreadyInFlag = flag; } catch { }
+                    return reply;
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackInAsync(
+                cassetteIds: new List<string> { "C001", "C002", "C003" },
+                workOrders: new List<string> { "WO2026001", "WO2026002", "WO2026003" },
+                panels: new List<string>(),
+                userId: "U001");
+
+            // Assert
+            result.Should().StartWith("FAIL|ERR_ALREADY_IN|");
+            result.Should().Contain("WO2026002,WO2026003 已進站，禁止重複進站");
+            eq.LastTerminalDisplayMessage.Should().Be("WO ALREADY CHECKED IN: WO2026002,WO2026003");
+        }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_NonTpEquipment_ShouldNotLoadNgCodesOrSaveCache()
+        {
+            // Arrange
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq = new TestableEquipment("TS0003"); // 非 TP 設備
+                eq.MesCallHandler = (req) =>
+                {
+                    if (req is WOQRYRequest)
+                    {
+                        var reply = new WOQRYReply
+                        {
+                            Result = "success",
+                            ResultCode = "W001",
+                            Message = "",
+                            InputParamListDT = "[{\"ParamName\":\"RECIPEID\",\"DefaultValue\":\"RCP_01\"}]"
+                        };
+                        try { ((dynamic)reply).AlreadyInFlag = "N"; } catch { }
+                        try { ((dynamic)reply).NGCodeListDT = "[{\"NGCode\":\"NG_01\",\"NGName\":\"Defect 1\"}]"; } catch { }
+                        return reply;
+                    }
+                    return null;
+                };
+
+                // Act
+                string result = await eq.ProcessTrackInAsync(
+                    cassetteIds: new List<string> { "C001" },
+                    workOrders: new List<string> { "WO_NON_TP_01" },
+                    panels: new List<string>(),
+                    userId: "U001");
+
+                // Assert: 成功切換配方，且未在記憶體與磁碟儲存 NG 碼
+                result.Should().StartWith("PP-SELECT|");
+                eq.HasWorkOrderNGCodes("WO_NON_TP_01").Should().BeFalse();
+                string cacheFile = System.IO.Path.Combine(tempDir, "ng_code_cache.json");
+                System.IO.File.Exists(cacheFile).Should().BeFalse();
+            }
+            finally
+            {
+                EquipmentBase.CustomCacheDirectory = null;
+                if (System.IO.Directory.Exists(tempDir))
+                {
+                    try { System.IO.Directory.Delete(tempDir, true); } catch { }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_TpEquipment_ShouldLoadNgCodesAndSaveCache()
+        {
+            // Arrange
+            string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "EAP_Test_" + Guid.NewGuid().ToString("N"));
+            EquipmentBase.CustomCacheDirectory = tempDir;
+
+            try
+            {
+                var eq = new TestableEquipment("TP0013"); // TP 設備
+                eq.MesCallHandler = (req) =>
+                {
+                    if (req is WOQRYRequest)
+                    {
+                        var reply = new WOQRYReply
+                        {
+                            Result = "success",
+                            ResultCode = "W001",
+                            Message = "",
+                            InputParamListDT = "[{\"ParamName\":\"RECIPEID\",\"DefaultValue\":\"RCP_01\"}]"
+                        };
+                        try { ((dynamic)reply).AlreadyInFlag = "N"; } catch { }
+                        try { ((dynamic)reply).NGCodeListDT = "[{\"NGCode\":\"NG_01\",\"NGName\":\"Defect 1\"}]"; } catch { }
+                        return reply;
+                    }
+                    return null;
+                };
+
+                // Act
+                string result = await eq.ProcessTrackInAsync(
+                    cassetteIds: new List<string> { "C001" },
+                    workOrders: new List<string> { "WO_TP_01" },
+                    panels: new List<string>(),
+                    userId: "U001");
+
+                // Assert: 成功切換配方，且記憶體與磁碟皆成功儲存 NG 碼
+                result.Should().StartWith("PP-SELECT|");
+                eq.HasWorkOrderNGCodes("WO_TP_01").Should().BeTrue();
+                string cacheFile = System.IO.Path.Combine(tempDir, "ng_code_cache.json");
+                System.IO.File.Exists(cacheFile).Should().BeTrue();
             }
             finally
             {

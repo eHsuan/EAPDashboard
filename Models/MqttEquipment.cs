@@ -297,10 +297,15 @@ namespace EAPDashboard.Models
                             rcmd.TransactionID = ti.TransactionID;
                             await SendCommand(rcmd);
                         } else {
+                            string[] failParts = tir.Split('|');
+                            string failMsg = failParts.Length > 2 && !string.IsNullOrEmpty(failParts[2]) && failParts[2] != "[]"
+                                ? failParts[2]
+                                : failParts.Last();
+
                             await SendReply(new ReplyTrackInReqMessage { 
                                 CMD = CommandType.ReplyTrackInReq, 
                                 RtnResult = RtnResult.FAIL, 
-                                RtnMsg = tir.Split('|').Last(),
+                                RtnMsg = failMsg,
                                 PanelID = string.Join(",", panels)
                             }, msg);
                         }

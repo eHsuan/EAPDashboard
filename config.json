@@ -27,7 +27,7 @@
   },
   "PostgresDbSettings": {
     "ConnectionString": "Host=localhost;Port=5432;Database=Protocol_localdata;Username=postgres;Password=PostgreSQL18;",
-    "Enabled": true,
+    "Enabled": false,
     "RetentionDays": 14
   },
   "LogSettings": {
@@ -62,7 +62,7 @@
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "AC3811",
@@ -80,7 +80,7 @@
       "Topic": "TN2/Floor2/Yellow/MK0158",
       "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ZZ0304",
