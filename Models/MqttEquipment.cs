@@ -736,7 +736,7 @@ namespace EAPDashboard.Models
 
         private async Task SendAreYouThere() => await SendCommand(new AreYouThereMessage { CMD = CommandType.AreYouThere, Machine = Id });
         private async Task SendStatusRequest() => await SendCommand(new StatusReqMessage { CMD = CommandType.StatusReq, Machine = Id });
-        public override async Task SendTimeCalibration() => await SendCommand(new TimeCalibrateMessage { CMD = CommandType.TimeCalibrate, Machine = Id });
+        public override async Task SendTimeCalibration() => await SendCommand(new TimeCalibrateMessage { CMD = CommandType.TimeCalibrate, Machine = Id, Date = DateTime.Now.ToString("yyyyMMddHHmmss") });
         public override async Task SendTerminalDisplay(string message)
         {
             string safeMsg = SanitizeTerminalMessage(message);
@@ -762,6 +762,14 @@ namespace EAPDashboard.Models
                 if (string.IsNullOrEmpty(bm.TransactionID))
                 {
                     bm.TransactionID = Guid.NewGuid().ToString("N");
+                }
+                if (string.IsNullOrEmpty(bm.Date))
+                {
+                    bm.Date = DateTime.Now.ToString("yyyyMMddHHmmss");
+                }
+                if (string.IsNullOrEmpty(bm.Machine))
+                {
+                    bm.Machine = Id;
                 }
             }
             await _bus.PublishAsync(_commandTopic, cmd);
