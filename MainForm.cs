@@ -118,9 +118,16 @@ namespace EAPDashboard
                 var json = File.ReadAllText(path);
                 _appConfig = JsonConvert.DeserializeObject<AppConfig>(json);
 
+                var ver = typeof(MainForm).Assembly.GetName().Version;
+                string versionStr = ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : Application.ProductVersion?.Split('+')[0];
+
                 if (_appConfig != null && !string.IsNullOrEmpty(_appConfig.EapId))
                 {
-                    this.Text = string.Format("EAP Dashboard - {0}", _appConfig.EapId);
+                    this.Text = $"EAP Dashboard v{versionStr} - {_appConfig.EapId}";
+                }
+                else
+                {
+                    this.Text = $"EAP Dashboard v{versionStr}";
                 }
                 if (_appConfig.MesSettings != null) {
                     string env = _appConfig.MesSettings.ActiveEnvironment ?? "Production";

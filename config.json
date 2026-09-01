@@ -80,7 +80,7 @@
       "Topic": "TN2/Floor2/Yellow/MK0158",
       "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "ZZ0304",

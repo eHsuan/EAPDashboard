@@ -31,7 +31,18 @@ namespace EAPDashboard
                 StringBuilder sb = new StringBuilder();
                 string line = new string('-', 60);
 
-                // 1. 通訊基礎設定
+                var ver = typeof(MainForm).Assembly.GetName().Version;
+                string versionStr = ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : Application.ProductVersion?.Split('+')[0];
+
+                // 1. 系統基本資訊
+                sb.AppendLine("【 系統基本資訊 (System Info) 】");
+                sb.AppendLine(line);
+                sb.AppendLine($"  ● 程式版本     : v{versionStr}");
+                sb.AppendLine($"  ● EAP ID       : {config?.EapId ?? "N/A"}");
+                sb.AppendLine();
+                sb.AppendLine();
+
+                // 2. 通訊基礎設定
                 sb.AppendLine("【 通訊基礎設定 (MQTT) 】");
                 sb.AppendLine(line);
                 sb.AppendLine($"  ● 伺服器位址 : {config.MqttBrokerHost ?? "127.0.0.1"}");
@@ -40,7 +51,7 @@ namespace EAPDashboard
                 sb.AppendLine();
                 sb.AppendLine();
 
-                // 2. MES 整合設定
+                // 3. MES 整合設定
                 sb.AppendLine("【 MES 整合設定 (WebService) 】");
                 sb.AppendLine(line);
                 if (config.MesSettings != null)
@@ -56,7 +67,7 @@ namespace EAPDashboard
                 sb.AppendLine();
                 sb.AppendLine();
 
-                // 3. 監控設備清單
+                // 4. 監控設備清單
                 int eqCount = config.Equipments?.Count ?? 0;
                 sb.AppendLine($"【 監控設備清單 】 (共 {eqCount} 台)");
                 sb.AppendLine(line);
