@@ -1086,5 +1086,38 @@ namespace EAPDashboard.Tests
             result.Should().StartWith("PASS|DUPLICATE|");
             mesCallCount.Should().Be(0);
         }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_WhenWoQryReturnsError0049_ShouldSendTerminalDisplayAndFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_ERR0049_01");
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOQRYRequest qryReq)
+                {
+                    return new WOQRYReply
+                    {
+                        Result = "FAIL",
+                        ResultCode = "ERROR0049",
+                        Message = "此工單不屬於此站點可進站之工單"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackInAsync(
+                cassetteIds: new List<string> { "C001" },
+                workOrders: new List<string> { "WO_ERR_01" },
+                panels: new List<string>(),
+                userId: "U001");
+
+            // Assert
+            result.Should().StartWith("FAIL|ERROR0049|");
+            eq.LastTerminalDisplayMessage.Should().NotBeNull();
+            eq.LastTerminalDisplayMessage.Should().Contain("WO_ERR_01 is not valid for check-in at this station");
+        }
     }
 }

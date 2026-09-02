@@ -1,5 +1,5 @@
 {
-  "MqttBrokerHost": "127.0.0.1",
+  "MqttBrokerHost": "192.168.1.79",
   "MqttBrokerPort": 1883,
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
   "MonitoredEaps": [

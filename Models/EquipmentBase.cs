@@ -1140,6 +1140,21 @@ namespace EAPDashboard.Models
                     {
                         string failMsg = $"MES WOQRY Failed for WO {wo}: {qryReply?.Message ?? "No response"}";
                         OnLogReceived(LogLevel.Error, $"[TrackIn] {failMsg}");
+
+                        if (string.Equals(qryReply?.ResultCode, "ERROR0049", StringComparison.OrdinalIgnoreCase))
+                        {
+                            try
+                            {
+                                string terminalMsg = $"WO {wo} is not valid for check-in at this station";
+                                if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                                await SendTerminalDisplay(terminalMsg);
+                            }
+                            catch (Exception ex)
+                            {
+                                OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                            }
+                        }
+
                         return $"FAIL|{qryReply?.ResultCode ?? "ERR_MES"}|{failMsg}|[]";
                     }
 

@@ -245,6 +245,29 @@ namespace MESSimulator
 
                     case "WOQRY":
                         string wonoQry = req["WONO"]?.ToString() ?? "";
+
+                        bool simError0049 = false;
+                        try
+                        {
+                            if (this.InvokeRequired)
+                            {
+                                simError0049 = (bool)this.Invoke(new Func<bool>(() => chkSimError0049 != null && chkSimError0049.Checked));
+                            }
+                            else
+                            {
+                                simError0049 = chkSimError0049 != null && chkSimError0049.Checked;
+                            }
+                        }
+                        catch { }
+
+                        if (simError0049 || wonoQry.IndexOf("ERROR0049", StringComparison.OrdinalIgnoreCase) >= 0 || wonoQry.IndexOf("ERR0049", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            reply["Result"] = "FAIL";
+                            reply["ResultCode"] = "ERROR0049";
+                            reply["Message"] = "此工單不屬於此站點可進站之工單";
+                            break;
+                        }
+
                         bool alreadyIn = _woAlreadyInMap.TryGetValue(wonoQry, out bool isIn) && isIn;
                         string customWipQty = "1000";
                         try

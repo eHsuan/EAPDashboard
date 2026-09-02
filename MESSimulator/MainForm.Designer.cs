@@ -24,6 +24,7 @@ namespace MESSimulator
             chkEQPSTATUSPass = new System.Windows.Forms.CheckBox();
             chkRecipeMismatch = new System.Windows.Forms.CheckBox();
             chkEnableNGCodeList = new System.Windows.Forms.CheckBox();
+            chkSimError0049 = new System.Windows.Forms.CheckBox();
             lblWipQty = new System.Windows.Forms.Label();
             txtWipQty = new System.Windows.Forms.TextBox();
             lblInRequireInputCode = new System.Windows.Forms.Label();
@@ -61,6 +62,7 @@ namespace MESSimulator
             panelTop.Controls.Add(chkEQPSTATUSPass);
             panelTop.Controls.Add(chkRecipeMismatch);
             panelTop.Controls.Add(chkEnableNGCodeList);
+            panelTop.Controls.Add(chkSimError0049);
             panelTop.Controls.Add(lblWipQty);
             panelTop.Controls.Add(txtWipQty);
             panelTop.Controls.Add(lblInRequireInputCode);
@@ -170,10 +172,20 @@ namespace MESSimulator
             chkEnableNGCodeList.Text = "啟用 NGCodeListDT 模擬";
             chkEnableNGCodeList.UseVisualStyleBackColor = true;
             // 
+            // chkSimError0049
+            // 
+            chkSimError0049.AutoSize = true;
+            chkSimError0049.Location = new System.Drawing.Point(965, 50);
+            chkSimError0049.Name = "chkSimError0049";
+            chkSimError0049.Size = new System.Drawing.Size(185, 19);
+            chkSimError0049.TabIndex = 19;
+            chkSimError0049.Text = "模擬 ERROR0049 (站點不合)";
+            chkSimError0049.UseVisualStyleBackColor = true;
+            // 
             // lblWipQty
             // 
             lblWipQty.AutoSize = true;
-            lblWipQty.Location = new System.Drawing.Point(980, 52);
+            lblWipQty.Location = new System.Drawing.Point(1155, 52);
             lblWipQty.Name = "lblWipQty";
             lblWipQty.Size = new System.Drawing.Size(105, 15);
             lblWipQty.TabIndex = 17;
@@ -181,7 +193,7 @@ namespace MESSimulator
             // 
             // txtWipQty
             // 
-            txtWipQty.Location = new System.Drawing.Point(1095, 48);
+            txtWipQty.Location = new System.Drawing.Point(1265, 48);
             txtWipQty.Name = "txtWipQty";
             txtWipQty.Size = new System.Drawing.Size(70, 23);
             txtWipQty.TabIndex = 18;
@@ -416,6 +428,7 @@ namespace MESSimulator
         private System.Windows.Forms.CheckBox chkEQPSTATUSPass;
         private System.Windows.Forms.CheckBox chkRecipeMismatch;
         private System.Windows.Forms.CheckBox chkEnableNGCodeList;
+        private System.Windows.Forms.CheckBox chkSimError0049;
         private System.Windows.Forms.Label lblWipQty;
         private System.Windows.Forms.TextBox txtWipQty;
     }
