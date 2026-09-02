@@ -1930,6 +1930,12 @@ namespace EAPDashboard.Models
             try
             {
                 string eid = reportEqpId ?? this.Id;
+                string newCode = int.TryParse(newStatus, out int nVal) ? nVal.ToString() : newStatus?.Trim();
+                if (!string.IsNullOrEmpty(newCode) && string.Equals(newCode, _lastStatusCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    return "PASS|DUPLICATE|NewStatus matches current status.";
+                }
+
                 SetLastStatus(newStatus);
                 WriteStatusToLocalDb(newStatus);
                 OnLogReceived(LogLevel.Info, string.Format("[STATUS] {0} Status Changed: {1} -> {2}", eid, oldStatus, newStatus));

@@ -249,7 +249,22 @@ namespace EAPDashboard.Models
                 }
 
                 BaseMessage msg = MessageFactory.Create(innerJson);
-                if (msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
+
+                bool isDuplicateStatusChange = false;
+                if (msg.CMD == CommandType.StatusChangeReport && msg is StatusChangeReportMessage scmCheck)
+                {
+                    string newStatusRaw = scmCheck.NewStatus?.ToString()?.Trim();
+                    string newStatusCode = int.TryParse(newStatusRaw, out int nVal) ? nVal.ToString() : newStatusRaw;
+
+                    if (!string.IsNullOrEmpty(newStatusCode) &&
+                        (string.Equals(newStatusCode, _currentStatusCode, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(newStatusCode, _lastStatusCode, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        isDuplicateStatusChange = true;
+                    }
+                }
+
+                if (!isDuplicateStatusChange && msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
                 {
                     OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
                 }
@@ -408,6 +423,12 @@ namespace EAPDashboard.Models
                         break;
                     case CommandType.StatusChangeReport:
                         var scm = (StatusChangeReportMessage)msg;
+                        if (isDuplicateStatusChange)
+                        {
+                            await SendReply(new ReplyStatusChangeReportMessage { CMD = CommandType.ReplyStatusChangeReport, RtnResult = RtnResult.PASS }, msg, silent: true);
+                            break;
+                        }
+
                         int newStatusInt = int.TryParse(scm.NewStatus?.ToString(), out int nval) ? nval : 0;
                         _currentStatusCode = newStatusInt.ToString();
                         if (GetActiveStatusMap().TryGetValue(newStatusInt, out var nst)) State = nst;
@@ -746,16 +767,16 @@ namespace EAPDashboard.Models
             }
         }
 
-        private async Task SendReply<T>(T replyMsg, BaseMessage requestMsg = null) where T : BaseMessage {
+        private async Task SendReply<T>(T replyMsg, BaseMessage requestMsg = null, bool silent = false) where T : BaseMessage {
             replyMsg.Date = DateTime.Now.ToString("yyyyMMddHHmmss"); replyMsg.Machine = Id;
             if (requestMsg != null)
             {
                 replyMsg.TransactionID = requestMsg.TransactionID;
             }
-            await SendCommand(replyMsg);
+            await SendCommand(replyMsg, silent);
         }
 
-        private async Task SendCommand(object cmd) {
+        private async Task SendCommand(object cmd, bool silent = false) {
             if (_bus == null || !_bus.IsConnected) return;
             if (cmd is BaseMessage bm)
             {
@@ -773,7 +794,7 @@ namespace EAPDashboard.Models
                 }
             }
             await _bus.PublishAsync(_commandTopic, cmd);
-            if (cmd is BaseMessage bm2)
+            if (!silent && cmd is BaseMessage bm2)
             {
                 if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere)
                 {

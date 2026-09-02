@@ -1060,5 +1060,31 @@ namespace EAPDashboard.Tests
                 }
             }
         }
+
+        [Fact]
+        public async Task ProcessStatusChangeAsync_WhenNewStatusMatchesCurrentStatus_ShouldFilterAndNotCallMes()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_STATUS_01");
+            eq.SetLastStatus("2"); // 目前狀態已是 2
+
+            int mesCallCount = 0;
+            eq.MesCallHandler = req =>
+            {
+                if (req is EQPSTATUSRequest)
+                {
+                    mesCallCount++;
+                    return new EQPSTATUSReply { Result = "PASS", ResultCode = "0", Message = "OK" };
+                }
+                return null;
+            };
+
+            // Act: 機台重複上報 oldStatus=1, newStatus=2
+            string result = await eq.ProcessStatusChangeAsync("1", "2");
+
+            // Assert: 應直接過濾，且不呼叫 MES
+            result.Should().StartWith("PASS|DUPLICATE|");
+            mesCallCount.Should().Be(0);
+        }
     }
 }

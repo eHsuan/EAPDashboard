@@ -9,7 +9,7 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Production",
+    "ActiveEnvironment": "Test",
     "FilterNullApis": [
       "WOCHECKIN_MULTI",
       "WOCHECKOUT_MULTI"
@@ -44,7 +44,7 @@
       "Topic": "TN2/YELLOW/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ET0023",
@@ -53,7 +53,7 @@
       "Topic": "TN2/YELLOW/machine/ET0023",
       "DictionaryPath": "Dictionaries/ET0023.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "TP0013",
@@ -62,7 +62,7 @@
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "AC3811",
@@ -80,7 +80,7 @@
       "Topic": "TN2/Floor2/Yellow/MK0158",
       "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ZZ0304",
