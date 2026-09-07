@@ -11,7 +11,7 @@
     <Authors>YH.CHIU</Authors>
     <Company>Cyntec</Company>
     <Product>EAP Dashboard</Product>
-    <Version>1.0.6</Version>
+    <Version>1.0.7</Version>
     <LangVersion>latest</LangVersion>
     <ApplicationIcon>EAP.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
