@@ -270,5 +270,87 @@ namespace EAPDashboard.Tests
             // 還原預設白名單
             Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
         }
+
+        [Fact]
+        public void WOCHECKINRequest_WhenWOCarrierDtIsNullOrEmptyOrNA_ShouldOmitWOCarrierDtField()
+        {
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+
+            // 1. null
+            var req1 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = null };
+            string json1 = Models.MesJsonContractResolver.Serialize(req1, Newtonsoft.Json.Formatting.None);
+            json1.Should().NotContain("WOCarrierDt");
+
+            // 2. 空字串
+            var req2 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "   " };
+            string json2 = Models.MesJsonContractResolver.Serialize(req2, Newtonsoft.Json.Formatting.None);
+            json2.Should().NotContain("WOCarrierDt");
+
+            // 3. "[]"
+            var req3 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "[]" };
+            string json3 = Models.MesJsonContractResolver.Serialize(req3, Newtonsoft.Json.Formatting.None);
+            json3.Should().NotContain("WOCarrierDt");
+
+            // 4. "N/A"
+            var req4 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "N/A" };
+            string json4 = Models.MesJsonContractResolver.Serialize(req4, Newtonsoft.Json.Formatting.None);
+            json4.Should().NotContain("WOCarrierDt");
+
+            // 5. "n/a" (小寫)
+            var req5 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "n/a" };
+            string json5 = Models.MesJsonContractResolver.Serialize(req5, Newtonsoft.Json.Formatting.None);
+            json5.Should().NotContain("WOCarrierDt");
+
+            // 6. "[{\"CarrierNo\":\"N/A\"}]"
+            var req6 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "[{\"CarrierNo\":\"N/A\"}]" };
+            string json6 = Models.MesJsonContractResolver.Serialize(req6, Newtonsoft.Json.Formatting.None);
+            json6.Should().NotContain("WOCarrierDt");
+
+            // 7. 有效卡匣應正常保留
+            var req7 = new WOCHECKINRequest { WONO = "WO01", EqpNo = "EQ01", UserID = "U1", WOCarrierDt = "[{\"CarrierNo\":\"C001\"}]" };
+            string json7 = Models.MesJsonContractResolver.Serialize(req7, Newtonsoft.Json.Formatting.None);
+            json7.Should().Contain("WOCarrierDt");
+            json7.Should().Contain("C001");
+        }
+
+        [Fact]
+        public void WOCHECKIN_MULTIRequest_WhenWOCarrierDtIsNA_ShouldOmitWOCarrierDtField()
+        {
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+
+            // 1. "N/A"
+            var req1 = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "N/A"
+            };
+            string json1 = Models.MesJsonContractResolver.Serialize(req1, Newtonsoft.Json.Formatting.None);
+            json1.Should().NotContain("WOCarrierDt");
+
+            // 2. 包含 N/A 載具陣列
+            var req2 = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "[{\"CarrierNo\":\"N/A\"}]"
+            };
+            string json2 = Models.MesJsonContractResolver.Serialize(req2, Newtonsoft.Json.Formatting.None);
+            json2.Should().NotContain("WOCarrierDt");
+
+            // 3. 有效載具正常保留
+            var req3 = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "[{\"CarrierNo\":\"C001\"}]"
+            };
+            string json3 = Models.MesJsonContractResolver.Serialize(req3, Newtonsoft.Json.Formatting.None);
+            json3.Should().Contain("WOCarrierDt");
+            json3.Should().Contain("C001");
+        }
     }
 }

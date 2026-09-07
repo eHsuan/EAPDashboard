@@ -1391,7 +1391,9 @@ namespace EAPDashboard.Models
 
                 var validWos = wos.Where(w => !string.IsNullOrEmpty(w)).Distinct().ToList();
                 string combinedWo = string.Join(",", validWos);
-                var validCids = cids.Where(c => !string.IsNullOrEmpty(c)).Distinct().ToList();
+                var validCids = cids.Where(c => !string.IsNullOrWhiteSpace(c) 
+                                             && !c.Equals("N/A", StringComparison.OrdinalIgnoreCase) 
+                                             && !c.Equals("NA", StringComparison.OrdinalIgnoreCase)).Distinct().ToList();
 
                 string resPrefix = "FAIL";
                 string resultCode = "";

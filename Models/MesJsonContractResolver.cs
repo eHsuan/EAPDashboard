@@ -149,11 +149,32 @@ namespace EAPDashboard.Models
                     if (prevShouldSerialize != null && !prevShouldSerialize(instance))
                         return false;
 
-                    // 檢查當前實例是否為 MES 訊息，且其交易名稱是否在過濾白名單內
-                    bool filterActive = false;
+                    // 針對工單進站 (WOCHECKIN 與 WOCHECKIN_MULTI) 之 WOCarrierDt 欄位特別防護：
+                    // 若為空值、"[]"、"{}" 或 "N/A" / "NA"，一律刪除該欄位 (不予序列化)
                     if (instance is MESBaseMessage mesMsg)
                     {
-                        filterActive = IsFilterEnabled(mesMsg.TransactionName);
+                        bool isCheckIn = mesMsg.TransactionName == MESTransactionName.WOCHECKIN
+                                         || mesMsg.TransactionName == MESTransactionName.WOCHECKIN_MULTI
+                                         || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKIN", StringComparison.OrdinalIgnoreCase)
+                                         || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKIN_MULTI", StringComparison.OrdinalIgnoreCase);
+
+                        bool isWoCarrierDt = string.Equals(property.PropertyName, "WOCarrierDt", StringComparison.OrdinalIgnoreCase)
+                                             || string.Equals(member.Name, "WOCarrierDt", StringComparison.OrdinalIgnoreCase);
+
+                        if (isCheckIn && isWoCarrierDt)
+                        {
+                            object carrierVal = null;
+                            try { carrierVal = property.ValueProvider.GetValue(instance); } catch { }
+                            if (IsWoCarrierDtEmptyOrNa(carrierVal))
+                                return false;
+                        }
+                    }
+
+                    // 檢查當前實例是否為 MES 訊息，且其交易名稱是否在過濾白名單內
+                    bool filterActive = false;
+                    if (instance is MESBaseMessage mMsg)
+                    {
+                        filterActive = IsFilterEnabled(mMsg.TransactionName);
                     }
 
                     // 若未啟用過濾 (不在白名單內)，100% 保持原始行為
@@ -174,11 +195,13 @@ namespace EAPDashboard.Models
                     if (val == null)
                         return false;
 
-                    // 2. 字串判斷：若為空字串、純空白、或代表空陣列/空物件的 JSON 字串 ("[]", "{}") 則不序列化 (刪除該欄位)
+                    // 2. 字串判斷：若為空字串、純空白、代表空陣列/空物件的 JSON 字串 ("[]", "{}") 或 "N/A" 則不序列化 (刪除該欄位)
                     if (val is string str)
                     {
                         string trimmed = str.Trim();
-                        if (string.IsNullOrEmpty(trimmed) || trimmed == "[]" || trimmed == "{}")
+                        if (string.IsNullOrEmpty(trimmed) || trimmed == "[]" || trimmed == "{}"
+                            || trimmed.Equals("N/A", StringComparison.OrdinalIgnoreCase)
+                            || trimmed.Equals("NA", StringComparison.OrdinalIgnoreCase))
                             return false;
                     }
 
@@ -201,7 +224,9 @@ namespace EAPDashboard.Models
                         if (jval.Type == JTokenType.String)
                         {
                             string s = jval.Value.ToString().Trim();
-                            if (string.IsNullOrEmpty(s) || s == "[]" || s == "{}")
+                            if (string.IsNullOrEmpty(s) || s == "[]" || s == "{}"
+                                || s.Equals("N/A", StringComparison.OrdinalIgnoreCase)
+                                || s.Equals("NA", StringComparison.OrdinalIgnoreCase))
                                 return false;
                         }
                     }
@@ -211,6 +236,60 @@ namespace EAPDashboard.Models
             }
 
             return property;
+        }
+
+        /// <summary>
+        /// 判斷 WOCarrierDt 之值是否為空、空集合或 N/A
+        /// </summary>
+        public static bool IsWoCarrierDtEmptyOrNa(object val)
+        {
+            if (val == null) return true;
+
+            if (val is string str)
+            {
+                string trimmed = str.Trim();
+                if (string.IsNullOrEmpty(trimmed) || trimmed == "[]" || trimmed == "{}"
+                    || trimmed.Equals("N/A", StringComparison.OrdinalIgnoreCase)
+                    || trimmed.Equals("NA", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (trimmed.StartsWith("[") && trimmed.EndsWith("]"))
+                {
+                    try
+                    {
+                        var arr = JArray.Parse(trimmed);
+                        if (arr.Count == 0) return true;
+                        bool hasValidCarrier = false;
+                        foreach (var item in arr)
+                        {
+                            string cno = item["CarrierNo"]?.ToString()?.Trim();
+                            if (!string.IsNullOrEmpty(cno)
+                                && !cno.Equals("N/A", StringComparison.OrdinalIgnoreCase)
+                                && !cno.Equals("NA", StringComparison.OrdinalIgnoreCase))
+                            {
+                                hasValidCarrier = true;
+                                break;
+                            }
+                        }
+                        if (!hasValidCarrier) return true;
+                    }
+                    catch { }
+                }
+                return false;
+            }
+
+            if (val is IEnumerable enumerable && !(val is string))
+            {
+                var enumerator = enumerable.GetEnumerator();
+                if (!enumerator.MoveNext()) return true;
+            }
+
+            if (val is JArray jarr && jarr.Count == 0) return true;
+            if (val is JObject jobj && jobj.Count == 0) return true;
+
+            return false;
         }
     }
 }
