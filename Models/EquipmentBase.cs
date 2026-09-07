@@ -1154,6 +1154,20 @@ namespace EAPDashboard.Models
                                 OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
                             }
                         }
+                        else
+                        {
+                            try
+                            {
+                                string errCode = !string.IsNullOrEmpty(qryReply?.ResultCode) ? qryReply.ResultCode : "ERR_MES";
+                                string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
+                                if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                                await SendTerminalDisplay(terminalMsg);
+                            }
+                            catch (Exception ex)
+                            {
+                                OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                            }
+                        }
 
                         return $"FAIL|{qryReply?.ResultCode ?? "ERR_MES"}|{failMsg}|[]";
                     }
@@ -1471,6 +1485,17 @@ namespace EAPDashboard.Models
                 if (resPrefix != "PASS")
                 {
                     OnLogReceived(LogLevel.Error, $"[TrackIn] MES WOCHECKIN Failed for WOs {combinedWo}. Code: {resultCode}, Message: {resultMessage}");
+                    try
+                    {
+                        string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
+                        string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
+                        if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                        await SendTerminalDisplay(terminalMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
+                    }
                     return $"{resPrefix}|{resultCode}|MES WOCHECKIN Failed for WOs {combinedWo}: {resultMessage}";
                 }
 
@@ -1898,6 +1923,17 @@ namespace EAPDashboard.Models
                 if (resPrefix != "PASS")
                 {
                     OnLogReceived(LogLevel.Error, $"[TrackOut] MES WOCHECKOUT Failed for WOs {combinedWo}. Code: {resultCode}, Message: {resultMessage}");
+                    try
+                    {
+                        string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
+                        string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
+                        if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                        await SendTerminalDisplay(terminalMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[TrackOut] SendTerminalDisplay failed: {ex.Message}");
+                    }
                     return $"{resPrefix}|{resultCode}|MES WOCHECKOUT Failed for WOs {combinedWo}: {resultMessage}";
                 }
 

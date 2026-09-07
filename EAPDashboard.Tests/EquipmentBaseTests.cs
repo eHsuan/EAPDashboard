@@ -1119,5 +1119,101 @@ namespace EAPDashboard.Tests
             eq.LastTerminalDisplayMessage.Should().NotBeNull();
             eq.LastTerminalDisplayMessage.Should().Contain("WO_ERR_01 is not valid for check-in at this station");
         }
+
+        [Fact]
+        public async Task ProcessTrackInAsync_WhenWoQryReturnsOtherFailCode_ShouldSendTerminalDisplayWithFailFormat()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_FAIL_01");
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOQRYRequest)
+                {
+                    return new WOQRYReply
+                    {
+                        Result = "FAIL",
+                        ResultCode = "ERR_PARAM_01",
+                        Message = "參數錯誤"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackInAsync(
+                cassetteIds: new List<string> { "C001" },
+                workOrders: new List<string> { "WO_FAIL_01" },
+                panels: new List<string>(),
+                userId: "U001");
+
+            // Assert
+            result.Should().StartWith("FAIL|ERR_PARAM_01|");
+            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : ERR_PARAM_01");
+        }
+
+        [Fact]
+        public async Task ProcessTrackInFinalAsync_WhenCheckInFails_ShouldSendTerminalDisplayWithFailFormat()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_CKIN_FAIL");
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOCHECKINRequest)
+                {
+                    return new WOCHECKINReply
+                    {
+                        Result = "FAIL",
+                        ResultCode = "CHECKIN_ERR_01",
+                        Message = "未達生產條件"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackInFinalAsync(
+                workOrders: new List<string> { "WO_CKIN_01" },
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" });
+
+            // Assert
+            result.Should().StartWith("FAIL|CHECKIN_ERR_01|");
+            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : CHECKIN_ERR_01");
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_WhenCheckOutFails_ShouldSendTerminalDisplayWithFailFormat()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_CKOUT_FAIL");
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOCHECKOUTRequest)
+                {
+                    return new WOCHECKOUTReply
+                    {
+                        Result = "FAIL",
+                        ResultCode = "CHECKOUT_ERR_02",
+                        Message = "出站數量錯誤"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO_CKOUT_01" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            // Assert
+            result.Should().StartWith("FAIL|CHECKOUT_ERR_02|");
+            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : CHECKOUT_ERR_02");
+        }
     }
 }
