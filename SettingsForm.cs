@@ -39,6 +39,7 @@ namespace EAPDashboard
                 sb.AppendLine(line);
                 sb.AppendLine($"  ● 程式版本     : v{versionStr}");
                 sb.AppendLine($"  ● EAP ID       : {config?.EapId ?? "N/A"}");
+                sb.AppendLine($"  ● 關閉保護密碼 : {(string.IsNullOrEmpty(config?.ExitPassword) ? "未設定 (預設 admin)" : "已設定")}");
                 sb.AppendLine();
                 sb.AppendLine();
 

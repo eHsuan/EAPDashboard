@@ -109,6 +109,7 @@ dotnet run --project EAPDashboard.csproj
 
 ```json
 {
+  "ExitPassword": "admin",
   "ActiveEnvironment": "Test",
   "EnableCassetteBinding": true,
   "EqpStatusReportIntervalSeconds": 60,

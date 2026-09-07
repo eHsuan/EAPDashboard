@@ -1,4 +1,5 @@
 {
+  "ExitPassword": "CIM",
   "EapId": "EAP01",
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
   "MqttBrokerHost": "127.0.0.1",
@@ -9,7 +10,7 @@
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
-    "ActiveEnvironment": "Production",
+    "ActiveEnvironment": "Test",
     "FilterNullApis": [
       "WOCHECKIN_MULTI",
       "WOCHECKOUT_MULTI"

@@ -110,5 +110,21 @@ namespace EAPDashboard.Tests
             parsed["CMD"].Value<string>().Should().Be("ReplyEventReport");
             parsed["RtnMsg"].Value<string>().Should().Be("123456");
         }
+
+        [Fact]
+        public void AppConfig_ExitPassword_ShouldDefaultToAdmin_And_SupportCustomConfig()
+        {
+            // Arrange & Act - Default instance
+            var config = new AppConfig();
+
+            // Assert
+            config.ExitPassword.Should().Be("admin");
+
+            // Custom password
+            string json = "{\"ExitPassword\":\"Secret123\"}";
+            var deserialized = JsonConvert.DeserializeObject<AppConfig>(json);
+            deserialized.Should().NotBeNull();
+            deserialized.ExitPassword.Should().Be("Secret123");
+        }
     }
 }

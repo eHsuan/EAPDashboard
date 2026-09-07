@@ -26,6 +26,7 @@ namespace EAPDashboard
 
     public class AppConfig
     {
+        public string ExitPassword { get; set; } = "admin";
         public string EapId { get; set; }
         public string ControllerTopic { get; set; }
         public string MqttBrokerHost { get; set; }
@@ -80,6 +81,7 @@ namespace EAPDashboard
         private MqttBus _bus;
         private LocalDataService _localDataService;
         private System.Timers.Timer _partitionTimer;
+        private bool _isInternalRestart = false;
 
         public MainForm()
         {
@@ -87,6 +89,7 @@ namespace EAPDashboard
             this.WindowState = FormWindowState.Maximized; 
             this.Resize += MainForm_Resize;
             this.Load += MainForm_Load;
+            this.FormClosing += MainForm_FormClosing;
             this.FormClosed += MainForm_FormClosed;
             _mainCts = new CancellationTokenSource();
         }
@@ -99,6 +102,29 @@ namespace EAPDashboard
 
             // 立即啟動設備通訊 (不等待 MQTT 連線)
             StartEquipments();
+        }
+
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (_isInternalRestart) return;
+
+            // 僅攔截使用者手動關閉行為 (右上角 X 按鈕、工作列右鍵關閉、Alt+F4)
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                string targetPassword = _appConfig?.ExitPassword;
+                if (string.IsNullOrEmpty(targetPassword))
+                {
+                    targetPassword = "admin";
+                }
+
+                using (var dlg = new PasswordPromptForm(targetPassword))
+                {
+                    if (dlg.ShowDialog(this) != DialogResult.OK)
+                    {
+                        e.Cancel = true;
+                    }
+                }
+            }
         }
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -345,6 +371,7 @@ namespace EAPDashboard
 
             // 4. 執行重啟
             System.Diagnostics.Debug.WriteLine("[Shutdown] All services cleaned. Restarting Application NOW.");
+            _isInternalRestart = true;
             Application.Restart();
         }
 
