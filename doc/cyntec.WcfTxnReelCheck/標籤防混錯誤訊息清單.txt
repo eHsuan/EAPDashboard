@@ -1,0 +1,139 @@
+            // 2024/04/25 多語系-範例
+            m_Culture.AddRow(MSG001, cyntecCulture.en_US, "Reel Check (NG-0101), the current process for main material, main MatNo: {0}, but the scanned in is the auxiliary MatNo barcode, the auxiliary MatNo: {1}");
+            m_Culture.AddRow(MSG001, cyntecCulture.zh_TW, "上機異常(NG-0101), 當前作業是主料, 主料號:{0}, 但掃進來的是副料條碼, 副料號:{1}");
+
+            m_Culture.AddRow(MSG002, cyntecCulture.en_US, "Reel Check (NG-0102), the current process for auxiliary material, auxiliary MatNo: {0}, but the barcode scanned is the main MatNo, main MatNo: {1}");
+            m_Culture.AddRow(MSG002, cyntecCulture.zh_TW, "上機異常(NG-0102), 當前作業是副料, 副料號: {0}, 但掃進的是主料條碼, 主料號: {1}");
+
+            m_Culture.AddRow(MSG003, cyntecCulture.en_US, "Reel Check (NG-0103), the current process for main material, T/P NO.:{0}, but the barcode scanned in is the auxiliary material, T/P No.:{1}");
+            m_Culture.AddRow(MSG003, cyntecCulture.zh_TW, "上機異常(NG-0103), 當前作業是主料, T/P NO.:{0}, 但掃進來的是副料條碼, T/P No.:{1}");
+
+            m_Culture.AddRow(MSG004, cyntecCulture.en_US, "Reel Check (NG-0104), the current process for auxiliary material, T/P No.:{0}, but the barcode scanned in is the main material, T/p No:{1}");
+            m_Culture.AddRow(MSG004, cyntecCulture.zh_TW, "上機異常(NG-0104), 當前作業是副料, T/P No.:{0}, 但掃進來的是主料條碼, T/p No:{1}");
+
+            m_Culture.AddRow(MSG005, cyntecCulture.en_US, "Reel Check (NG-0105), current WO: {0}, but the scanned T/P No. barcode: {1}, belongs to another Wo: {2};");
+            m_Culture.AddRow(MSG005, cyntecCulture.zh_TW, "上機異常(NG-0105), 當前作業工單:{0}, 但掃進來的T/P No.條碼:{1}, 屬於另一個工單:{2};");
+
+            m_Culture.AddRow(MSG006, cyntecCulture.en_US, "Reel Check (NG-0106), current WO: {0}, but the scanned material number barcode: {1}, belongs to another WO (unknown)");
+            m_Culture.AddRow(MSG006, cyntecCulture.zh_TW, "上機異常(NG-0106), 當前作業工單:{0}, 但掃進來的料號條碼:{1}, 屬於另一個工單(未知)");
+
+            m_Culture.AddRow(MSG007, cyntecCulture.en_US, "Reel Check (NG-0107), current WO: {0}, but the scanned barcode: {1} cannot be recognized.");
+            m_Culture.AddRow(MSG007, cyntecCulture.zh_TW, "上機異常(NG-0107), 當前作業工單:{0}, 但掃進來的條碼:{1}無法識別。");
+
+            m_Culture.AddRow(MSG008, cyntecCulture.en_US, "WO Status Check (NG-0202), the WO has been comfirmed (ConfrimDate is inconsistent with the time when the WO was refreshed), entry time: {0}, modified time: {1}");
+            m_Culture.AddRow(MSG008, cyntecCulture.zh_TW, "工單狀態異動(NG-0202), 工單已被過帳(ConfrimDate與刷工單時不一致), 進站時間:{0}, 被更動時間:{1}");
+
+            m_Culture.AddRow(MSG009, cyntecCulture.en_US, "WO Status Check (NG-0203), work order exit status changes: Work order has exited the site.");
+            m_Culture.AddRow(MSG009, cyntecCulture.zh_TW, "工單狀態變動(NG-0203), 工單出站狀態改變: 工單已出站");
+
+            m_Culture.AddRow(MSG010, cyntecCulture.en_US, "Reel Check (NG-0110), the Reel ID ({0}) of the 2D barcode has been loaded on EQP.");
+            m_Culture.AddRow(MSG010, cyntecCulture.zh_TW, "上機異常(NG-0110), 2D條碼之Reel ID ({0})已經重複上機台");
+
+            m_Culture.AddRow(MSG011, cyntecCulture.en_US, "WO Status Check (NG-0201), the WO may have been deleted 'Confirm'.");
+            m_Culture.AddRow(MSG011, cyntecCulture.zh_TW, "工單狀態異動(NG-0201), 工單可能已被刪Confirm。");
+
+            m_Culture.AddRow(MSG012, cyntecCulture.en_US, "WO Status Check (NG-0202), the WO has been posted (ConfrimDate is inconsistent with the time when the WO was refreshed), entry time: {0}, modified time: {1}");
+            m_Culture.AddRow(MSG012, cyntecCulture.zh_TW, "工單狀態異動(NG-0202), 工單已被過帳(ConfrimDate與刷工單時不一致), 進站時間:{0}, 被更動時間: {1}。");
+
+            m_Culture.AddRow(MSG013, cyntecCulture.en_US, "No Used.");
+            m_Culture.AddRow(MSG013, cyntecCulture.zh_TW, "No Used.");
+
+            m_Culture.AddRow(MSG014, cyntecCulture.en_US, "Barcode Check (NG-0303), unable to obtain barcode from WO_REELID table: {0} information, maybe (1) DB changes, (2) abnormality when printing labels");
+            m_Culture.AddRow(MSG014, cyntecCulture.zh_TW, "條碼狀態異動(NG-0303), 無法從WO_REELID表格取得條碼: {0} 資訊, 可能(1)DB有異動, (2)列印標籤時異常。");
+
+
+            m_Culture.AddRow(MSG015, cyntecCulture.en_US, "Wo Check (NG-0401), the current work order ({0}), but the Reel({2}) of other work orders({1}) was scanned.");
+            m_Culture.AddRow(MSG015, cyntecCulture.zh_TW, "與工單不匹配(NG-0401), 當前工單({0}), 但掃到其他工單({1})的Reel({2})。");
+
+            m_Culture.AddRow(MSG016, cyntecCulture.en_US, "Reel Check (NG-0108), Reel({0}) expected status: 11 {1}, but the current status has been manually changed to: {2}.");
+            m_Culture.AddRow(MSG016, cyntecCulture.zh_TW, "上機異常(NG-0108), Reel({0})預期狀態:11 {1}, 但當前狀態已被手動改為:{2}。");
+
+            m_Culture.AddRow(MSG017, cyntecCulture.en_US, "Reel Check (NG-0109), 2D barcode ({0}), the expected operating machine is: {1}, but it has been loaded to another machine: {2}.");
+            m_Culture.AddRow(MSG017, cyntecCulture.zh_TW, "上機異常(NG-0109), 2D條碼({0}), 預期的作業機台是:{1}, 但已經上到別的機台:{2}。");
+
+            m_Culture.AddRow(MSG018, cyntecCulture.en_US, "Boarcode Status (NG-0304), 2D barcode ({0}), the expected material number is: {1}, but the material number defined in the WO_REELID table is: {2}.");
+            m_Culture.AddRow(MSG018, cyntecCulture.zh_TW, "條碼狀態異常(NG-0304), 2D條碼({0}), 預期的料號是:{1},但在WO_REELID表格定義的料號是:{2}。");
+
+            m_Culture.AddRow(MSG019, cyntecCulture.en_US, "Barcode Status (NG-0305), 2D barcode ({0}), the expected T/P No. is: {1}, but the T/P No. defined in the WO_REELID table is: {2}.");
+            m_Culture.AddRow(MSG019, cyntecCulture.zh_TW, "條碼狀態異常(NG-0305), 2D條碼({0}), 預期的T/P No.是:{1}, 但在WO_REELID表格定義的T/P No.是:{2}。");
+
+            m_Culture.AddRow(MSG020, cyntecCulture.en_US, "Reel Check (NG-0110), the Reel ID ({0}) of the 2D barcode has been loaded onto the EQP.");
+            m_Culture.AddRow(MSG020, cyntecCulture.zh_TW, "上機異常(NG-0110), 2D條碼之Reel ID({0})已經重複上機台。");
+
+            m_Culture.AddRow(MSG021, cyntecCulture.en_US, "WO status (NG-0202), the work order may have been deleted Confirm.");
+            m_Culture.AddRow(MSG021, cyntecCulture.zh_TW, "工單狀態異動(NG-0202), 工單可能已被刪Confirm。");
+
+            m_Culture.AddRow(MSG022, cyntecCulture.en_US, "WO status changed (NG-0202), the WO has been posted (ConfrimDate is inconsistent with the time when the WO was refreshed), entry time: {0}, modified time: {1};.");
+            m_Culture.AddRow(MSG022, cyntecCulture.zh_TW, "工單狀態異動(NG-0202), 工單已被過帳(ConfrimDate與刷工單時不一致), 進站時間:{0}, 被更動時間:{1}。");
+
+            m_Culture.AddRow(MSG023, cyntecCulture.en_US, "Abnormal barcode content");
+            m_Culture.AddRow(MSG023, cyntecCulture.zh_TW, "條碼內容異常");
+
+            m_Culture.AddRow(MSG024, cyntecCulture.en_US, "The barcode content is abnormal (NG-9801), and the REEL scanner reports an exception (the barcode content contains ERROR). The content is, ");
+            m_Culture.AddRow(MSG024, cyntecCulture.zh_TW, "條碼內容異常(NG-9801), REEL掃描槍報異常(條碼內容包含ERROR), 內容是, ");
+
+            m_Culture.AddRow(MSG025, cyntecCulture.en_US, "Loading exception");
+            m_Culture.AddRow(MSG025, cyntecCulture.zh_TW, "上機異常");
+
+            m_Culture.AddRow(MSG026, cyntecCulture.en_US, "Barcode status changes (NG-0301), unable to obtain barcode: {0} information from the WO_REELID table, there may be changes in the DB");
+            m_Culture.AddRow(MSG026, cyntecCulture.zh_TW, "條碼狀態異動(NG-0301), 無法從WO_REELID表格取得條碼:{0}資訊, 可能DB有異動");
+
+            m_Culture.AddRow(MSG027, cyntecCulture.en_US, "Barcode status changes (NG-0302), the barcode T/P status is expected to be: 11({0}), but the barcode status has changed to:");
+            m_Culture.AddRow(MSG027, cyntecCulture.zh_TW, "條碼狀態異動(NG-0302), 條碼T/P狀態預期是:11({0}), 但條碼狀態已經變成:");
+
+            m_Culture.AddRow(MSG028, cyntecCulture.en_US, "Does not match the WO");
+            m_Culture.AddRow(MSG028, cyntecCulture.zh_TW, "與工單不匹配");
+
+            m_Culture.AddRow(MSG029, cyntecCulture.en_US, "Does not match the work order (NG-0401B), The Reel({1}) of the problem WO ({0}) was found in the operation of the WO ({2})");
+            m_Culture.AddRow(MSG029, cyntecCulture.zh_TW, "與工單不匹配(NG-0401B), 問題工單({0}的Reel({1})在工單({2})的作業當中發現");
+
+            m_Culture.AddRow(MSG030, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG030, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG031, cyntecCulture.en_US, "Abnormal barcode status");
+            m_Culture.AddRow(MSG031, cyntecCulture.zh_TW, "條碼狀態異常");
+
+            m_Culture.AddRow(MSG032, cyntecCulture.en_US, "REEL tag scan count check");
+            m_Culture.AddRow(MSG032, cyntecCulture.zh_TW, "REEL標籤掃描次數檢查");
+
+            m_Culture.AddRow(MSG033, cyntecCulture.en_US, "REEL tag scanning count check (switch ON starts checking)");
+            m_Culture.AddRow(MSG033, cyntecCulture.zh_TW, "REEL標籤掃描次數檢查(開關ON開始檢查)");
+
+            m_Culture.AddRow(MSG034, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG034, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG035, cyntecCulture.en_US, "Loading Exception (NG-0113), the operation time of Reel[{0}][{1}] is less than the minimum operation time of Reel (minutes)[{2}]");
+            m_Culture.AddRow(MSG035, cyntecCulture.zh_TW, "上機異常(NG-0113), Reel[0]之作業時間[{1}]小於Reel最小作業時間(分)[{2}]");
+
+            m_Culture.AddRow(MSG036, cyntecCulture.en_US, "Reel operating time (minimum operating time)");
+            m_Culture.AddRow(MSG036, cyntecCulture.zh_TW, "Reel作業時間 (最小作業時間)");
+
+            m_Culture.AddRow(MSG037, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG037, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG038, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG038, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG039, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG039, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG040, cyntecCulture.en_US, "NoUsed");
+            m_Culture.AddRow(MSG040, cyntecCulture.zh_TW, "NoUsed");
+
+            m_Culture.AddRow(MSG041, cyntecCulture.en_US, "Loading Exception (NG-0111), Reel ID of 2D barcode [{0}], the number of times this reel scans large labels (material number barcodes) [{1}] is less than the set number [{2}]");
+            m_Culture.AddRow(MSG041, cyntecCulture.zh_TW, "上機異常(NG-0111), 2D條碼之Reel ID[{0}],這個Reel掃到大標籤(料號條碼)次數[{1}]小於設定次數 [{2}]");
+
+            m_Culture.AddRow(MSG042, cyntecCulture.en_US, "Loading Exception (NG-0112), Reel ID of 2D barcode [{0}], the number of large tags (T/P No. barcode) scanned by this reel [{1}] is less than the set number [{2}]");
+            m_Culture.AddRow(MSG042, cyntecCulture.zh_TW, "上機異常(NG-0112), 2D條碼之Reel ID[{0}],這個Reel掃到大標籤(T/P No.條碼)次數[{1}]小於設定次數 [{2}]");
+
+            m_Culture.AddRow(MSG043, cyntecCulture.en_US, "The UserID is blank, the event content is [{0}], and the UserID blank is changed to sys to avoid errors.");
+            m_Culture.AddRow(MSG043, cyntecCulture.zh_TW, "UserID為空白,事件內容為[{0}],UserID空白改為sys,以避免錯誤一直出現");
+
+            m_Culture.AddRow(MSG044, cyntecCulture.en_US, "The reel [{0}] has not been generated when the work order is posted, but it is obtained when querying again.");  
+            m_Culture.AddRow(MSG044, cyntecCulture.zh_TW, "刷工單的時候 reel [{0}]還沒生成,再查詢時得到。");
+
+            m_Culture.AddRow(MSG045, cyntecCulture.en_US, "WO Status");
+            m_Culture.AddRow(MSG045, cyntecCulture.zh_TW, "工單狀態異常");
+
+            m_Culture.AddRow(MSG046, cyntecCulture.en_US, "Barcode status change");
+            m_Culture.AddRow(MSG046, cyntecCulture.zh_TW, "條碼狀態異動");

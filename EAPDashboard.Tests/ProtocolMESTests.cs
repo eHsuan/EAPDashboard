@@ -340,7 +340,51 @@ namespace EAPDashboard.Tests
             string json2 = Models.MesJsonContractResolver.Serialize(req2, Newtonsoft.Json.Formatting.None);
             json2.Should().NotContain("WOCarrierDt");
 
-            // 3. 有效載具正常保留
+            // 3. 沒有載具 (WOCarrierDt = null)
+            var reqNull = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = null
+            };
+            string jsonNull = Models.MesJsonContractResolver.Serialize(reqNull, Newtonsoft.Json.Formatting.None);
+            jsonNull.Should().NotContain("WOCarrierDt");
+
+            // 4. 空字串與空白
+            var reqEmpty = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "   "
+            };
+            string jsonEmpty = Models.MesJsonContractResolver.Serialize(reqEmpty, Newtonsoft.Json.Formatting.None);
+            jsonEmpty.Should().NotContain("WOCarrierDt");
+
+            // 5. 空陣列 "[]"
+            var reqEmptyArr = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "[]"
+            };
+            string jsonEmptyArr = Models.MesJsonContractResolver.Serialize(reqEmptyArr, Newtonsoft.Json.Formatting.None);
+            jsonEmptyArr.Should().NotContain("WOCarrierDt");
+
+            // 6. "NA" (無斜線)
+            var reqNa = new WOCHECKIN_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO01\"}]",
+                EqpNo = "EQ01",
+                UserID = "U1",
+                WOCarrierDt = "NA"
+            };
+            string jsonNa = Models.MesJsonContractResolver.Serialize(reqNa, Newtonsoft.Json.Formatting.None);
+            jsonNa.Should().NotContain("WOCarrierDt");
+
+            // 7. 有效載具正常保留
             var req3 = new WOCHECKIN_MULTIRequest
             {
                 WoNoDt = "[{\"WoNo\":\"WO01\"}]",

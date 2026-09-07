@@ -1,19 +1,18 @@
+using CyntecMqttLib.Interfaces;
 using EAPDashboard.Controls;
 using EAPDashboard.Models;
 using Newtonsoft.Json;
+using Protocol.LocalData;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net;
-using System.Windows.Forms;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Linq;
-using CyntecMqttLib.Interfaces;
-using System.Net.Sockets;
-
-using Protocol.LocalData;
+using System.Windows.Forms;
 
 namespace EAPDashboard
 {

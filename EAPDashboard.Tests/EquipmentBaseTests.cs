@@ -1215,5 +1215,49 @@ namespace EAPDashboard.Tests
             result.Should().StartWith("FAIL|CHECKOUT_ERR_02|");
             eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : CHECKOUT_ERR_02");
         }
+
+        [Fact]
+        public async Task ProcessTrackInFinalAsync_MultipleWorkOrders_WhenCassetteIdIsNAOrEmpty_MesRequestShouldNotContainWOCarrierDt()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_MULTI_NO_CARRIER");
+            string capturedReqJson = null;
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOCHECKIN_MULTIRequest multiReq)
+                {
+                    capturedReqJson = MesJsonContractResolver.Serialize(multiReq, Newtonsoft.Json.Formatting.None);
+                    return new WOCHECKIN_MULTIReply
+                    {
+                        Result = "PASS",
+                        ResultCode = "0",
+                        Message = "Success"
+                    };
+                }
+                return null;
+            };
+
+            // Act 1: 傳入 "N/A" 卡匣
+            await eq.ProcessTrackInFinalAsync(
+                workOrders: new List<string> { "WO_MULTI_01", "WO_MULTI_02" },
+                userId: "U001",
+                cassetteIds: new List<string> { "N/A" });
+
+            // Assert 1: JSON 絕對不含 WOCarrierDt
+            capturedReqJson.Should().NotBeNull();
+            capturedReqJson.Should().NotContain("WOCarrierDt");
+
+            // Act 2: 傳入空集合
+            capturedReqJson = null;
+            await eq.ProcessTrackInFinalAsync(
+                workOrders: new List<string> { "WO_MULTI_01", "WO_MULTI_02" },
+                userId: "U001",
+                cassetteIds: new List<string>());
+
+            // Assert 2: JSON 絕對不含 WOCarrierDt
+            capturedReqJson.Should().NotBeNull();
+            capturedReqJson.Should().NotContain("WOCarrierDt");
+        }
     }
 }

@@ -156,7 +156,8 @@ namespace EAPDashboard.Models
                         bool isCheckIn = mesMsg.TransactionName == MESTransactionName.WOCHECKIN
                                          || mesMsg.TransactionName == MESTransactionName.WOCHECKIN_MULTI
                                          || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKIN", StringComparison.OrdinalIgnoreCase)
-                                         || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKIN_MULTI", StringComparison.OrdinalIgnoreCase);
+                                         || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKIN_MULTI", StringComparison.OrdinalIgnoreCase)
+                                         || string.Equals(mesMsg.TransactionName.ToString(), "WOCHECKINMULTI", StringComparison.OrdinalIgnoreCase);
 
                         bool isWoCarrierDt = string.Equals(property.PropertyName, "WOCarrierDt", StringComparison.OrdinalIgnoreCase)
                                              || string.Equals(member.Name, "WOCarrierDt", StringComparison.OrdinalIgnoreCase);

@@ -1,0 +1,30 @@
+﻿<ROOT>
+
+  <!-- log 設定 -->
+  <LOG>
+    <FILE_PATH>.\log\</FILE_PATH>
+    <MAX_LOG_SIZE>5000000</MAX_LOG_SIZE>
+    <IS_AUTO_PURGE>true</IS_AUTO_PURGE>
+    <IS_LOG_DEBUG>true</IS_LOG_DEBUG>
+    <IS_LOG_ERROR>True</IS_LOG_ERROR>
+    <IS_LOG_INFO>True</IS_LOG_INFO>
+    <IS_LOG_SQL>true</IS_LOG_SQL>
+    <IS_LOG_WARING>true</IS_LOG_WARING>
+    <KEEP_LOG_DAY>30</KEEP_LOG_DAY>
+  </LOG>
+
+  <WOLOG>
+    <FILE_PATH>.\WOLog\</FILE_PATH>
+  </WOLOG>
+
+  <WCF>
+    <SERVER_URL>http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc</SERVER_URL>
+    <CLIENT_URL>http://127.0.0.1:8080/APP_01</CLIENT_URL>
+    
+    <SERVER_URL_LIST>
+      <ITEM></ITEM>
+    </SERVER_URL_LIST>    
+  </WCF>
+  
+</ROOT>
+
