@@ -205,6 +205,51 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public void WOCHECKOUT_MULTIRequest_WhenOutPutIsEmpty_ShouldSerializeAsZero()
+        {
+            // Arrange: 工單出站時，OUTPUT這欄若為空字串則填0 (多工單)
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+            Models.MesJsonContractResolver.SetWhitelist(new[] { "WOCHECKIN_MULTI", "WOCHECKOUT_MULTI" });
+
+            var req = new WOCHECKOUT_MULTIRequest
+            {
+                WoNoDt = "[{\"WoNo\":\"WO20260701\"}]",
+                EqpNo = "EQ01",
+                UserID = "U001",
+                Operator = "U001",
+                OutPut = ""
+            };
+
+            // Act
+            string json = Models.MesJsonContractResolver.Serialize(req, Newtonsoft.Json.Formatting.None);
+
+            // Assert: OutPut 應自動填 0，而非被白名單過濾剔除或保留空字串
+            json.Should().Contain("\"OutPut\":\"0\"");
+        }
+
+        [Fact]
+        public void WOCHECKOUTRequest_WhenOutPutIsEmpty_ShouldSerializeAsZero()
+        {
+            // Arrange: 工單出站時，OUTPUT這欄若為空字串則填0 (單工單)
+            Models.MesJsonContractResolver.ConfigureDefaultSettings();
+
+            var req = new WOCHECKOUTRequest
+            {
+                WONO = "WO20260701",
+                EqpNo = "EQ01",
+                UserID = "U001",
+                Operator = "U001",
+                OutPut = ""
+            };
+
+            // Act
+            string json = Models.MesJsonContractResolver.Serialize(req, Newtonsoft.Json.Formatting.None);
+
+            // Assert: OutPut 應自動填 0
+            json.Should().Contain("\"OutPut\":\"0\"");
+        }
+
+        [Fact]
         public void NonWhitelistedApi_SingleWOCHECKIN_ShouldPreserveDefaultFields()
         {
             // Arrange: 白名單只有 MULTI，不包含單工單 WOCHECKIN

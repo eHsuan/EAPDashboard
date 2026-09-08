@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>cyntec.WinMESLite</AssemblyName>
+    <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
+    <TargetFramework>net40</TargetFramework>
+    <PlatformTarget>x86</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup>
+    <LangVersion>14.0</LangVersion>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>False</CheckForOverflowUnderflow>
+  </PropertyGroup>
+  <PropertyGroup />
+  <ItemGroup />
+  <ItemGroup>
+    <Reference Include="System.Data" />
+    <Reference Include="cyntec.Tools" />
+    <Reference Include="cyntec.MES" />
+    <Reference Include="cyntec.Base" />
+    <Reference Include="cyntec.wcfConnection" />
+    <Reference Include="cyntec.Delta" />
+    <Reference Include="System.Core" />
+    <Reference Include="cyntec.wcfMessage" />
+  </ItemGroup>
+</Project>

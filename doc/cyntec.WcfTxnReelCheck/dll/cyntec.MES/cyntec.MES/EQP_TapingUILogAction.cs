@@ -1,0 +1,16 @@
+namespace cyntec.MES;
+
+public enum EQP_TapingUILogAction
+{
+	SETUP = 1,
+	CHECK,
+	UPLOAD,
+	EQPTXN,
+	WOQUERY,
+	WOCHECKIN,
+	WOCHECKOUT,
+	TAPINGREEL,
+	MATADD,
+	TOS,
+	ACCOUNT
+}

@@ -729,6 +729,24 @@ namespace EAPDashboard.Models
         {
             if (request == null) throw new ArgumentNullException(nameof(request));
 
+            // 工單出站時，OUTPUT這欄若為空字串則填0
+            if (request is MESBaseMessage mesReq && mesReq.TransactionName != null)
+            {
+                string txn = mesReq.TransactionName.ToString();
+                if (txn.IndexOf("CHECKOUT", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    var outputProp = request.GetType().GetProperty("OutPut", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.IgnoreCase);
+                    if (outputProp != null && outputProp.PropertyType == typeof(string) && outputProp.CanWrite)
+                    {
+                        string currentVal = (string)outputProp.GetValue(request);
+                        if (string.IsNullOrWhiteSpace(currentVal))
+                        {
+                            outputProp.SetValue(request, "0");
+                        }
+                    }
+                }
+            }
+
             try
             {
                 string prettyReq = MesJsonContractResolver.Serialize(request, Newtonsoft.Json.Formatting.Indented);
@@ -1790,7 +1808,10 @@ namespace EAPDashboard.Models
                 var validWos = wos.Where(w => !string.IsNullOrEmpty(w)).Distinct().ToList();
                 string combinedWo = string.Join(",", validWos);
 
-                OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {qty}, CIDs: {string.Join(",", cids)}");
+                // 工單出站時，OUTPUT這欄若為空字串則填0
+                string safeQty = string.IsNullOrWhiteSpace(qty) ? "0" : qty.Trim();
+
+                OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {safeQty}, CIDs: {string.Join(",", cids)}");
 
                 // 僅 TP 開頭設備檢核所有工單的 NGCode 是否皆已全數上報
                 bool isTp = (!string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id)?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true;
@@ -1842,7 +1863,7 @@ namespace EAPDashboard.Models
                         EqpNo = eid,
                         UserID = userId,
                         Operator = userId,
-                        OutPut = qty,
+                        OutPut = safeQty,
                         WoNoDt = JsonConvert.SerializeObject(validWos.Select(w => new WoNoListItem { WoNo = w }).ToList())
                     };
 
@@ -1884,7 +1905,7 @@ namespace EAPDashboard.Models
                 else
                 {
                     // 單工單出站報工維持標準 WOCHECKOUTRequest
-                    var singleReq = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, Operator = userId, OutPut = qty };
+                    var singleReq = new WOCHECKOUTRequest { WONO = combinedWo, EqpNo = eid, UserID = userId, Operator = userId, OutPut = safeQty };
 
                     if (!string.IsNullOrEmpty(ngListDtJson))
                     {
@@ -1956,7 +1977,7 @@ namespace EAPDashboard.Models
                 SaveProductLeftoversCacheToDisk();
                 SaveInputQtyCacheToDisk();
 
-                if (int.TryParse(qty, out int outQty))
+                if (int.TryParse(safeQty, out int outQty))
                 {
                     foreach (var wo in validWos)
                     {

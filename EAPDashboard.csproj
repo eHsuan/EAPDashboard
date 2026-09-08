@@ -11,7 +11,7 @@
     <Authors>YH.CHIU</Authors>
     <Company>Cyntec</Company>
     <Product>EAP Dashboard</Product>
-    <Version>1.0.7</Version>
+    <Version>1.0.8</Version>
     <LangVersion>latest</LangVersion>
     <ApplicationIcon>EAP.ico</ApplicationIcon>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -21,11 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
     <Compile Remove="dll\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
     <EmbeddedResource Remove="dll\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
     <None Remove="dll\**" />
   </ItemGroup>
 

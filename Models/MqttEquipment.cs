@@ -375,7 +375,8 @@ namespace EAPDashboard.Models
                         List<string> toWos = to.WorkOrder ?? new List<string>();
                         List<string> toCassettes = to.CassetteID ?? new List<string>();
 
-                        string torQty = to.Qty?.ToString() ?? "0";
+                        // 工單出站時，OUTPUT這欄若為空字串則填0
+                        string torQty = string.IsNullOrWhiteSpace(to.Qty?.ToString()) ? "0" : to.Qty.ToString().Trim();
                         if (!string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase))
                         {
                             double tpPassQtyTotal = 0;

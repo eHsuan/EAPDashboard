@@ -64,7 +64,7 @@
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "AC3811",

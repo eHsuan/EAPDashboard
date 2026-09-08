@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <PlatformTarget>x64</PlatformTarget>
+    <Platforms>x64</Platforms>
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <RootNamespace>cyntec.Windows</RootNamespace>
+    <AssemblyName>cyntec.WcfTxnReelCheck.Net8Test</AssemblyName>
+    <ApplicationIcon>rocket.ico</ApplicationIcon>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 微軟官方 WCF 8.x NuGet 套件 -->
+    <PackageReference Include="System.ServiceModel.Primitives" Version="8.1.0" />
+    <PackageReference Include="System.ServiceModel.Http" Version="8.1.0" />
+    <PackageReference Include="System.ServiceModel.NetTcp" Version="8.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- IT 改好並編譯為 .NET 8 (x64) 的 DLL 存放於 dll/ 目錄 -->
+    <Reference Include="cyntec.Base">
+      <HintPath>dll\cyntec.Base.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.Delta">
+      <HintPath>dll\cyntec.Delta.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.MES">
+      <HintPath>dll\cyntec.MES.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.Tools">
+      <HintPath>dll\cyntec.Tools.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.wcfConnection">
+      <HintPath>dll\cyntec.wcfConnection.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.wcfInterface">
+      <HintPath>dll\cyntec.wcfInterface.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.wcfMessage">
+      <HintPath>dll\cyntec.wcfMessage.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.WinMESLite">
+      <HintPath>dll\cyntec.WinMESLite.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.winBase">
+      <HintPath>dll\cyntec.winBase.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="rocket.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Update="cyntec.ReelCheck.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

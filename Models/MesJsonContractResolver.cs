@@ -143,11 +143,29 @@ namespace EAPDashboard.Models
 
             if (isMesType)
             {
+                bool isOutPutProp = string.Equals(property.PropertyName, "OutPut", StringComparison.OrdinalIgnoreCase)
+                                    || string.Equals(member.Name, "OutPut", StringComparison.OrdinalIgnoreCase);
+                if (isOutPutProp && property.ValueProvider != null)
+                {
+                    property.ValueProvider = new OutPutFallbackValueProvider(property.ValueProvider);
+                }
+
                 var prevShouldSerialize = property.ShouldSerialize;
                 property.ShouldSerialize = instance =>
                 {
                     if (prevShouldSerialize != null && !prevShouldSerialize(instance))
                         return false;
+
+                    // 針對工單出站 (含 CHECKOUT) 之 OutPut 欄位特別防護：
+                    // 若為空字串則填 0，因此必須序列化，不可被空值白名單過濾掉
+                    if (instance is MESBaseMessage checkMesMsg && checkMesMsg.TransactionName != null)
+                    {
+                        string txn = checkMesMsg.TransactionName.ToString();
+                        if (txn.IndexOf("CHECKOUT", StringComparison.OrdinalIgnoreCase) >= 0 && isOutPutProp)
+                        {
+                            return true;
+                        }
+                    }
 
                     // 針對工單進站 (WOCHECKIN 與 WOCHECKIN_MULTI) 之 WOCarrierDt 欄位特別防護：
                     // 若為空值、"[]"、"{}" 或 "N/A" / "NA"，一律刪除該欄位 (不予序列化)
@@ -291,6 +309,44 @@ namespace EAPDashboard.Models
             if (val is JObject jobj && jobj.Count == 0) return true;
 
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 工單出站 (CHECKOUT) 專用之 OutPut 欄位防護：
+    /// 若 OutPut 欄位為空值、空字串或純空白，自動回傳 "0"，防止 MES 拒絕或發生空值錯誤。
+    /// </summary>
+    internal class OutPutFallbackValueProvider : IValueProvider
+    {
+        private readonly IValueProvider _inner;
+
+        public OutPutFallbackValueProvider(IValueProvider inner)
+        {
+            _inner = inner;
+        }
+
+        public object GetValue(object target)
+        {
+            object val = _inner.GetValue(target);
+
+            if (target is MESBaseMessage mesMsg && mesMsg.TransactionName != null)
+            {
+                string txn = mesMsg.TransactionName.ToString();
+                if (txn.IndexOf("CHECKOUT", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    if (val == null || (val is string s && string.IsNullOrWhiteSpace(s)))
+                    {
+                        return "0";
+                    }
+                }
+            }
+
+            return val;
+        }
+
+        public void SetValue(object target, object value)
+        {
+            _inner.SetValue(target, value);
         }
     }
 }

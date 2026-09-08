@@ -1,0 +1,17 @@
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
+
+[assembly: AssemblyTitle("cyntec.wcfConnection")]
+[assembly: AssemblyDescription("WCF 連線工具")]
+[assembly: AssemblyConfiguration("")]
+[assembly: AssemblyCompany("Cyntec")]
+[assembly: AssemblyProduct("CYNTEC MES")]
+[assembly: AssemblyCopyright("Copyright ©  2014")]
+[assembly: AssemblyTrademark("")]
+[assembly: ComVisible(false)]
+[assembly: Guid("ee4931df-9ff7-4ddd-b0e4-5d92cc0c2283")]
+[assembly: AssemblyFileVersion("2025.8.13.1")]
+[assembly: AssemblyVersion("2025.8.13.1")]

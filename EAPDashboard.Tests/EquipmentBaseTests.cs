@@ -1259,5 +1259,71 @@ namespace EAPDashboard.Tests
             capturedReqJson.Should().NotBeNull();
             capturedReqJson.Should().NotContain("WOCarrierDt");
         }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData(null)]
+        public async Task ProcessTrackOutAsync_SingleWorkOrder_WhenQtyIsEmptyOrNull_ShouldSendOutPutAsZero(string inputQty)
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_SINGLE_EMPTY_QTY");
+            string capturedOutPut = null;
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOCHECKOUTRequest singleReq)
+                {
+                    capturedOutPut = singleReq.OutPut;
+                    return new WOCHECKOUTReply { Result = "PASS", ResultCode = "0", Message = "Success" };
+                }
+                return null;
+            };
+
+            // Act: 工單出站時，傳入空字串或 null 之 qty
+            var result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO_SINGLE_01" },
+                qty: inputQty,
+                userId: "U001",
+                cassetteIds: new List<string>(),
+                panels: new List<string>());
+
+            // Assert: OUTPUT 這欄應被填為 "0"
+            result.Should().StartWith("PASS|");
+            capturedOutPut.Should().Be("0");
+        }
+
+        [Theory]
+        [InlineData("")]
+        [InlineData("   ")]
+        [InlineData(null)]
+        public async Task ProcessTrackOutAsync_MultipleWorkOrders_WhenQtyIsEmptyOrNull_ShouldSendOutPutAsZero(string inputQty)
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ_MULTI_EMPTY_QTY");
+            string capturedOutPut = null;
+
+            eq.MesCallHandler = req =>
+            {
+                if (req is WOCHECKOUT_MULTIRequest multiReq)
+                {
+                    capturedOutPut = multiReq.OutPut;
+                    return new WOCHECKOUT_MULTIReply { Result = "PASS", ResultCode = "0", Message = "Success" };
+                }
+                return null;
+            };
+
+            // Act: 多工單出站時，傳入空字串或 null 之 qty
+            var result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO_MULTI_01", "WO_MULTI_02" },
+                qty: inputQty,
+                userId: "U001",
+                cassetteIds: new List<string>(),
+                panels: new List<string>());
+
+            // Assert: OUTPUT 這欄應被填為 "0"
+            result.Should().StartWith("PASS|");
+            capturedOutPut.Should().Be("0");
+        }
     }
 }
