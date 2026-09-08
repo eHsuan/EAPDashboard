@@ -33,6 +33,7 @@ namespace EAPDashboard
         public int HeartbeatIntervalSeconds { get; set; }
         public int EqpStatusReportIntervalSeconds { get; set; } = 60;
         public bool EnableCassetteBinding { get; set; } = false;
+        public bool MinimizeToTray { get; set; } = false;
         public MesSettings MesSettings { get; set; }
         public YieldSettings YieldSettings { get; set; } = new YieldSettings();
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
@@ -81,6 +82,9 @@ namespace EAPDashboard
         private LocalDataService _localDataService;
         private System.Timers.Timer _partitionTimer;
         private bool _isInternalRestart = false;
+        private NotifyIcon _notifyIcon;
+        private ContextMenuStrip _trayContextMenu;
+        private FormWindowState _previousWindowState = FormWindowState.Maximized;
 
         public MainForm()
         {
@@ -96,6 +100,7 @@ namespace EAPDashboard
         private void MainForm_Load(object sender, EventArgs e)
         {
             LoadConfig();  
+            InitializeNotifyIcon();
             PopulateDashboard();
             AdjustCardSize();
 
@@ -118,6 +123,8 @@ namespace EAPDashboard
 
                 using (var dlg = new PasswordPromptForm(targetPassword))
                 {
+                    dlg.StartPosition = FormStartPosition.CenterScreen;
+                    dlg.TopMost = true;
                     if (dlg.ShowDialog(this) != DialogResult.OK)
                     {
                         e.Cancel = true;
@@ -128,6 +135,18 @@ namespace EAPDashboard
 
         private void MainForm_FormClosed(object sender, FormClosedEventArgs e)
         {
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+                _notifyIcon = null;
+            }
+            if (_trayContextMenu != null)
+            {
+                _trayContextMenu.Dispose();
+                _trayContextMenu = null;
+            }
+
             _mainCts?.Cancel();
             _mainCts?.Dispose();
             foreach (var eq in _equipments) eq.Stop();
@@ -445,7 +464,68 @@ namespace EAPDashboard
             } catch { }
         }
 
-        private void MainForm_Resize(object sender, EventArgs e) => AdjustCardSize();
+        private void InitializeNotifyIcon()
+        {
+            _trayContextMenu = new ContextMenuStrip();
+            var itemShow = new ToolStripMenuItem("開啟主視窗", null, (s, e) => RestoreFromTray());
+            itemShow.Font = new Font(_trayContextMenu.Font, FontStyle.Bold);
+            var itemExit = new ToolStripMenuItem("結束", null, (s, e) => this.Close());
+            _trayContextMenu.Items.Add(itemShow);
+            _trayContextMenu.Items.Add(new ToolStripSeparator());
+            _trayContextMenu.Items.Add(itemExit);
+
+            string title = string.IsNullOrEmpty(_appConfig?.EapId) ? "EAP Dashboard" : $"EAP Dashboard - {_appConfig.EapId}";
+            if (title.Length > 63)
+            {
+                title = title.Substring(0, 63);
+            }
+
+            _notifyIcon = new NotifyIcon
+            {
+                Icon = this.Icon,
+                Text = title,
+                ContextMenuStrip = _trayContextMenu,
+                Visible = false
+            };
+
+            _notifyIcon.DoubleClick += (s, e) => RestoreFromTray();
+        }
+
+        private void RestoreFromTray()
+        {
+            this.Show();
+            this.ShowInTaskbar = true;
+            this.WindowState = (_previousWindowState == FormWindowState.Minimized) ? FormWindowState.Maximized : _previousWindowState;
+            this.Activate();
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+            }
+            AdjustCardSize();
+        }
+
+        private void MainForm_Resize(object sender, EventArgs e)
+        {
+            if (_appConfig != null && _appConfig.MinimizeToTray)
+            {
+                if (this.WindowState == FormWindowState.Minimized)
+                {
+                    this.Hide();
+                    this.ShowInTaskbar = false;
+                    if (_notifyIcon != null)
+                    {
+                        _notifyIcon.Visible = true;
+                        _notifyIcon.ShowBalloonTip(1500, "EAP Dashboard", "程式已最小化至系統工作列通知區。", ToolTipIcon.Info);
+                    }
+                    return;
+                }
+                else
+                {
+                    _previousWindowState = this.WindowState;
+                }
+            }
+            AdjustCardSize();
+        }
         private void MenuSettings_Click(object sender, EventArgs e) { using (var f = new SettingsForm()) f.ShowDialog(this); }
         private async void MenuTimeSync_Click(object sender, EventArgs e) { foreach (var eq in _equipments) if (eq.Connection == ConnectionStatus.Connected) await eq.SendTimeCalibration(); }
         private void MenuTerminalDisplay_Click(object sender, EventArgs e) { using (var f = new TerminalDisplayForm(_equipments)) f.ShowDialog(this); }

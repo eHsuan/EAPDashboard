@@ -126,5 +126,21 @@ namespace EAPDashboard.Tests
             deserialized.Should().NotBeNull();
             deserialized.ExitPassword.Should().Be("Secret123");
         }
+
+        [Fact]
+        public void AppConfig_MinimizeToTray_ShouldDefaultToFalse_And_SupportCustomConfig()
+        {
+            // Arrange & Act - Default instance
+            var config = new AppConfig();
+
+            // Assert
+            config.MinimizeToTray.Should().BeFalse();
+
+            // Custom config
+            string json = "{\"MinimizeToTray\": true}";
+            var deserialized = JsonConvert.DeserializeObject<AppConfig>(json);
+            deserialized.Should().NotBeNull();
+            deserialized.MinimizeToTray.Should().BeTrue();
+        }
     }
 }
