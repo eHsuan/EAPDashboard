@@ -85,6 +85,7 @@ namespace EAPDashboard
         private NotifyIcon _notifyIcon;
         private ContextMenuStrip _trayContextMenu;
         private FormWindowState _previousWindowState = FormWindowState.Maximized;
+        private bool _isHandlingResize = false;
 
         public MainForm()
         {
@@ -464,8 +465,36 @@ namespace EAPDashboard
             } catch { }
         }
 
+        private Icon LoadApplicationIcon()
+        {
+            try
+            {
+                string iconPath = Path.Combine(Application.StartupPath, "EAP.ico");
+                if (File.Exists(iconPath))
+                {
+                    return new Icon(iconPath);
+                }
+            }
+            catch { }
+
+            try
+            {
+                var exeIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                if (exeIcon != null) return exeIcon;
+            }
+            catch { }
+
+            return SystemIcons.Application;
+        }
+
         private void InitializeNotifyIcon()
         {
+            var appIcon = LoadApplicationIcon();
+            if (appIcon != null)
+            {
+                this.Icon = appIcon;
+            }
+
             _trayContextMenu = new ContextMenuStrip();
             var itemShow = new ToolStripMenuItem("開啟主視窗", null, (s, e) => RestoreFromTray());
             itemShow.Font = new Font(_trayContextMenu.Font, FontStyle.Bold);
@@ -482,7 +511,7 @@ namespace EAPDashboard
 
             _notifyIcon = new NotifyIcon
             {
-                Icon = this.Icon,
+                Icon = appIcon,
                 Text = title,
                 ContextMenuStrip = _trayContextMenu,
                 Visible = false
@@ -493,37 +522,54 @@ namespace EAPDashboard
 
         private void RestoreFromTray()
         {
-            this.Show();
-            this.ShowInTaskbar = true;
-            this.WindowState = (_previousWindowState == FormWindowState.Minimized) ? FormWindowState.Maximized : _previousWindowState;
-            this.Activate();
-            if (_notifyIcon != null)
+            if (_isHandlingResize) return;
+            _isHandlingResize = true;
+            try
             {
-                _notifyIcon.Visible = false;
+                this.Show();
+                this.WindowState = (_previousWindowState == FormWindowState.Minimized) ? FormWindowState.Maximized : _previousWindowState;
+                this.Activate();
+                if (_notifyIcon != null)
+                {
+                    _notifyIcon.Visible = false;
+                }
+            }
+            finally
+            {
+                _isHandlingResize = false;
             }
             AdjustCardSize();
         }
 
         private void MainForm_Resize(object sender, EventArgs e)
         {
-            if (_appConfig != null && _appConfig.MinimizeToTray)
+            if (_isHandlingResize) return;
+            _isHandlingResize = true;
+            try
             {
-                if (this.WindowState == FormWindowState.Minimized)
+                if (_appConfig != null && _appConfig.MinimizeToTray)
                 {
-                    this.Hide();
-                    this.ShowInTaskbar = false;
-                    if (_notifyIcon != null)
+                    if (this.WindowState == FormWindowState.Minimized)
                     {
-                        _notifyIcon.Visible = true;
-                        _notifyIcon.ShowBalloonTip(1500, "EAP Dashboard", "程式已最小化至系統工作列通知區。", ToolTipIcon.Info);
+                        this.Hide();
+                        if (_notifyIcon != null)
+                        {
+                            _notifyIcon.Visible = true;
+                            _notifyIcon.ShowBalloonTip(1500, "EAP Dashboard", "程式已最小化至系統工作列通知區。", ToolTipIcon.Info);
+                        }
+                        return;
                     }
-                    return;
-                }
-                else
-                {
-                    _previousWindowState = this.WindowState;
+                    else
+                    {
+                        _previousWindowState = this.WindowState;
+                    }
                 }
             }
+            finally
+            {
+                _isHandlingResize = false;
+            }
+
             AdjustCardSize();
         }
         private void MenuSettings_Click(object sender, EventArgs e) { using (var f = new SettingsForm()) f.ShowDialog(this); }

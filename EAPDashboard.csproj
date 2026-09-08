@@ -30,7 +30,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="EAP.ico" />
+    <Content Include="EAP.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
