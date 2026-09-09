@@ -1159,32 +1159,16 @@ namespace EAPDashboard.Models
                         string failMsg = $"MES WOQRY Failed for WO {wo}: {qryReply?.Message ?? "No response"}";
                         OnLogReceived(LogLevel.Error, $"[TrackIn] {failMsg}");
 
-                        if (string.Equals(qryReply?.ResultCode, "ERROR0049", StringComparison.OrdinalIgnoreCase))
+                        try
                         {
-                            try
-                            {
-                                string terminalMsg = $"WO {wo} is not valid for check-in at this station";
-                                if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
-                                await SendTerminalDisplay(terminalMsg);
-                            }
-                            catch (Exception ex)
-                            {
-                                OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
-                            }
+                            string errCode = !string.IsNullOrEmpty(qryReply?.ResultCode) ? qryReply.ResultCode : "ERR_MES";
+                            string terminalMsg = ResolveMesFailTerminalMessage(errCode, wo);
+                            if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
+                            await SendTerminalDisplay(terminalMsg);
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            try
-                            {
-                                string errCode = !string.IsNullOrEmpty(qryReply?.ResultCode) ? qryReply.ResultCode : "ERR_MES";
-                                string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
-                                if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
-                                await SendTerminalDisplay(terminalMsg);
-                            }
-                            catch (Exception ex)
-                            {
-                                OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
-                            }
+                            OnLogReceived(LogLevel.Warn, $"[TrackIn] SendTerminalDisplay failed: {ex.Message}");
                         }
 
                         return $"FAIL|{qryReply?.ResultCode ?? "ERR_MES"}|{failMsg}|[]";
@@ -1508,7 +1492,7 @@ namespace EAPDashboard.Models
                     try
                     {
                         string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
-                        string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
+                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo);
                         if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
                         await SendTerminalDisplay(terminalMsg);
                     }
@@ -1949,7 +1933,7 @@ namespace EAPDashboard.Models
                     try
                     {
                         string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
-                        string terminalMsg = $"MES Return Fail，ErrorCode : {errCode}";
+                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo);
                         if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
                         await SendTerminalDisplay(terminalMsg);
                     }
@@ -2313,6 +2297,132 @@ namespace EAPDashboard.Models
 
             return result;
         }
+
+        private static readonly object _mesMappingLock = new object();
+        private static DateTime _mesMappingLastWriteTime = DateTime.MinValue;
+        private static string _cachedMesMappingPath = null;
+        private static Dictionary<string, string> _cachedMesMapping = null;
+
+        public static string MesMappingFilePath { get; set; } = null;
+
+        public static void ResetMesMappingCache()
+        {
+            lock (_mesMappingLock)
+            {
+                _cachedMesMapping = null;
+                _cachedMesMappingPath = null;
+                _mesMappingLastWriteTime = DateTime.MinValue;
+            }
+        }
+
+        public virtual string ResolveMesFailTerminalMessage(string resultCode, string dynamicParam = null)
+        {
+            string fallbackCode = !string.IsNullOrWhiteSpace(resultCode) ? resultCode.Trim() : "ERR_MES";
+
+            // 1. 探測檔案路徑
+            string filePath = MesMappingFilePath;
+            if (filePath == null)
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string candidate1 = Path.Combine(baseDir, "MES_Mapping.json");
+                string candidate2 = Path.Combine(baseDir, "Dictionaries", "MES_Mapping.json");
+
+                if (File.Exists(candidate1))
+                {
+                    filePath = candidate1;
+                }
+                else if (File.Exists(candidate2))
+                {
+                    filePath = candidate2;
+                }
+                else
+                {
+                    filePath = candidate1;
+                }
+            }
+
+            // 2. 檢查檔案是否存在
+            if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            {
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 查無 MES_Mapping.json 檔案 (搜尋路徑: {filePath})，改發 ResultCode: {fallbackCode}");
+                return fallbackCode;
+            }
+
+            // 3. 讀取或自快取取得
+            Dictionary<string, string> mapping = null;
+            try
+            {
+                lock (_mesMappingLock)
+                {
+                    var lastWrite = File.GetLastWriteTimeUtc(filePath);
+                    if (_cachedMesMapping == null || _cachedMesMappingPath != filePath || _mesMappingLastWriteTime != lastWrite)
+                    {
+                        string json = File.ReadAllText(filePath);
+                        var parsed = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+                        _cachedMesMapping = parsed != null 
+                            ? new Dictionary<string, string>(parsed, StringComparer.OrdinalIgnoreCase)
+                            : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        _cachedMesMappingPath = filePath;
+                        _mesMappingLastWriteTime = lastWrite;
+                    }
+                    mapping = _cachedMesMapping;
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 讀取 MES_Mapping.json 失敗 ({ex.Message})，改發 ResultCode: {fallbackCode}");
+                return fallbackCode;
+            }
+
+            // 4. 尋找對應代碼
+            if (mapping == null || !mapping.TryGetValue(fallbackCode, out var mappedValue) || string.IsNullOrWhiteSpace(mappedValue))
+            {
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] MES_Mapping.json 查無錯誤碼 '{fallbackCode}' 之映射，改發 ResultCode: {fallbackCode}");
+                return fallbackCode;
+            }
+
+            // 5. 處理動態參數替換 (如 {wo} 或 {0})
+            string resolvedMsg = mappedValue;
+            if (!string.IsNullOrEmpty(dynamicParam))
+            {
+                resolvedMsg = resolvedMsg.Replace("{wo}", dynamicParam, StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{0}", dynamicParam);
+            }
+            else
+            {
+                resolvedMsg = resolvedMsg.Replace("{wo}", "", StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{0}", "");
+            }
+
+            // 6. 驗證是否包含非英數字元
+            if (!IsValidTerminalAlphaNumeric(resolvedMsg))
+            {
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 錯誤碼 '{fallbackCode}' 之映射值 '{mappedValue}' 包含非英數字元，改發 ResultCode: {fallbackCode}");
+                return fallbackCode;
+            }
+
+            return resolvedMsg.Trim();
+        }
+
+        public static bool IsValidTerminalAlphaNumeric(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+
+            foreach (char c in text)
+            {
+                // 僅允許 ASCII 英文字母 (A-Z, a-z)、數字 (0-9)、以及常見終端分隔符號 (空格、底線、連字號、冒號、句點、斜線)
+                bool isAsciiAlphaNumeric = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
+                bool isAllowedSymbol = c == ' ' || c == '_' || c == '-' || c == ':' || c == '.' || c == '/';
+
+                if (!isAsciiAlphaNumeric && !isAllowedSymbol)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public virtual void Stop() { }
         public static Color GetColorForState(EquipmentState state) { switch (state) { case EquipmentState.Running: return Color.LimeGreen; case EquipmentState.Alarm: case EquipmentState.Down: return Color.Crimson; case EquipmentState.Paused: case EquipmentState.Idle: return Color.Gold; default: return Color.Black; } }
     }

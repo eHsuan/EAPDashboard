@@ -34,5 +34,10 @@
       <HintPath>..\dll\Protocol.LocalData\Protocol.LocalData.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="..\MES_Mapping.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

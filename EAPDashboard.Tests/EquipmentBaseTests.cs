@@ -1149,7 +1149,7 @@ namespace EAPDashboard.Tests
 
             // Assert
             result.Should().StartWith("FAIL|ERR_PARAM_01|");
-            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : ERR_PARAM_01");
+            eq.LastTerminalDisplayMessage.Should().Be("INVALID PARAMETER");
         }
 
         [Fact]
@@ -1180,7 +1180,7 @@ namespace EAPDashboard.Tests
 
             // Assert
             result.Should().StartWith("FAIL|CHECKIN_ERR_01|");
-            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : CHECKIN_ERR_01");
+            eq.LastTerminalDisplayMessage.Should().Be("CHECKIN NOT READY");
         }
 
         [Fact]
@@ -1213,7 +1213,7 @@ namespace EAPDashboard.Tests
 
             // Assert
             result.Should().StartWith("FAIL|CHECKOUT_ERR_02|");
-            eq.LastTerminalDisplayMessage.Should().Be("MES Return Fail，ErrorCode : CHECKOUT_ERR_02");
+            eq.LastTerminalDisplayMessage.Should().Be("CHECKOUT QTY MISMATCH");
         }
 
         [Fact]
@@ -1324,6 +1324,96 @@ namespace EAPDashboard.Tests
             // Assert: OUTPUT 這欄應被填為 "0"
             result.Should().StartWith("PASS|");
             capturedOutPut.Should().Be("0");
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WhenMapped_ShouldReturnMappedValue()
+        {
+            var eq = new TestableEquipment("EQ_MAP_TEST");
+            EquipmentBase.ResetMesMappingCache();
+
+            string msg1 = eq.ResolveMesFailTerminalMessage("CHECKIN_ERR_01");
+            msg1.Should().Be("CHECKIN NOT READY");
+
+            string msg2 = eq.ResolveMesFailTerminalMessage("CHECKOUT_ERR_02");
+            msg2.Should().Be("CHECKOUT QTY MISMATCH");
+
+            string msg3 = eq.ResolveMesFailTerminalMessage("ERR_PARAM_01");
+            msg3.Should().Be("INVALID PARAMETER");
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WithDynamicPlaceholder_ShouldReplaceAndValidate()
+        {
+            var eq = new TestableEquipment("EQ_DYN_TEST");
+            EquipmentBase.ResetMesMappingCache();
+
+            string msg = eq.ResolveMesFailTerminalMessage("ERROR0049", "WO998877");
+            msg.Should().Be("WO WO998877 is not valid for check-in at this station");
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WhenCodeNotFound_ShouldLogWarningAndReturnResultCode()
+        {
+            var eq = new TestableEquipment("EQ_NOTFOUND_TEST");
+            EquipmentBase.ResetMesMappingCache();
+
+            string result = eq.ResolveMesFailTerminalMessage("CODE_NOT_EXISTS_999");
+
+            result.Should().Be("CODE_NOT_EXISTS_999");
+            eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("查無錯誤碼 'CODE_NOT_EXISTS_999' 之映射"));
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WhenFileNotFound_ShouldLogWarningAndReturnResultCode()
+        {
+            var eq = new TestableEquipment("EQ_NOFILE_TEST");
+            string originalPath = EquipmentBase.MesMappingFilePath;
+            try
+            {
+                EquipmentBase.MesMappingFilePath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "non_existent_" + Guid.NewGuid() + ".json");
+                EquipmentBase.ResetMesMappingCache();
+
+                string result = eq.ResolveMesFailTerminalMessage("ERR_ANY");
+
+                result.Should().Be("ERR_ANY");
+                eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("查無 MES_Mapping.json 檔案"));
+            }
+            finally
+            {
+                EquipmentBase.MesMappingFilePath = originalPath;
+                EquipmentBase.ResetMesMappingCache();
+            }
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WhenValueContainsNonAlphaNumeric_ShouldLogWarningAndReturnResultCode()
+        {
+            var eq = new TestableEquipment("EQ_NONALNUM_TEST");
+            string originalPath = EquipmentBase.MesMappingFilePath;
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mes_map_test_" + Guid.NewGuid() + ".json");
+            try
+            {
+                System.IO.File.WriteAllText(tempFile, "{\"ERR_CHINESE\": \"此工單未開工\", \"ERR_SPECIAL\": \"INVALID #$%@\"}");
+                EquipmentBase.MesMappingFilePath = tempFile;
+                EquipmentBase.ResetMesMappingCache();
+
+                // Test 1: Contains Chinese characters
+                string result1 = eq.ResolveMesFailTerminalMessage("ERR_CHINESE");
+                result1.Should().Be("ERR_CHINESE");
+                eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("包含非英數字元") && l.Contains("ERR_CHINESE"));
+
+                // Test 2: Contains disallowed special characters
+                string result2 = eq.ResolveMesFailTerminalMessage("ERR_SPECIAL");
+                result2.Should().Be("ERR_SPECIAL");
+                eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("包含非英數字元") && l.Contains("ERR_SPECIAL"));
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile);
+                EquipmentBase.MesMappingFilePath = originalPath;
+                EquipmentBase.ResetMesMappingCache();
+            }
         }
     }
 }
