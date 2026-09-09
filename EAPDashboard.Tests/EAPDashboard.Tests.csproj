@@ -35,7 +35,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\MES_Mapping.json">
+    <None Include="..\Mapping\*.json">
+      <Link>Mapping\%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

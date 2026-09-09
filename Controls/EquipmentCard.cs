@@ -64,6 +64,7 @@ namespace EAPDashboard.Controls
         {
             // Update all controls based on the equipment's state
             lblEquipmentId.Text = _equipment.Id;
+            lblEquipmentName.Text = !string.IsNullOrEmpty(_equipment.Name) ? _equipment.Name : "";
             lblProtocol.Text = _equipment.Protocol;
             lblRecipe.Text = $"Recipe: {_equipment.CurrentRecipe ?? "N/A"}";
             

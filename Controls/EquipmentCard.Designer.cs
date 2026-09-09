@@ -6,6 +6,7 @@ namespace EAPDashboard.Controls
 
         private System.Windows.Forms.Panel panelStatus;
         private System.Windows.Forms.Label lblEquipmentId;
+        private System.Windows.Forms.Label lblEquipmentName;
         private System.Windows.Forms.Label lblProtocol;
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblRecipe;
@@ -15,6 +16,7 @@ namespace EAPDashboard.Controls
         {
             this.panelStatus = new System.Windows.Forms.Panel();
             this.lblEquipmentId = new System.Windows.Forms.Label();
+            this.lblEquipmentName = new System.Windows.Forms.Label();
             this.lblProtocol = new System.Windows.Forms.Label();
             this.lblStatus = new System.Windows.Forms.Label();
             this.lblRecipe = new System.Windows.Forms.Label();
@@ -42,6 +44,17 @@ namespace EAPDashboard.Controls
             this.lblEquipmentId.Text = "EQP-001";
             
             // 
+            // lblEquipmentName
+            // 
+            this.lblEquipmentName.AutoSize = true;
+            this.lblEquipmentName.Font = new System.Drawing.Font("Segoe UI", 10.5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lblEquipmentName.ForeColor = System.Drawing.Color.DimGray;
+            this.lblEquipmentName.Location = new System.Drawing.Point(24, 54);
+            this.lblEquipmentName.Name = "lblEquipmentName";
+            this.lblEquipmentName.Size = new System.Drawing.Size(0, 19);
+            this.lblEquipmentName.TabIndex = 6;
+            
+            // 
             // lblProtocol
             // 
             this.lblProtocol.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
@@ -59,7 +72,7 @@ namespace EAPDashboard.Controls
             // 
             this.lblStatus.AutoSize = true;
             this.lblStatus.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblStatus.Location = new System.Drawing.Point(24, 65);
+            this.lblStatus.Location = new System.Drawing.Point(24, 78);
             this.lblStatus.Name = "lblStatus";
             this.lblStatus.Size = new System.Drawing.Size(71, 21);
             this.lblStatus.TabIndex = 3;
@@ -70,7 +83,7 @@ namespace EAPDashboard.Controls
             // 
             this.lblRecipe.AutoSize = true;
             this.lblRecipe.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lblRecipe.Location = new System.Drawing.Point(25, 100);
+            this.lblRecipe.Location = new System.Drawing.Point(25, 108);
             this.lblRecipe.Name = "lblRecipe";
             this.lblRecipe.Size = new System.Drawing.Size(84, 15);
             this.lblRecipe.TabIndex = 4;
@@ -98,6 +111,7 @@ namespace EAPDashboard.Controls
             this.Controls.Add(this.lblConnection);
             this.Controls.Add(this.lblRecipe);
             this.Controls.Add(this.lblStatus);
+            this.Controls.Add(this.lblEquipmentName);
             this.Controls.Add(this.lblProtocol);
             this.Controls.Add(this.lblEquipmentId);
             this.Controls.Add(this.panelStatus);

@@ -41,21 +41,21 @@
   "Equipments": [
     {
       "Id": "ET0026",
-      "Name": "鎳鉻蝕刻",
+      "Name": "宇泰和-天車-鎳鉻蝕刻",
       "Protocol": "MQTT",
       "Topic": "TN2/YELLOW/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ET0023",
-      "Name": "微蝕刻",
+      "Name": "營錡-水平式-微蝕刻",
       "Protocol": "MQTT",
       "Topic": "TN2/YELLOW/machine/ET0023",
       "DictionaryPath": "Dictionaries/ET0023.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "TP0013",

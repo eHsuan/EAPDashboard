@@ -2324,20 +2324,25 @@ namespace EAPDashboard.Models
             if (filePath == null)
             {
                 string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string candidate1 = Path.Combine(baseDir, "MES_Mapping.json");
-                string candidate2 = Path.Combine(baseDir, "Dictionaries", "MES_Mapping.json");
+                string candidateMapping = Path.Combine(baseDir, "Mapping", "MES_Mapping.json");
+                string candidateRoot = Path.Combine(baseDir, "MES_Mapping.json");
+                string candidateDict = Path.Combine(baseDir, "Dictionaries", "MES_Mapping.json");
 
-                if (File.Exists(candidate1))
+                if (File.Exists(candidateMapping))
                 {
-                    filePath = candidate1;
+                    filePath = candidateMapping;
                 }
-                else if (File.Exists(candidate2))
+                else if (File.Exists(candidateRoot))
                 {
-                    filePath = candidate2;
+                    filePath = candidateRoot;
+                }
+                else if (File.Exists(candidateDict))
+                {
+                    filePath = candidateDict;
                 }
                 else
                 {
-                    filePath = candidate1;
+                    filePath = candidateMapping;
                 }
             }
 
