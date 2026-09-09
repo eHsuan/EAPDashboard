@@ -1162,7 +1162,7 @@ namespace EAPDashboard.Models
                         try
                         {
                             string errCode = !string.IsNullOrEmpty(qryReply?.ResultCode) ? qryReply.ResultCode : "ERR_MES";
-                            string terminalMsg = ResolveMesFailTerminalMessage(errCode, wo);
+                            string terminalMsg = ResolveMesFailTerminalMessage(errCode, wo, userId);
                             if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
                             await SendTerminalDisplay(terminalMsg);
                         }
@@ -1492,7 +1492,7 @@ namespace EAPDashboard.Models
                     try
                     {
                         string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
-                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo);
+                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo, userId);
                         if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
                         await SendTerminalDisplay(terminalMsg);
                     }
@@ -1933,7 +1933,7 @@ namespace EAPDashboard.Models
                     try
                     {
                         string errCode = !string.IsNullOrEmpty(resultCode) ? resultCode : "ERR_MES";
-                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo);
+                        string terminalMsg = ResolveMesFailTerminalMessage(errCode, combinedWo, userId);
                         if (terminalMsg.Length > 200) terminalMsg = terminalMsg.Substring(0, 197) + "...";
                         await SendTerminalDisplay(terminalMsg);
                     }
@@ -2315,7 +2315,7 @@ namespace EAPDashboard.Models
             }
         }
 
-        public virtual string ResolveMesFailTerminalMessage(string resultCode, string dynamicParam = null)
+        public virtual string ResolveMesFailTerminalMessage(string resultCode, string workOrder = null, string userId = null)
         {
             string fallbackCode = !string.IsNullOrWhiteSpace(resultCode) ? resultCode.Trim() : "ERR_MES";
 
@@ -2386,17 +2386,36 @@ namespace EAPDashboard.Models
                 return fallbackCode;
             }
 
-            // 5. 處理動態參數替換 (如 {wo} 或 {0})
+            // 5. 處理動態參數替換 (如 {wo}, {0} 為工單; {userid}, {user}, {1} 為使用者)
             string resolvedMsg = mappedValue;
-            if (!string.IsNullOrEmpty(dynamicParam))
+            if (!string.IsNullOrEmpty(workOrder))
             {
-                resolvedMsg = resolvedMsg.Replace("{wo}", dynamicParam, StringComparison.OrdinalIgnoreCase)
-                                         .Replace("{0}", dynamicParam);
+                resolvedMsg = resolvedMsg.Replace("{wo}", workOrder, StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{0}", workOrder);
             }
             else
             {
                 resolvedMsg = resolvedMsg.Replace("{wo}", "", StringComparison.OrdinalIgnoreCase)
                                          .Replace("{0}", "");
+            }
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                resolvedMsg = resolvedMsg.Replace("{userid}", userId, StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{user}", userId, StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{1}", userId);
+            }
+            else
+            {
+                resolvedMsg = resolvedMsg.Replace("{userid}", "", StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{user}", "", StringComparison.OrdinalIgnoreCase)
+                                         .Replace("{1}", "");
+            }
+
+            // 清理多餘連續空格
+            while (resolvedMsg.Contains("  "))
+            {
+                resolvedMsg = resolvedMsg.Replace("  ", " ");
             }
 
             // 6. 驗證是否包含非英數字元

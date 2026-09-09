@@ -1415,5 +1415,85 @@ namespace EAPDashboard.Tests
                 EquipmentBase.ResetMesMappingCache();
             }
         }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WithUserIdPlaceholder_ShouldReplaceUserIdAndWorkOrder()
+        {
+            var eq = new TestableEquipment("EQ_USER_TEST");
+            string originalPath = EquipmentBase.MesMappingFilePath;
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mes_map_user_" + Guid.NewGuid() + ".json");
+            try
+            {
+                System.IO.File.WriteAllText(tempFile, "{\"ERR_AUTH\": \"WO {wo} OPERATOR {userid} NOT PERMITTED\"}");
+                EquipmentBase.MesMappingFilePath = tempFile;
+                EquipmentBase.ResetMesMappingCache();
+
+                string msg = eq.ResolveMesFailTerminalMessage("ERR_AUTH", "WO12345", "OP007");
+                msg.Should().Be("WO WO12345 OPERATOR OP007 NOT PERMITTED");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile);
+                EquipmentBase.MesMappingFilePath = originalPath;
+                EquipmentBase.ResetMesMappingCache();
+            }
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WithEmptyUserIdOrWorkOrder_ShouldStripPlaceholdersCleanly()
+        {
+            var eq = new TestableEquipment("EQ_STRIP_TEST");
+            string originalPath = EquipmentBase.MesMappingFilePath;
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mes_map_strip_" + Guid.NewGuid() + ".json");
+            try
+            {
+                System.IO.File.WriteAllText(tempFile, "{\"ERR_CHECK\": \"WO {wo} USER {userid} CHECK FAILED\"}");
+                EquipmentBase.MesMappingFilePath = tempFile;
+                EquipmentBase.ResetMesMappingCache();
+
+                // Case: workOrder and userId are both null
+                string msg1 = eq.ResolveMesFailTerminalMessage("ERR_CHECK", null, null);
+                msg1.Should().Be("WO USER CHECK FAILED");
+
+                // Case: only workOrder provided, userId is null
+                string msg2 = eq.ResolveMesFailTerminalMessage("ERR_CHECK", "WO999", null);
+                msg2.Should().Be("WO WO999 USER CHECK FAILED");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile);
+                EquipmentBase.MesMappingFilePath = originalPath;
+                EquipmentBase.ResetMesMappingCache();
+            }
+        }
+
+        [Fact]
+        public void ResolveMesFailTerminalMessage_WithJsonComments_ShouldParseCorrectly()
+        {
+            var eq = new TestableEquipment("EQ_COMMENT_TEST");
+            string originalPath = EquipmentBase.MesMappingFilePath;
+            string tempFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "mes_map_comment_" + Guid.NewGuid() + ".json");
+            try
+            {
+                string jsonWithComments = @"// Header comments
+// Line 2 comment
+{
+    /* Block comment */
+    ""ERR_WITH_COMMENT"": ""VALID MESSAGE FOR WO {wo}""
+}";
+                System.IO.File.WriteAllText(tempFile, jsonWithComments);
+                EquipmentBase.MesMappingFilePath = tempFile;
+                EquipmentBase.ResetMesMappingCache();
+
+                string msg = eq.ResolveMesFailTerminalMessage("ERR_WITH_COMMENT", "WO888");
+                msg.Should().Be("VALID MESSAGE FOR WO WO888");
+            }
+            finally
+            {
+                if (System.IO.File.Exists(tempFile)) System.IO.File.Delete(tempFile);
+                EquipmentBase.MesMappingFilePath = originalPath;
+                EquipmentBase.ResetMesMappingCache();
+            }
+        }
     }
 }
