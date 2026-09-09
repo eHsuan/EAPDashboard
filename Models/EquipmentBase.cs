@@ -2318,6 +2318,7 @@ namespace EAPDashboard.Models
         public virtual string ResolveMesFailTerminalMessage(string resultCode, string workOrder = null, string userId = null)
         {
             string fallbackCode = !string.IsNullOrWhiteSpace(resultCode) ? resultCode.Trim() : "ERR_MES";
+            string fallbackMessage = $"MES ErrorCode : {fallbackCode}";
 
             // 1. 探測檔案路徑
             string filePath = MesMappingFilePath;
@@ -2349,8 +2350,8 @@ namespace EAPDashboard.Models
             // 2. 檢查檔案是否存在
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
             {
-                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 查無 MES_Mapping.json 檔案 (搜尋路徑: {filePath})，改發 ResultCode: {fallbackCode}");
-                return fallbackCode;
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 查無 MES_Mapping.json 檔案 (搜尋路徑: {filePath})，改發: {fallbackMessage}");
+                return fallbackMessage;
             }
 
             // 3. 讀取或自快取取得
@@ -2375,15 +2376,15 @@ namespace EAPDashboard.Models
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 讀取 MES_Mapping.json 失敗 ({ex.Message})，改發 ResultCode: {fallbackCode}");
-                return fallbackCode;
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 讀取 MES_Mapping.json 失敗 ({ex.Message})，改發: {fallbackMessage}");
+                return fallbackMessage;
             }
 
             // 4. 尋找對應代碼
             if (mapping == null || !mapping.TryGetValue(fallbackCode, out var mappedValue) || string.IsNullOrWhiteSpace(mappedValue))
             {
-                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] MES_Mapping.json 查無錯誤碼 '{fallbackCode}' 之映射，改發 ResultCode: {fallbackCode}");
-                return fallbackCode;
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] MES_Mapping.json 查無錯誤碼 '{fallbackCode}' 之映射，改發: {fallbackMessage}");
+                return fallbackMessage;
             }
 
             // 5. 處理動態參數替換 (如 {wo}, {0} 為工單; {userid}, {user}, {1} 為使用者)
@@ -2421,8 +2422,8 @@ namespace EAPDashboard.Models
             // 6. 驗證是否包含非英數字元
             if (!IsValidTerminalAlphaNumeric(resolvedMsg))
             {
-                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 錯誤碼 '{fallbackCode}' 之映射值 '{mappedValue}' 包含非英數字元，改發 ResultCode: {fallbackCode}");
-                return fallbackCode;
+                OnLogReceived(LogLevel.Warn, $"[MES_Mapping] 錯誤碼 '{fallbackCode}' 之映射值 '{mappedValue}' 包含非英數字元，改發: {fallbackMessage}");
+                return fallbackMessage;
             }
 
             return resolvedMsg.Trim();

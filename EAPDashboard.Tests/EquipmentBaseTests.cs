@@ -1133,8 +1133,8 @@ namespace EAPDashboard.Tests
                     return new WOQRYReply
                     {
                         Result = "FAIL",
-                        ResultCode = "ERR_PARAM_01",
-                        Message = "參數錯誤"
+                        ResultCode = "ERRORUSER0003",
+                        Message = "條碼無效"
                     };
                 }
                 return null;
@@ -1148,8 +1148,8 @@ namespace EAPDashboard.Tests
                 userId: "U001");
 
             // Assert
-            result.Should().StartWith("FAIL|ERR_PARAM_01|");
-            eq.LastTerminalDisplayMessage.Should().Be("INVALID PARAMETER");
+            result.Should().StartWith("FAIL|ERRORUSER0003|");
+            eq.LastTerminalDisplayMessage.Should().Be("Barcode Invalid");
         }
 
         [Fact]
@@ -1165,7 +1165,7 @@ namespace EAPDashboard.Tests
                     return new WOCHECKINReply
                     {
                         Result = "FAIL",
-                        ResultCode = "CHECKIN_ERR_01",
+                        ResultCode = "20601",
                         Message = "未達生產條件"
                     };
                 }
@@ -1179,8 +1179,8 @@ namespace EAPDashboard.Tests
                 cassetteIds: new List<string> { "C001" });
 
             // Assert
-            result.Should().StartWith("FAIL|CHECKIN_ERR_01|");
-            eq.LastTerminalDisplayMessage.Should().Be("CHECKIN NOT READY");
+            result.Should().StartWith("FAIL|20601|");
+            eq.LastTerminalDisplayMessage.Should().Be("Process time not met");
         }
 
         [Fact]
@@ -1196,8 +1196,8 @@ namespace EAPDashboard.Tests
                     return new WOCHECKOUTReply
                     {
                         Result = "FAIL",
-                        ResultCode = "CHECKOUT_ERR_02",
-                        Message = "出站數量錯誤"
+                        ResultCode = "20108",
+                        Message = "狀態不合"
                     };
                 }
                 return null;
@@ -1212,8 +1212,8 @@ namespace EAPDashboard.Tests
                 panels: new List<string>());
 
             // Assert
-            result.Should().StartWith("FAIL|CHECKOUT_ERR_02|");
-            eq.LastTerminalDisplayMessage.Should().Be("CHECKOUT QTY MISMATCH");
+            result.Should().StartWith("FAIL|20108|");
+            eq.LastTerminalDisplayMessage.Should().Be("WO WO_CKOUT_01 status is not WOCHECKOUT");
         }
 
         [Fact]
@@ -1332,14 +1332,14 @@ namespace EAPDashboard.Tests
             var eq = new TestableEquipment("EQ_MAP_TEST");
             EquipmentBase.ResetMesMappingCache();
 
-            string msg1 = eq.ResolveMesFailTerminalMessage("CHECKIN_ERR_01");
-            msg1.Should().Be("CHECKIN NOT READY");
+            string msg1 = eq.ResolveMesFailTerminalMessage("ERRORUSER0003");
+            msg1.Should().Be("Barcode Invalid");
 
-            string msg2 = eq.ResolveMesFailTerminalMessage("CHECKOUT_ERR_02");
-            msg2.Should().Be("CHECKOUT QTY MISMATCH");
+            string msg2 = eq.ResolveMesFailTerminalMessage("20601");
+            msg2.Should().Be("Process time not met");
 
-            string msg3 = eq.ResolveMesFailTerminalMessage("ERR_PARAM_01");
-            msg3.Should().Be("INVALID PARAMETER");
+            string msg3 = eq.ResolveMesFailTerminalMessage("20108", "WO123");
+            msg3.Should().Be("WO WO123 status is not WOCHECKOUT");
         }
 
         [Fact]
@@ -1360,7 +1360,7 @@ namespace EAPDashboard.Tests
 
             string result = eq.ResolveMesFailTerminalMessage("CODE_NOT_EXISTS_999");
 
-            result.Should().Be("CODE_NOT_EXISTS_999");
+            result.Should().Be("MES ErrorCode : CODE_NOT_EXISTS_999");
             eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("查無錯誤碼 'CODE_NOT_EXISTS_999' 之映射"));
         }
 
@@ -1376,7 +1376,7 @@ namespace EAPDashboard.Tests
 
                 string result = eq.ResolveMesFailTerminalMessage("ERR_ANY");
 
-                result.Should().Be("ERR_ANY");
+                result.Should().Be("MES ErrorCode : ERR_ANY");
                 eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("查無 MES_Mapping.json 檔案"));
             }
             finally
@@ -1400,12 +1400,12 @@ namespace EAPDashboard.Tests
 
                 // Test 1: Contains Chinese characters
                 string result1 = eq.ResolveMesFailTerminalMessage("ERR_CHINESE");
-                result1.Should().Be("ERR_CHINESE");
+                result1.Should().Be("MES ErrorCode : ERR_CHINESE");
                 eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("包含非英數字元") && l.Contains("ERR_CHINESE"));
 
                 // Test 2: Contains disallowed special characters
                 string result2 = eq.ResolveMesFailTerminalMessage("ERR_SPECIAL");
-                result2.Should().Be("ERR_SPECIAL");
+                result2.Should().Be("MES ErrorCode : ERR_SPECIAL");
                 eq.LogHistory.Should().Contain(l => l.Contains("[Warn]") && l.Contains("包含非英數字元") && l.Contains("ERR_SPECIAL"));
             }
             finally
