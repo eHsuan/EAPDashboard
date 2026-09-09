@@ -246,6 +246,29 @@ namespace MESSimulator
                     case "WOQRY":
                         string wonoQry = req["WONO"]?.ToString() ?? "";
 
+                        // 檢查是否有設定自訂 TrackIn 失敗代碼 (ResultCode)
+                        string customFailResultCode = "";
+                        try
+                        {
+                            if (this.InvokeRequired)
+                            {
+                                customFailResultCode = (string)this.Invoke(new Func<string>(() => txtSimWoQryResultCode?.Text?.Trim() ?? ""));
+                            }
+                            else
+                            {
+                                customFailResultCode = txtSimWoQryResultCode?.Text?.Trim() ?? "";
+                            }
+                        }
+                        catch { }
+
+                        if (!string.IsNullOrWhiteSpace(customFailResultCode))
+                        {
+                            reply["Result"] = "FAIL";
+                            reply["ResultCode"] = customFailResultCode;
+                            reply["Message"] = $"[Simulation] TrackIn WOQRY Simulated Failure with ResultCode: {customFailResultCode}";
+                            break;
+                        }
+
                         bool simError0049 = false;
                         try
                         {

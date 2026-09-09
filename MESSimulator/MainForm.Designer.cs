@@ -25,6 +25,9 @@ namespace MESSimulator
             chkRecipeMismatch = new System.Windows.Forms.CheckBox();
             chkEnableNGCodeList = new System.Windows.Forms.CheckBox();
             chkSimError0049 = new System.Windows.Forms.CheckBox();
+            lblSimWoQryResultCode = new System.Windows.Forms.Label();
+            txtSimWoQryResultCode = new System.Windows.Forms.TextBox();
+            lblSimWoQryHint = new System.Windows.Forms.Label();
             lblWipQty = new System.Windows.Forms.Label();
             txtWipQty = new System.Windows.Forms.TextBox();
             lblInRequireInputCode = new System.Windows.Forms.Label();
@@ -74,13 +77,16 @@ namespace MESSimulator
             panelTop.Controls.Add(btnStop);
             panelTop.Controls.Add(btnStart);
             panelTop.Controls.Add(txtPort);
+            panelTop.Controls.Add(lblSimWoQryResultCode);
+            panelTop.Controls.Add(txtSimWoQryResultCode);
+            panelTop.Controls.Add(lblSimWoQryHint);
             panelTop.Controls.Add(lblPort);
             panelTop.Controls.Add(lblStatus);
             panelTop.Dock = System.Windows.Forms.DockStyle.Top;
             panelTop.Location = new System.Drawing.Point(0, 0);
             panelTop.Margin = new System.Windows.Forms.Padding(4);
             panelTop.Name = "panelTop";
-            panelTop.Size = new System.Drawing.Size(1176, 80);
+            panelTop.Size = new System.Drawing.Size(1176, 112);
             panelTop.TabIndex = 0;
             // 
             // lblHandshakeResponses
@@ -181,6 +187,32 @@ namespace MESSimulator
             chkSimError0049.TabIndex = 19;
             chkSimError0049.Text = "模擬 ERROR0049 (站點不合)";
             chkSimError0049.UseVisualStyleBackColor = true;
+            // 
+            // lblSimWoQryResultCode
+            // 
+            lblSimWoQryResultCode.AutoSize = true;
+            lblSimWoQryResultCode.Location = new System.Drawing.Point(15, 82);
+            lblSimWoQryResultCode.Name = "lblSimWoQryResultCode";
+            lblSimWoQryResultCode.Size = new System.Drawing.Size(253, 15);
+            lblSimWoQryResultCode.TabIndex = 20;
+            lblSimWoQryResultCode.Text = "模擬 TrackIn WOQRY 失敗代碼 (ResultCode):";
+            // 
+            // txtSimWoQryResultCode
+            // 
+            txtSimWoQryResultCode.Location = new System.Drawing.Point(278, 78);
+            txtSimWoQryResultCode.Name = "txtSimWoQryResultCode";
+            txtSimWoQryResultCode.Size = new System.Drawing.Size(150, 23);
+            txtSimWoQryResultCode.TabIndex = 21;
+            // 
+            // lblSimWoQryHint
+            // 
+            lblSimWoQryHint.AutoSize = true;
+            lblSimWoQryHint.ForeColor = System.Drawing.Color.DimGray;
+            lblSimWoQryHint.Location = new System.Drawing.Point(440, 82);
+            lblSimWoQryHint.Name = "lblSimWoQryHint";
+            lblSimWoQryHint.Size = new System.Drawing.Size(515, 15);
+            lblSimWoQryHint.TabIndex = 22;
+            lblSimWoQryHint.Text = "(若有設定代碼，TrackIn 工單查詢將直接回傳 FAIL 並帶上此 ResultCode；留空則正常回覆)";
             // 
             // lblWipQty
             // 
@@ -431,5 +463,8 @@ namespace MESSimulator
         private System.Windows.Forms.CheckBox chkSimError0049;
         private System.Windows.Forms.Label lblWipQty;
         private System.Windows.Forms.TextBox txtWipQty;
+        private System.Windows.Forms.Label lblSimWoQryResultCode;
+        private System.Windows.Forms.TextBox txtSimWoQryResultCode;
+        private System.Windows.Forms.Label lblSimWoQryHint;
     }
 }
