@@ -1,6 +1,11 @@
-﻿// ==============================================================================
+// ==============================================================================
 // MES Terminal Message 錯誤碼映射表 (MES_Mapping.json)
 // ------------------------------------------------------------------------------
+// 【使用範圍說明】
+//   1. 本表僅在「MES 伺服器回覆 FAIL」時，依據 MES 回傳之 ResultCode 查表轉換訊息。
+//   2. EAP 系統內部防呆（如工單重複進站、配方比對不符、查無配方等）由程式直接
+//      發送內建設計之訊息，不透過本表設定。
+//
 // 【動態標籤說明】
 //   {wo}     : 當前進出站工單號碼 (Work Order)
 //   {userid} : 操作員卡號/工號 (User ID / Operator)
@@ -13,12 +18,9 @@
 // ==============================================================================
 {
   "ERROR0049": "WO {wo} is not valid for check-in at this station",
-  "ERR_ALREADY_IN": "WO ALREADY CHECKED IN",
-  "R001": "Recipe Mismatch",
-  "Y94": "RECIPEID NOT FOUND IN MES",
-  "T001": "MES Call Timeout",
-  "ERR_MISSING_INPUT": "MISSING REQUIRED MANAGEMENT ITEMS",
-  "ERR_PARAM_01": "INVALID PARAMETER",
-  "CHECKIN_ERR_01": "CHECKIN NOT READY",
-  "CHECKOUT_ERR_02": "CHECKOUT QTY MISMATCH"
+  "10701": "{userid} not allowed",
+  "20108": "WO {wo} status is not WOCHECKOUT",
+  "20601": "Process time not met",
+  "20701": "{userid} not allowed",
+  "ERRORUSER0003": "Barcode Invalid"
 }
