@@ -13,12 +13,42 @@
     <Authors>EAP Automation Team</Authors>
     <Company>Cyntec</Company>
     <Description>EAP 專用 TP 標籤防混檢驗核心函式庫 (.NET 8 x64)</Description>
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="System.ServiceModel.Primitives" Version="8.1.0" />
     <PackageReference Include="System.ServiceModel.Http" Version="8.1.0" />
+    <PackageReference Include="System.ServiceModel.NetTcp" Version="8.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="cyntec.MES">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.MES.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.Base">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.Base.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.Delta">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.Delta.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.Tools">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.Tools.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.wcfConnection">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.wcfConnection.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.wcfInterface">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.wcfInterface.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.wcfMessage">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.NET.wcfMessage.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.WinMESLite">
+      <HintPath>..\dll\cyntec.ReelCheck\cyntec.WinMESLite.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

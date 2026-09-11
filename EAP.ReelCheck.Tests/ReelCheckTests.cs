@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using FluentAssertions;
+using Moq;
 using Xunit;
 using EAP.ReelCheck.Engine;
 using EAP.ReelCheck.Models;
@@ -223,5 +225,102 @@ public class ReelCheckTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("NG-0109");
         result.ShouldBlockWorkOrder.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ReelCheckService_FullLifecycle_ShouldInitializeAndHandleScanResult()
+    {
+        // Arrange
+        var mockMes = new Moq.Mock<EAP.ReelCheck.Communication.IReelCheckMesService>();
+        mockMes.Setup(m => m.QueryWorkOrderInfoAsync("WO-01", "EQ-01", "OP-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new WorkOrderContext
+            {
+                WONo = "WO-01",
+                MatNo = "MAT-1001-CYN",
+                BatchNo = "BATCH-888888",
+                MachineNo = "EQ-01",
+                OperatorId = "OP-01"
+            });
+
+        mockMes.Setup(m => m.QueryReelListAsync("WO-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new List<ReelItem>
+            {
+                new() { ReelId = "REEL-999", Status = "00", TPMachNo = "EQ-01", MatNo = "MAT-1001-CYN", BatchNo = "BATCH-888888" }
+            });
+
+        var service = new EAP.ReelCheck.Service.ReelCheckService(mockMes.Object);
+        var scanEvents = new List<ReelCheckResult>();
+        service.OnScanResult += (s, e) => scanEvents.Add(e);
+
+        // Act 1: 初始化工單
+        var ctx = await service.InitializeWorkOrderAsync("WO-01", "EQ-01", "OP-01");
+        service.IsInitialized.Should().BeTrue();
+        ctx.WONo.Should().Be("WO-01");
+
+        // Act 2: 掃描 1D 料號 (>= 9 碼)
+        var r1 = await service.ScanAsync("MAT-1001-CYN");
+        r1.IsSuccess.Should().BeTrue();
+        r1.BarcodeType.Should().Be(BarcodeKind.MatNo);
+
+        // Act 3: 掃描 2D Reel
+        string cipher = Barcode2DParser.EncodeReelId("REEL-999");
+        string barcode = Build2DBarcode("MAT-1001-CYN", "BATCH-888888", "88", cipher);
+        var r2 = await service.ScanAsync(barcode);
+
+        // Assert
+        r2.IsSuccess.Should().BeTrue();
+        r2.DecodedReelId.Should().Be("REEL-999");
+        scanEvents.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ReelCheckService_BlockWorkOrder_ShouldTriggerOnReelBlockedAndCallMes()
+    {
+        // Arrange
+        var mockMes = new Moq.Mock<EAP.ReelCheck.Communication.IReelCheckMesService>();
+        mockMes.Setup(m => m.QueryWorkOrderInfoAsync("WO-01", "EQ-01", "OP-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new WorkOrderContext
+            {
+                WONo = "WO-01",
+                MatNo = "MAT-1001-CYN",
+                BatchNo = "BATCH-888888",
+                MachineNo = "EQ-01",
+                OperatorId = "OP-01"
+            });
+
+        mockMes.Setup(m => m.QueryReelListAsync("WO-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new List<ReelItem>
+            {
+                new() { ReelId = "REEL-LEGAL", Status = "00", TPMachNo = "EQ-01" }
+            });
+
+        var service = new EAP.ReelCheck.Service.ReelCheckService(mockMes.Object);
+        ReelCheckResult? blockedResult = null;
+        service.OnReelBlocked += (s, e) => blockedResult = e;
+
+        await service.InitializeWorkOrderAsync("WO-01", "EQ-01", "OP-01");
+
+        // Act: 掃入非本工單的 Reel
+        string cipherIllegal = Barcode2DParser.EncodeReelId("REEL-ILLEGAL");
+        string barcode = Build2DBarcode("MAT-1001-CYN", "BATCH-888888", "88", cipherIllegal);
+        var scanRes = await service.ScanAsync(barcode);
+
+        // Assert
+        scanRes.IsSuccess.Should().BeFalse();
+        scanRes.ShouldBlockWorkOrder.Should().BeTrue();
+        blockedResult.Should().NotBeNull();
+        blockedResult!.ErrorCode.Should().Be("NG-0301");
+
+        // 驗證向 MES 發出鎖單請求
+        mockMes.Verify(m => m.BlockWorkOrderAsync("WO-01", "NG-0301", Moq.It.IsAny<string>(), Moq.It.IsAny<System.Threading.CancellationToken>()), Moq.Times.Once);
+    }
+
+    [Fact]
+    public void ReelCheckOptions_DefaultValues_ShouldBeSetCorrectly()
+    {
+        var opt = new EAP.ReelCheck.Configuration.ReelCheckOptions();
+        opt.ServerUrl.Should().NotBeNullOrWhiteSpace();
+        opt.TimeoutSeconds.Should().Be(30);
+        opt.AutoReconnect.Should().BeTrue();
     }
 }

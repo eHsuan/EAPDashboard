@@ -24,6 +24,7 @@ public class ReelCheckService
     public bool IsInitialized => _engine.IsInitialized;
 
     public event EventHandler<ReelCheckResult>? OnScanResult;
+    public event EventHandler<ReelCheckResult>? OnReelBlocked;
 
     public ReelCheckService(IReelCheckMesService mesService, ILogger<ReelCheckService>? logger = null)
     {
@@ -34,7 +35,23 @@ public class ReelCheckService
     }
 
     /// <summary>
-    /// 初始化工單與載入 MES 基準資料
+    /// 自動向 MES 查詢工單資訊與 Reel 清單並完成防呆引擎初始化
+    /// </summary>
+    public async Task<WorkOrderContext> InitializeWorkOrderAsync(string woNo, string machNo, string userId, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(woNo);
+        _logger.LogInformation("從 MES 自動載入工單防混資料：WO={WoNo}, Machine={MachNo}, User={UserId}", woNo, machNo, userId);
+
+        var context = await _mesService.QueryWorkOrderInfoAsync(woNo, machNo, userId, ct).ConfigureAwait(false);
+        var boundReels = await _mesService.QueryReelListAsync(woNo, ct).ConfigureAwait(false);
+
+        _engine.Initialize(context, boundReels);
+        _logger.LogInformation("防混引擎初始化完成，已綁定 {Count} 筆 Reel", boundReels.Count);
+        return context;
+    }
+
+    /// <summary>
+    /// 透過現有上下文初始化工單與載入 MES 基準資料
     /// </summary>
     public async Task InitializeWorkOrderAsync(WorkOrderContext context, CancellationToken ct = default)
     {
@@ -68,6 +85,8 @@ public class ReelCheckService
                     result.Message,
                     ct
                 ).ConfigureAwait(false);
+
+                OnReelBlocked?.Invoke(this, result);
             }
             catch (Exception ex)
             {

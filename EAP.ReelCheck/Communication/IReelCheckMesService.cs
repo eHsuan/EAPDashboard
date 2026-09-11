@@ -46,4 +46,14 @@ public interface IReelCheckMesService
     /// 完工包裝過帳
     /// </summary>
     Task<bool> SavePackingAsync(string woNo, string batchNo, string matNo, string reelId, string userId, string workCenterNo, CancellationToken ct = default);
+
+    /// <summary>
+    /// 向 MES 查詢工單詳細資訊與機台防呆檢驗門檻
+    /// </summary>
+    Task<WorkOrderContext> QueryWorkOrderInfoAsync(string woNo, string machNo, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// 測試與 MES WCF 服務之連線健康狀態
+    /// </summary>
+    Task<bool> PingAsync(CancellationToken ct = default);
 }
