@@ -16,6 +16,8 @@ namespace cyntec.Windows
 {
     public partial class frmReelCheck : Form
     {
+        public delegate void HuiInvoke();           // 2026/09/10 
+
         // #1
         private cyntecLog m_Log = null;             //  log
         private cyntecXML m_Config = null;          //  xml設定檔

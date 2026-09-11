@@ -18,6 +18,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="dll\cyntec.Base.dll" />
+    <None Remove="dll\cyntec.Delta.dll" />
+    <None Remove="dll\cyntec.Tools.dll" />
+    <None Remove="dll\cyntec.wcfConnection.dll" />
+    <None Remove="dll\cyntec.wcfInterface.dll" />
+    <None Remove="dll\cyntec.wcfMessage.dll" />
+    <None Remove="dll\cyntec.winBase.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 微軟官方 WCF 8.x NuGet 套件 -->
     <PackageReference Include="System.ServiceModel.Primitives" Version="8.1.0" />
     <PackageReference Include="System.ServiceModel.Http" Version="8.1.0" />
@@ -25,40 +35,33 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- IT 改好並編譯為 .NET 8 (x64) 的 DLL 存放於 dll/ 目錄 -->
-    <Reference Include="cyntec.Base">
-      <HintPath>dll\cyntec.Base.dll</HintPath>
-    </Reference>
-    <Reference Include="cyntec.Delta">
-      <HintPath>dll\cyntec.Delta.dll</HintPath>
-    </Reference>
+    <Content Include="rocket.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Reference Include="cyntec.MES">
       <HintPath>dll\cyntec.MES.dll</HintPath>
     </Reference>
-    <Reference Include="cyntec.Tools">
-      <HintPath>dll\cyntec.Tools.dll</HintPath>
+    <Reference Include="cyntec.NET.Base">
+      <HintPath>dll\cyntec.NET.Base.dll</HintPath>
     </Reference>
-    <Reference Include="cyntec.wcfConnection">
-      <HintPath>dll\cyntec.wcfConnection.dll</HintPath>
+    <Reference Include="cyntec.NET.Delta">
+      <HintPath>dll\cyntec.NET.Delta.dll</HintPath>
     </Reference>
-    <Reference Include="cyntec.wcfInterface">
-      <HintPath>dll\cyntec.wcfInterface.dll</HintPath>
+    <Reference Include="cyntec.NET.Tools">
+      <HintPath>dll\cyntec.NET.Tools.dll</HintPath>
     </Reference>
-    <Reference Include="cyntec.wcfMessage">
-      <HintPath>dll\cyntec.wcfMessage.dll</HintPath>
+    <Reference Include="cyntec.NET.wcfConnection">
+      <HintPath>dll\cyntec.NET.wcfConnection.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.wcfInterface">
+      <HintPath>dll\cyntec.NET.wcfInterface.dll</HintPath>
+    </Reference>
+    <Reference Include="cyntec.NET.wcfMessage">
+      <HintPath>dll\cyntec.NET.wcfMessage.dll</HintPath>
     </Reference>
     <Reference Include="cyntec.WinMESLite">
       <HintPath>dll\cyntec.WinMESLite.dll</HintPath>
     </Reference>
-    <Reference Include="cyntec.winBase">
-      <HintPath>dll\cyntec.winBase.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="rocket.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <None Update="cyntec.ReelCheck.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
