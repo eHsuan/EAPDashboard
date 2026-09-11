@@ -611,6 +611,23 @@ namespace MESSimulator
                         reply["Message"] = "Simulation AddProductLeftover Success";
                         break;
 
+                    case "GETLEFTOVERWONO":
+                    case "GET_LEFTOVER_WONO":
+                        string getWo = req["WONO"]?.ToString() ?? "";
+                        string getReelId = req["ReelID"]?.ToString() ?? "";
+                        string getEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        string getUserId = req["UserID"]?.ToString() ?? "";
+
+                        Log($"[GetLeftoverWONo] Received WONO: {getWo}, ReelID: {getReelId}, EqpNo: {getEqpNo}, UserID: {getUserId}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "000";
+                        reply["Message"] = "Simulation GetLeftoverWONo Success";
+                        reply["Qty"] = "10";
+                        reply["WONO"] = getWo;
+                        reply["BachNo"] = "BATCH_SIM";
+                        reply["Loc"] = "LOC01";
+                        break;
+
                     case "USEPRODUCTLEFTOVER":
                     case "USE_PRODUCT_LEFTOVER":
                         string useWono = req["WONO"]?.ToString() ?? "";

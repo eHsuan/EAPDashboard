@@ -584,6 +584,41 @@ namespace EAPDashboard.Models
                     string pGapQty = getValByLogicalName("GapQty") ?? getValByLogicalName("Gap_Qty");
                     string pLeftoverUserId = getValByLogicalName("UserID") ?? getValByLogicalName("User_ID") ?? getValByLogicalName("Operator");
 
+                    // 需求：收到 EQ 上報 ProductLeftoverReport 時，發 GetLeftoverWONo 給 MES 詢問
+                    var (getWoPass, getWoMsg, mesQty, mesWo, mesBatch) = await ProcessGetLeftoverWONoAsync(pLeftoverWo, pLeftoverReelId, pLeftoverUserId);
+                    if (getWoPass && !string.IsNullOrWhiteSpace(mesQty))
+                    {
+                        // 比對 MES REPLY 的 Qty 與 EQ 上報的 AddQty
+                        bool isMatch = false;
+                        if (double.TryParse(pAddQty, out double eqQtyVal) && double.TryParse(mesQty, out double mesQtyVal))
+                        {
+                            isMatch = Math.Abs(eqQtyVal - mesQtyVal) < 0.0001;
+                        }
+                        else
+                        {
+                            isMatch = string.Equals(pAddQty?.Trim(), mesQty.Trim(), StringComparison.OrdinalIgnoreCase);
+                        }
+
+                        if (!isMatch)
+                        {
+                            OnLogReceived(LogLevel.Warn, $"[ProductLeftover] AddQty mismatch for WO '{pLeftoverWo}', ReelID '{pLeftoverReelId}': EQ reported AddQty='{pAddQty}' but MES GetLeftoverWONo returned Qty='{mesQty}'. Updating AddQty to '{mesQty}'.");
+                            pAddQty = mesQty;
+                        }
+
+                        if (string.IsNullOrWhiteSpace(pLeftoverWoRef) && !string.IsNullOrWhiteSpace(mesWo))
+                        {
+                            pLeftoverWoRef = mesWo;
+                        }
+                        if (string.IsNullOrWhiteSpace(pLeftoverBatch) && !string.IsNullOrWhiteSpace(mesBatch))
+                        {
+                            pLeftoverBatch = mesBatch;
+                        }
+                    }
+                    else
+                    {
+                        OnLogReceived(LogLevel.Warn, $"[ProductLeftover] GetLeftoverWONo query unfulfilled for WO '{pLeftoverWo}', ReelID '{pLeftoverReelId}': {getWoMsg}. Retaining EQ reported AddQty='{pAddQty}'.");
+                    }
+
                     var (pLeftoverPass, pLeftoverMsg) = await ProcessUseProductLeftoverAsync(pLeftoverWo, pLeftoverReelId, pLeftoverWoRef, pLeftoverBatch, pAddQty, pGapQty, pLeftoverUserId);
                     await SendReply(new ReplyEventReportMessage
                     {

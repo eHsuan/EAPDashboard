@@ -1724,6 +1724,61 @@ namespace EAPDashboard.Models
             }
         }
 
+        public async Task<(bool isSuccess, string message, string mesQty, string leftoverWo, string leftoverBatch)> ProcessGetLeftoverWONoAsync(string workOrder, string reelId, string userId = null, string reportEqpId = null)
+        {
+            string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
+            string wo = workOrder?.Trim() ?? "";
+            string rid = reelId?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(wo) || string.IsNullOrEmpty(rid))
+            {
+                string err = $"Missing WorkOrder ('{wo}') or ReelID ('{rid}')";
+                OnLogReceived(LogLevel.Warn, $"[GetLeftoverWONo] {err}");
+                return (false, err, null, null, null);
+            }
+
+            try
+            {
+                var req = new GetLeftoverWONoRequest
+                {
+                    WONO = wo,
+                    ReelID = rid,
+                    DATE = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    EqpNo = eid,
+                    UserID = !string.IsNullOrEmpty(userId) ? userId : "EAP"
+                };
+
+                var getTask = Task.Run(() => CallMesWithLog<GetLeftoverWONoRequest, GetLeftoverWONoReply>(req));
+                if (await Task.WhenAny(getTask, Task.Delay(25000)) != getTask)
+                {
+                    string timeoutMsg = $"MES GetLeftoverWONo Timeout (25s) for WO: {wo}, ReelID: {rid}";
+                    OnLogReceived(LogLevel.Error, $"[GetLeftoverWONo] {timeoutMsg}");
+                    return (false, timeoutMsg, null, null, null);
+                }
+
+                var reply = await getTask;
+                if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
+                {
+                    string mesQty = reply.Qty?.Trim() ?? "";
+                    string leftoverWo = reply.WONO?.Trim() ?? "";
+                    string leftoverBatch = reply.BachNo?.Trim() ?? "";
+                    OnLogReceived(LogLevel.Info, $"[GetLeftoverWONo] Success for WO: {wo}, ReelID: {rid} => MES Qty: '{mesQty}', LeftoverWO: '{leftoverWo}', Batch: '{leftoverBatch}'");
+                    return (true, reply.Message ?? "Success", mesQty, leftoverWo, leftoverBatch);
+                }
+                else
+                {
+                    string failMsg = reply?.Message ?? "MES GetLeftoverWONo Failed";
+                    OnLogReceived(LogLevel.Warn, $"[GetLeftoverWONo] MES replied failure for WO: {wo}, ReelID: {rid} - {failMsg}");
+                    return (false, failMsg, null, null, null);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[GetLeftoverWONo] Exception: {ex.Message}");
+                return (false, ex.Message, null, null, null);
+            }
+        }
+
         public async Task<(bool isSuccess, string message)> ProcessUseProductLeftoverAsync(string workOrder, string reelId, string leftoverWorkOrder, string leftoverBatchNo, string addQty, string gapQty, string userId = null, string reportEqpId = null)
         {
             string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;

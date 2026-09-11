@@ -495,6 +495,94 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public async Task ProcessGetLeftoverWONoAsync_MissingWO_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message, mesQty, wo, batch) = await eq.ProcessGetLeftoverWONoAsync("", "REEL01");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder");
+            mesQty.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ProcessGetLeftoverWONoAsync_MissingReelID_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+
+            // Act
+            var (isSuccess, message, mesQty, wo, batch) = await eq.ProcessGetLeftoverWONoAsync("WO100", "");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Contain("Missing WorkOrder ('WO100') or ReelID ('')");
+            mesQty.Should().BeNull();
+        }
+
+        [Fact]
+        public async Task ProcessGetLeftoverWONoAsync_Success_ShouldReturnMesQtyAndSourceInfo()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is GetLeftoverWONoRequest getReq)
+                {
+                    return new GetLeftoverWONoReply
+                    {
+                        Result = "success",
+                        Message = "OK",
+                        Qty = "15",
+                        WONO = "WO_SOURCE_999",
+                        BachNo = "BATCH_SOURCE_88"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            var (isSuccess, message, mesQty, wo, batch) = await eq.ProcessGetLeftoverWONoAsync("WO100", "REEL_TARGET_01");
+
+            // Assert
+            isSuccess.Should().BeTrue();
+            mesQty.Should().Be("15");
+            wo.Should().Be("WO_SOURCE_999");
+            batch.Should().Be("BATCH_SOURCE_88");
+        }
+
+        [Fact]
+        public async Task ProcessGetLeftoverWONoAsync_MesFailure_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is GetLeftoverWONoRequest)
+                {
+                    return new GetLeftoverWONoReply
+                    {
+                        Result = "FAIL",
+                        Message = "ReelID not found in MES"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            var (isSuccess, message, mesQty, wo, batch) = await eq.ProcessGetLeftoverWONoAsync("WO100", "REEL_NOT_FOUND");
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Be("ReelID not found in MES");
+            mesQty.Should().BeNull();
+        }
+
+        [Fact]
         public async Task ProcessEqpWONGAddAsync_MissingWO_ShouldFailValidation()
         {
             // Arrange
