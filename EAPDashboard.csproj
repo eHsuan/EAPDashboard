@@ -21,11 +21,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
+    <Compile Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**;EAP.ReelCheck.App\**" />
     <Compile Remove="dll\**" />
-    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
+    <EmbeddedResource Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**;EAP.ReelCheck.App\**" />
     <EmbeddedResource Remove="dll\**" />
-    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**" />
+    <None Remove="CyntecMqttLib\**;Protocol.Core\**;Protocol.Drivers.Secs\**;Protocol.Drivers.Mitsubishi\**;Protocol.Core_Backup\**;Protocol.MES\**;EQSimulator\**;MESSimulator\**;doc\**;EAPGateway\**;EAPController\**;EAPDashboard.Tests\**;EAP.ReelCheck\**;EAP.ReelCheck.Tests\**;EAP.ReelCheck.App\**" />
     <None Remove="dll\**" />
   </ItemGroup>
 
