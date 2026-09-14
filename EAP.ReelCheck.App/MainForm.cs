@@ -184,7 +184,7 @@ public class MainForm : Form
             {
                 string legalReelId = _dgvReels.Rows[0].Cells["ReelId"].Value?.ToString() ?? "REEL001";
                 string cipher = Barcode2DParser.EncodeReelId(legalReelId);
-                _txtBarcodeScan.Text = $"{_currentContext.MatNo}{{{{{{{{_currentContext.BatchNo}{{88{{{{{{{cipher}";
+                _txtBarcodeScan.Text = _currentContext.MatNo + "{{{{" + _currentContext.BatchNo + "{88{{{" + cipher;
             }
         };
 
@@ -194,7 +194,7 @@ public class MainForm : Form
             if (_currentContext != null)
             {
                 string cipher = Barcode2DParser.EncodeReelId("REEL-WRONG-999");
-                _txtBarcodeScan.Text = $"{_currentContext.MatNo}{{{{{{{{_currentContext.BatchNo}{{88{{{{{{{cipher}";
+                _txtBarcodeScan.Text = _currentContext.MatNo + "{{{{" + _currentContext.BatchNo + "{88{{{" + cipher;
             }
         };
 
