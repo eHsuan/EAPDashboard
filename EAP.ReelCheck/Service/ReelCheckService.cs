@@ -43,10 +43,20 @@ public class ReelCheckService
         _logger.LogInformation("從 MES 自動載入工單防混資料：WO={WoNo}, Machine={MachNo}, User={UserId}", woNo, machNo, userId);
 
         var context = await _mesService.QueryWorkOrderInfoAsync(woNo, machNo, userId, ct).ConfigureAwait(false);
+        if (context == null)
+        {
+            throw new InvalidOperationException($"無法取得工單 [{woNo}] 之資料 (Context 為空)");
+        }
+
+        if (string.IsNullOrWhiteSpace(context.MatNo) || string.IsNullOrWhiteSpace(context.BatchNo))
+        {
+            throw new InvalidOperationException($"工單 [{woNo}] 缺少料號或批號資訊，無法進行防混料檢核");
+        }
+
         var boundReels = await _mesService.QueryReelListAsync(woNo, ct).ConfigureAwait(false);
 
-        _engine.Initialize(context, boundReels);
-        _logger.LogInformation("防混引擎初始化完成，已綁定 {Count} 筆 Reel", boundReels.Count);
+        _engine.Initialize(context, boundReels ?? Enumerable.Empty<ReelItem>());
+        _logger.LogInformation("防混引擎初始化完成，已綁定 {Count} 筆 Reel", boundReels?.Count ?? 0);
         return context;
     }
 
@@ -56,13 +66,18 @@ public class ReelCheckService
     public async Task InitializeWorkOrderAsync(WorkOrderContext context, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+        if (string.IsNullOrWhiteSpace(context.MatNo) || string.IsNullOrWhiteSpace(context.BatchNo))
+        {
+            throw new InvalidOperationException($"工單 [{context.WONo}] 缺少料號或批號資訊，無法進行防混料檢核");
+        }
+
         _logger.LogInformation("開始初始化工單防混：WO={WoNo}, Machine={MachNo}, MatNo={MatNo}", context.WONo, context.MachineNo, context.MatNo);
 
         // 向 MES 查詢該工單之所有 Reel 清單
         var boundReels = await _mesService.QueryReelListAsync(context.WONo, ct).ConfigureAwait(false);
-        _logger.LogInformation("自 MES 取回 {Count} 筆 Reel 清單", boundReels.Count);
+        _logger.LogInformation("自 MES 取回 {Count} 筆 Reel 清單", boundReels?.Count ?? 0);
 
-        _engine.Initialize(context, boundReels);
+        _engine.Initialize(context, boundReels ?? Enumerable.Empty<ReelItem>());
         _logger.LogInformation("防混引擎初始化完成");
     }
 

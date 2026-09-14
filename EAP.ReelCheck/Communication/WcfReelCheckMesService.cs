@@ -116,22 +116,28 @@ public class WcfReelCheckMesService : IReelCheckMesService, IDisposable
                     var woTxn = new WoInfo_Get { _WoNo = context.WONo };
                     woTxn.clientExecute(_txnConn);
 
-                    if (!woTxn.IsTxnError && woTxn.Result?._WO?._ItemList != null && woTxn.Result._WO._ItemList.Count > 0)
+                    if (woTxn.IsTxnError)
                     {
-                        var mainWo = woTxn.Result._WO._ItemList[0];
-                        context.MatNo = mainWo.MatNo?.Trim() ?? string.Empty;
-                        context.BatchNo = mainWo.BatchNo?.Trim() ?? string.Empty;
-                        context.WorkCenterNo = mainWo.CurrentWorkCenter?.Trim() ?? string.Empty;
-                        context.OrderType = mainWo.OrderType?.Trim() ?? string.Empty;
+                        _logger.LogError("查詢工單基本資料失敗: {Msg}", woTxn.TxnErrorMsg);
+                        throw new InvalidOperationException($"MES 查詢工單失敗: {woTxn.TxnErrorMsg}");
                     }
-                    else
+
+                    if (woTxn.Result?._WO?._ItemList == null || woTxn.Result._WO._ItemList.Count == 0)
                     {
-                        _logger.LogWarning("查詢工單基本資料回傳空或異常: {Msg}", woTxn.TxnErrorMsg);
+                        _logger.LogWarning("MES 查無工單基本資料 (ItemList 為空): WO={WoNo}", context.WONo);
+                        throw new InvalidOperationException($"MES 查無工單 [{context.WONo}] 之基本資訊");
                     }
+
+                    var mainWo = woTxn.Result._WO._ItemList[0];
+                    context.MatNo = mainWo.MatNo?.Trim() ?? string.Empty;
+                    context.BatchNo = mainWo.BatchNo?.Trim() ?? string.Empty;
+                    context.WorkCenterNo = mainWo.CurrentWorkCenter?.Trim() ?? string.Empty;
+                    context.OrderType = mainWo.OrderType?.Trim() ?? string.Empty;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not InvalidOperationException)
                 {
-                    _logger.LogError(ex, "呼叫 WoInfo_Get 失敗: {Msg}", ex.Message);
+                    _logger.LogError(ex, "呼叫 WoInfo_Get 連線異常: {Msg}", ex.Message);
+                    throw new InvalidOperationException($"呼叫 MES 查詢工單發生通訊異常: {ex.Message}", ex);
                 }
 
                 // 2. 查詢機台防呆檢核參數 (EQP_OP_CheckList_Get / MESSystemParameter_Get)
@@ -186,7 +192,7 @@ public class WcfReelCheckMesService : IReelCheckMesService, IDisposable
                     if (reelTxn.IsTxnError)
                     {
                         _logger.LogError("查詢工單 Reel 清單失敗: {Msg}", reelTxn.TxnErrorMsg);
-                        return list;
+                        throw new InvalidOperationException($"MES 查詢工單 Reel 清單失敗: {reelTxn.TxnErrorMsg}");
                     }
 
                     if (reelTxn.Result?._ItemList != null)

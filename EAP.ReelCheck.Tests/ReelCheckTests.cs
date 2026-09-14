@@ -323,4 +323,45 @@ public class ReelCheckTests
         opt.TimeoutSeconds.Should().Be(30);
         opt.AutoReconnect.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task ReelCheckService_MissingMaterialOrBatch_ShouldThrowInvalidOperationException()
+    {
+        // Arrange: MES 回傳空料號或空批號
+        var mockMes = new Moq.Mock<EAP.ReelCheck.Communication.IReelCheckMesService>();
+        mockMes.Setup(m => m.QueryWorkOrderInfoAsync("WO-EMPTY", "EQ-01", "OP-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new WorkOrderContext
+            {
+                WONo = "WO-EMPTY",
+                MatNo = "", // 空料號
+                BatchNo = "", // 空批號
+                MachineNo = "EQ-01",
+                OperatorId = "OP-01"
+            });
+
+        var service = new EAP.ReelCheck.Service.ReelCheckService(mockMes.Object);
+
+        // Act & Assert
+        var act = async () => await service.InitializeWorkOrderAsync("WO-EMPTY", "EQ-01", "OP-01");
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*缺少料號或批號資訊*");
+        service.IsInitialized.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ReelCheckService_NullContext_ShouldThrowInvalidOperationException()
+    {
+        // Arrange: MES 回傳 null
+        var mockMes = new Moq.Mock<EAP.ReelCheck.Communication.IReelCheckMesService>();
+        mockMes.Setup(m => m.QueryWorkOrderInfoAsync("WO-NULL", "EQ-01", "OP-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync((WorkOrderContext)null!);
+
+        var service = new EAP.ReelCheck.Service.ReelCheckService(mockMes.Object);
+
+        // Act & Assert
+        var act = async () => await service.InitializeWorkOrderAsync("WO-NULL", "EQ-01", "OP-01");
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Context 為空*");
+        service.IsInitialized.Should().BeFalse();
+    }
 }

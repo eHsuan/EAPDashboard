@@ -370,9 +370,14 @@ public class MainForm : Form
         }
         catch (Exception ex)
         {
+            _currentContext = null;
+            _txtMatNo.Text = string.Empty;
+            _txtBatchNo.Text = string.Empty;
+            _dgvReels.DataSource = null;
+
             Log($"工單初始化異常: {ex.Message}", Color.Red);
-            SetStatusLight("INIT_ERROR", ex.Message, Color.FromArgb(231, 76, 60));
-            MessageBox.Show($"初始化失敗: {ex.Message}", "連線異常", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            SetStatusLight("INIT_ERROR", $"初始化失敗: {ex.Message}", Color.FromArgb(231, 76, 60));
+            MessageBox.Show($"工單初始化失敗：\n\n{ex.Message}", "開工檢核異常", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         finally
         {
@@ -505,6 +510,11 @@ public class MockOfflineMesService : IReelCheckMesService
 
     public Task<WorkOrderContext> QueryWorkOrderInfoAsync(string woNo, string machNo, string userId, System.Threading.CancellationToken ct = default)
     {
+        if (woNo.Contains("FAIL", StringComparison.OrdinalIgnoreCase) || woNo.Contains("NOTFOUND", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"MES 查無工單 [{woNo}] 之基本資訊 (離線模擬查無工單)");
+        }
+
         _mockReels.Clear();
         _mockReels.Add(new ReelItem { ReelId = "REEL-001", Status = "00", TPMachNo = machNo, MatNo = "MAT-1001-CYN", BatchNo = "BATCH-888888" });
         _mockReels.Add(new ReelItem { ReelId = "REEL-002", Status = "00", TPMachNo = machNo, MatNo = "MAT-1001-CYN", BatchNo = "BATCH-888888" });
