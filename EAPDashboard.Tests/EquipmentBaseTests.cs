@@ -583,6 +583,65 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public async Task ProcessGetEqpInfoAsync_Success_ShouldReturnEquipmentData()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is GetEqpInfoRequest)
+                {
+                    return new GetEqpInfoReply
+                    {
+                        Result = "success",
+                        Message = "OK",
+                        EqpAlias = "天車機A",
+                        GroupName = "捲帶課",
+                        ClassCode = "LINE_01",
+                        EnableCheck = "Y"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            var (isSuccess, message, reply) = await eq.ProcessGetEqpInfoAsync();
+
+            // Assert
+            isSuccess.Should().BeTrue();
+            reply.Should().NotBeNull();
+            reply.EqpAlias.Should().Be("天車機A");
+            reply.GroupName.Should().Be("捲帶課");
+        }
+
+        [Fact]
+        public async Task ProcessGetEqpInfoAsync_Failure_ShouldReturnFail()
+        {
+            // Arrange
+            var eq = new TestableEquipment("EQ01");
+            eq.MesCallHandler = (req) =>
+            {
+                if (req is GetEqpInfoRequest)
+                {
+                    return new GetEqpInfoReply
+                    {
+                        Result = "FAIL",
+                        Message = "Eqp not found in MES"
+                    };
+                }
+                return null;
+            };
+
+            // Act
+            var (isSuccess, message, reply) = await eq.ProcessGetEqpInfoAsync();
+
+            // Assert
+            isSuccess.Should().BeFalse();
+            message.Should().Be("Eqp not found in MES");
+            reply.Should().NotBeNull();
+        }
+
+        [Fact]
         public async Task ProcessEqpWONGAddAsync_MissingWO_ShouldFailValidation()
         {
             // Arrange

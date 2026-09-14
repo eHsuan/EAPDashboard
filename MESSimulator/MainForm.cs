@@ -628,6 +628,22 @@ namespace MESSimulator
                         reply["Loc"] = "LOC01";
                         break;
 
+                    case "GETEQPINFO":
+                    case "GET_EQP_INFO":
+                        string infoEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        string infoEqpUser = req["UserID"]?.ToString() ?? "";
+                        Log($"[GetEqpInfo] Received EqpNo: {infoEqpNo}, UserID: {infoEqpUser}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "000";
+                        reply["Message"] = "Simulation GetEqpInfo Success";
+                        reply["MachID"] = infoEqpNo;
+                        reply["EqpName"] = infoEqpNo;
+                        reply["EqpAlias"] = $"{infoEqpNo}_別名";
+                        reply["GroupName"] = "捲帶編帶課";
+                        reply["EnableCheck"] = "Y";
+                        reply["ClassCode"] = "TP_LINE01";
+                        break;
+
                     case "USEPRODUCTLEFTOVER":
                     case "USE_PRODUCT_LEFTOVER":
                         string useWono = req["WONO"]?.ToString() ?? "";

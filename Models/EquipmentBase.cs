@@ -912,24 +912,8 @@ namespace EAPDashboard.Models
             if (LocalDataServiceInstance == null) return;
             try
             {
-                decimal elapsed = (decimal)(DateTimeOffset.UtcNow - _statusStartTime).TotalSeconds;
-                if (elapsed > 0)
-                {
-                    if (_currentStatusMapped == "RUN") _runTimeSec += elapsed;
-                    else _downTimeSec += elapsed;
-                }
-
-                decimal total = _runTimeSec + _downTimeSec;
-                decimal rate = total > 0 ? _runTimeSec / total : 0;
-
-                LocalDataServiceInstance.WriteAvailability(
-                    equipmentNo: Id,
-                    periodStart: DateTimeOffset.UtcNow.AddHours(-1),
-                    periodEnd: DateTimeOffset.UtcNow,
-                    runTimeSec: _runTimeSec,
-                    downTimeSec: _downTimeSec,
-                    availabilityRate: rate
-                );
+                // 新版 Protocol.LocalData 改由 DB 函式計算區間稼動率
+                LocalDataServiceInstance.CalcAvailabilityPeriod(DateTimeOffset.UtcNow.AddHours(-1), DateTimeOffset.UtcNow);
 
                 _runTimeSec = 0;
                 _downTimeSec = 0;
@@ -937,7 +921,7 @@ namespace EAPDashboard.Models
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Error, $"WriteAvailability Error: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"CalcAvailabilityPeriod Error: {ex.Message}");
             }
         }
 
@@ -947,11 +931,26 @@ namespace EAPDashboard.Models
             try
             {
                 string safeWo = woNo.Length > 50 ? woNo.Substring(0, 50) : woNo;
-                LocalDataServiceInstance.SetCurrentWorkOrder(Id, safeWo, DateTimeOffset.UtcNow);
+                // 新版 Protocol.LocalData 多工單/分槽支援
+                LocalDataServiceInstance.StartWorkOrder(Id, safeWo, slotNo: null, startTime: DateTimeOffset.UtcNow);
             }
             catch (Exception ex)
             {
-                OnLogReceived(LogLevel.Error, $"SetCurrentWorkOrder LocalDb Error: {ex.Message}");
+                OnLogReceived(LogLevel.Error, $"StartWorkOrder LocalDb Error: {ex.Message}");
+            }
+        }
+
+        public void EndWorkOrderLocalDb(string woNo)
+        {
+            if (LocalDataServiceInstance == null || string.IsNullOrEmpty(woNo)) return;
+            try
+            {
+                string safeWo = woNo.Length > 50 ? woNo.Substring(0, 50) : woNo;
+                LocalDataServiceInstance.EndWorkOrder(Id, safeWo, DateTimeOffset.UtcNow);
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"EndWorkOrder LocalDb Error: {ex.Message}");
             }
         }
 
@@ -961,7 +960,8 @@ namespace EAPDashboard.Models
             try
             {
                 string safeWo = woNo.Length > 50 ? woNo.Substring(0, 50) : woNo;
-                LocalDataServiceInstance.WriteOutput(Id, safeWo, outputQty, ngQty, DateTimeOffset.UtcNow);
+                int inputQty = (int)GetWorkOrderInputQty(safeWo);
+                LocalDataServiceInstance.WriteOutput(Id, safeWo, outputQty, ngQty, DateTimeOffset.UtcNow, flowId: null, inputQty: inputQty);
             }
             catch (Exception ex)
             {
@@ -1776,6 +1776,67 @@ namespace EAPDashboard.Models
             {
                 OnLogReceived(LogLevel.Error, $"[GetLeftoverWONo] Exception: {ex.Message}");
                 return (false, ex.Message, null, null, null);
+            }
+        }
+
+        public async Task<(bool isSuccess, string message, GetEqpInfoReply reply)> ProcessGetEqpInfoAsync(string userId = null, string reportEqpId = null)
+        {
+            string eid = !string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id;
+            try
+            {
+                var req = new GetEqpInfoRequest
+                {
+                    EqpNo = eid,
+                    DATE = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    UserID = !string.IsNullOrEmpty(userId) ? userId : "EAP"
+                };
+
+                var getTask = Task.Run(() => CallMesWithLog<GetEqpInfoRequest, GetEqpInfoReply>(req));
+                if (await Task.WhenAny(getTask, Task.Delay(25000)) != getTask)
+                {
+                    string timeoutMsg = $"MES GetEqpInfo Timeout (25s) for Eqp: {eid}";
+                    OnLogReceived(LogLevel.Error, $"[GetEqpInfo] {timeoutMsg}");
+                    return (false, timeoutMsg, null);
+                }
+
+                var reply = await getTask;
+                if (reply != null && (string.Equals(reply.Result, "success", StringComparison.OrdinalIgnoreCase) || string.Equals(reply.Result, "PASS", StringComparison.OrdinalIgnoreCase)))
+                {
+                    string lineCode = reply.LineItem?.FirstOrDefault()?.LineCode ?? reply.ClassCode ?? "";
+                    OnLogReceived(LogLevel.Info, $"[GetEqpInfo] Success for Eqp: {eid} => Alias: '{reply.EqpAlias}', Group: '{reply.GroupName}', Line: '{lineCode}', Enable: '{reply.EnableCheck}'");
+
+                    if (LocalDataServiceInstance != null)
+                    {
+                        try
+                        {
+                            LocalDataServiceInstance.UpdateEquipmentMesInfo(
+                                equipmentNo: eid,
+                                lineCode: lineCode,
+                                enable: reply.EnableCheck ?? "Y",
+                                machAlias: reply.EqpAlias ?? Name,
+                                groupName: reply.GroupName ?? ""
+                            );
+                            OnLogReceived(LogLevel.Info, $"[GetEqpInfo] Synced to LocalData equipment_registry for Eqp: {eid}");
+                        }
+                        catch (Exception ex)
+                        {
+                            OnLogReceived(LogLevel.Warn, $"[GetEqpInfo] Sync to LocalData failed (DB not initialized or not registered): {ex.Message}");
+                        }
+                    }
+
+                    return (true, reply.Message ?? "Success", reply);
+                }
+                else
+                {
+                    string failMsg = reply?.Message ?? "MES GetEqpInfo Failed";
+                    OnLogReceived(LogLevel.Warn, $"[GetEqpInfo] MES replied failure for Eqp: {eid} - {failMsg}");
+                    return (false, failMsg, reply);
+                }
+            }
+            catch (Exception ex)
+            {
+                OnLogReceived(LogLevel.Error, $"[GetEqpInfo] Exception: {ex.Message}");
+                return (false, ex.Message, null);
             }
         }
 

@@ -300,6 +300,22 @@ namespace EAPDashboard
             foreach (var eq in _equipments) {
                 eq.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(EquipmentBase.State)) SaveStates(); };
                 flowLayoutPanel.Controls.Add(new EquipmentCard(eq));
+
+                if (eq.IsActive)
+                {
+                    // 方案 A：啟動時背景非同步向 MES 查詢設備主檔並同步至 LocalData
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await eq.ProcessGetEqpInfoAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[GetEqpInfo] Background init failed for {eq.Id}: {ex.Message}");
+                        }
+                    });
+                }
             }
             InitMqtt();
         }
