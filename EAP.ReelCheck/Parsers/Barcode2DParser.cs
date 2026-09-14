@@ -23,26 +23,67 @@ public static class Barcode2DParser
         }
 
         string trimmed = rawBarcode.Trim();
-        string[] parts = trimmed.Split('{');
+        string[] allParts = trimmed.Split('{');
 
-        // 必須包含至少 6 個欄位才可能具備 MatNo, TapingNo, TypeCode
-        if (parts.Length < 6)
+        string matNo = string.Empty;
+        string tapingNo = string.Empty;
+        string typeCode = string.Empty;
+        string rawReelPart = string.Empty;
+
+        // 軌道一：標準 Cyntec 9 段固定格式 (array[0]=MatNo, array[4]=TapingNo, array[5]=TypeCode, array[8]或最後一段=ReelID)
+        if (allParts.Length >= 9 && allParts[5].Trim().Length == 2 && int.TryParse(allParts[5].Trim(), out _))
         {
-            return new ParsedBarcode2D
+            matNo = allParts[0].Trim();
+            tapingNo = allParts[4].Trim();
+            typeCode = allParts[5].Trim();
+            rawReelPart = allParts[^1].Trim();
+        }
+        // 軌道二：智慧特徵錨點容錯解析 (不管大括號是否被合併、跳脫或縮減皆能精準對齊)
+        else
+        {
+            var tokens = allParts.Select(p => p.Trim())
+                                 .Where(p => !string.IsNullOrEmpty(p))
+                                 .ToList();
+
+            // 尋找長度為 2 的純數字作為 TypeCode 特徵錨點 (如 88, 86)
+            int typeIdx = tokens.FindIndex(t => t.Length == 2 && int.TryParse(t, out _));
+
+            if (typeIdx >= 0)
             {
-                RawBarcode = trimmed,
-                IsValid = false,
-                MatNo = parts.Length > 0 ? parts[0].Trim() : string.Empty
-            };
+                typeCode = tokens[typeIdx];
+
+                // 錨點後方的最後一個非空 Token 必為 Reel 密文
+                if (tokens.Count > typeIdx + 1)
+                {
+                    rawReelPart = tokens[^1];
+                }
+
+                // 錨點正前方緊鄰的 Token 必為工單批號 TapingNo
+                if (typeIdx >= 1)
+                {
+                    tapingNo = tokens[typeIdx - 1];
+                }
+
+                // 最前端第一個 Token 必為工單料號 MatNo
+                if (typeIdx >= 2)
+                {
+                    matNo = tokens[0];
+                }
+            }
+            else if (allParts.Length >= 6)
+            {
+                // 若無 2 位數純數字，保留基礎防呆取值
+                matNo = allParts[0].Trim();
+                tapingNo = allParts.Length > 4 ? allParts[4].Trim() : string.Empty;
+                typeCode = allParts.Length > 5 ? allParts[5].Trim() : string.Empty;
+                rawReelPart = allParts[^1].Trim();
+            }
         }
 
-        string matNo = parts[0].Trim();
-        string tapingNo = parts.Length > 4 ? parts[4].Trim() : string.Empty;
-        string typeCode = parts.Length > 5 ? parts[5].Trim() : string.Empty;
-        string rawReelPart = parts[^1].Trim();
-
         bool is2D = int.TryParse(typeCode, out _) && typeCode.Length == 2;
-        string decodedReelId = is2D ? DecodeReelId(rawReelPart) : string.Empty;
+        string decodedReelId = is2D && !string.IsNullOrWhiteSpace(rawReelPart)
+            ? DecodeReelId(rawReelPart)
+            : string.Empty;
 
         return new ParsedBarcode2D
         {
