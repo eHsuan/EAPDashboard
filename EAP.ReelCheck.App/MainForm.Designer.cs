@@ -101,7 +101,7 @@ partial class MainForm
         _mainLayout.Padding = new System.Windows.Forms.Padding(12);
         _mainLayout.RowCount = 4;
         _mainLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 110F));
-        _mainLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 130F));
+        _mainLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 175F));
         _mainLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 55F));
         _mainLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 45F));
         _mainLayout.Size = new System.Drawing.Size(1200, 850);
@@ -355,23 +355,23 @@ partial class MainForm
         _testButtonsRow.Location = new System.Drawing.Point(6, 71);
         _testButtonsRow.Margin = new System.Windows.Forms.Padding(0, 4, 0, 0);
         _testButtonsRow.Name = "_testButtonsRow";
-        _testButtonsRow.Size = new System.Drawing.Size(600, 35);
+        _testButtonsRow.Size = new System.Drawing.Size(600, 38);
         _testButtonsRow.TabIndex = 2;
         // 
         // _btnTestScanMatNo
         // 
         _btnTestScanMatNo.Location = new System.Drawing.Point(3, 3);
         _btnTestScanMatNo.Name = "_btnTestScanMatNo";
-        _btnTestScanMatNo.Size = new System.Drawing.Size(95, 26);
+        _btnTestScanMatNo.Size = new System.Drawing.Size(100, 30);
         _btnTestScanMatNo.TabIndex = 0;
         _btnTestScanMatNo.Text = "刷 1D 料號";
         _btnTestScanMatNo.UseVisualStyleBackColor = true;
         // 
         // _btnTestScanBatchNo
         // 
-        _btnTestScanBatchNo.Location = new System.Drawing.Point(104, 3);
+        _btnTestScanBatchNo.Location = new System.Drawing.Point(109, 3);
         _btnTestScanBatchNo.Name = "_btnTestScanBatchNo";
-        _btnTestScanBatchNo.Size = new System.Drawing.Size(95, 26);
+        _btnTestScanBatchNo.Size = new System.Drawing.Size(100, 30);
         _btnTestScanBatchNo.TabIndex = 1;
         _btnTestScanBatchNo.Text = "刷 1D 批號";
         _btnTestScanBatchNo.UseVisualStyleBackColor = true;
@@ -379,9 +379,9 @@ partial class MainForm
         // _btnTestScanLegalReel
         // 
         _btnTestScanLegalReel.BackColor = System.Drawing.Color.FromArgb(230, 247, 235);
-        _btnTestScanLegalReel.Location = new System.Drawing.Point(205, 3);
+        _btnTestScanLegalReel.Location = new System.Drawing.Point(215, 3);
         _btnTestScanLegalReel.Name = "_btnTestScanLegalReel";
-        _btnTestScanLegalReel.Size = new System.Drawing.Size(110, 26);
+        _btnTestScanLegalReel.Size = new System.Drawing.Size(115, 30);
         _btnTestScanLegalReel.TabIndex = 2;
         _btnTestScanLegalReel.Text = "刷 合法 Reel";
         _btnTestScanLegalReel.UseVisualStyleBackColor = false;
@@ -390,9 +390,9 @@ partial class MainForm
         // 
         _btnTestScanIllegalReel.BackColor = System.Drawing.Color.FromArgb(255, 235, 235);
         _btnTestScanIllegalReel.ForeColor = System.Drawing.Color.DarkRed;
-        _btnTestScanIllegalReel.Location = new System.Drawing.Point(321, 3);
+        _btnTestScanIllegalReel.Location = new System.Drawing.Point(336, 3);
         _btnTestScanIllegalReel.Name = "_btnTestScanIllegalReel";
-        _btnTestScanIllegalReel.Size = new System.Drawing.Size(130, 26);
+        _btnTestScanIllegalReel.Size = new System.Drawing.Size(135, 30);
         _btnTestScanIllegalReel.TabIndex = 3;
         _btnTestScanIllegalReel.Text = "刷 混料 Reel (NG)";
         _btnTestScanIllegalReel.UseVisualStyleBackColor = false;
