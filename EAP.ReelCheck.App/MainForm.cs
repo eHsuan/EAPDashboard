@@ -50,7 +50,8 @@ public partial class MainForm : Form
         {
             if (_currentContext != null && _dgvReels.Rows.Count > 0)
             {
-                string legalReelId = _dgvReels.Rows[0].Cells["ReelId"].Value?.ToString() ?? "REEL001";
+                int colIdx = _colReelId?.Index >= 0 ? _colReelId.Index : 0;
+                string legalReelId = _dgvReels.Rows[0].Cells[colIdx].Value?.ToString() ?? "REEL-001";
                 string cipher = Barcode2DParser.EncodeReelId(legalReelId);
                 _txtBarcodeScan.Text = _currentContext.MatNo + "{{{{" + _currentContext.BatchNo + "{88{{{" + cipher;
             }
