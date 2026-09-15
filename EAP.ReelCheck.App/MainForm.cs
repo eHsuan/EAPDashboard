@@ -212,7 +212,11 @@ public partial class MainForm : Form
 
     private void ShowBlockedAlert(ReelCheckResult result)
     {
-        MessageBox.Show($"【防混料重大異常】\n\n錯誤代碼：{result.ErrorCode}\n原因：{result.Message}\n\n已觸發 MES 工單鎖定並通知現場停機！", "重大混料警告", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        string lockDetail = string.IsNullOrWhiteSpace(result.ProblemWoNo)
+            ? "已觸發 MES 工單鎖定並通知現場停機！"
+            : $"已觸發 MES 雙向工單鎖定！\n（包含當前工單與被混料之問題工單 [{result.ProblemWoNo}]）\n並即刻通知現場停機！";
+
+        MessageBox.Show($"【防混料重大異常】\n\n錯誤代碼：{result.ErrorCode}\n原因：{result.Message}\n\n{lockDetail}", "重大混料警告", MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     private void SetStatusLight(string title, string detail, Color color)
@@ -332,7 +336,15 @@ public class MockOfflineMesService : IReelCheckMesService
         => Task.FromResult(true);
 
     public Task<string?> QueryOtherWorkOrderByBarcodeAsync(string barcode, System.Threading.CancellationToken ct = default)
-        => Task.FromResult<string?>(null);
+    {
+        // 離線模擬跨工單反查：若條碼包含 "WRONG" 或 "OTHER"，模擬其原屬於另一張工單 "WO2026099999" (觸發 NG-0401)
+        if (barcode.Contains("WRONG", StringComparison.OrdinalIgnoreCase) ||
+            barcode.Contains("OTHER", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<string?>("WO2026099999");
+        }
+        return Task.FromResult<string?>(null);
+    }
 
     public Task<bool> SavePackingAsync(string woNo, string batchNo, string matNo, string reelId, string userId, string workCenterNo, System.Threading.CancellationToken ct = default)
         => Task.FromResult(true);

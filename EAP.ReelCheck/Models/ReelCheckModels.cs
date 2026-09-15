@@ -39,6 +39,7 @@ public class WorkOrderContext
 
     public bool IsMainMaterial { get; set; } = true;
     public string SubMatNo { get; set; } = string.Empty;
+    public string SubBatchNo { get; set; } = string.Empty; // 副料批號 (用於 NG-0103/NG-0104)
     public string OrderType { get; set; } = string.Empty; // 如 ZE01
     public bool IsCheckEnabled { get; set; } = true;     // Property20 != "N"
 
@@ -87,6 +88,7 @@ public record ReelCheckResult
     public string RawBarcode { get; init; } = string.Empty;
     public string DecodedReelId { get; init; } = string.Empty;
     public BarcodeKind BarcodeType { get; init; } = BarcodeKind.Unknown;
+    public string ProblemWoNo { get; init; } = string.Empty; // 跨工單混料時原屬之問題工單號碼 (用於 NG-0401)
 
     public bool ShouldBlockWorkOrder => Disposition == CheckDisposition.BlockWorkOrder;
     public bool ShouldLockMachine => Disposition == CheckDisposition.LockMachine || ShouldBlockWorkOrder;
@@ -123,5 +125,18 @@ public record ReelCheckResult
             RawBarcode = rawBarcode,
             BarcodeType = kind,
             Message = message
+        };
+
+    public static ReelCheckResult CrossWoNg(string rawBarcode, string errorCode, string message, string decodedReelId, string problemWoNo) =>
+        new()
+        {
+            IsSuccess = false,
+            Disposition = CheckDisposition.BlockWorkOrder,
+            ErrorCode = errorCode,
+            RawBarcode = rawBarcode,
+            DecodedReelId = decodedReelId,
+            BarcodeType = BarcodeKind.Reel2D,
+            Message = message,
+            ProblemWoNo = problemWoNo
         };
 }

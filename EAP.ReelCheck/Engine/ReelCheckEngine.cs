@@ -90,13 +90,15 @@ public class ReelCheckEngine
             // 3. 判定條碼型態與分流檢驗
             ReelCheckResult checkResult;
 
-            // 分流 A: 1D 大標籤料號
-            if (string.Equals(cleaned, _context.MatNo, StringComparison.OrdinalIgnoreCase))
+            // 分流 A: 1D 大標籤料號 (比對主料號或副料號)
+            if (string.Equals(cleaned, _context.MatNo, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrEmpty(_context.SubMatNo) && string.Equals(cleaned, _context.SubMatNo, StringComparison.OrdinalIgnoreCase)))
             {
                 checkResult = ProcessMatNoScan(cleaned, time);
             }
-            // 分流 B: 1D 大標籤批號 (TP No)
-            else if (string.Equals(cleaned, _context.BatchNo, StringComparison.OrdinalIgnoreCase))
+            // 分流 B: 1D 大標籤批號 (比對主批號或副批號)
+            else if (string.Equals(cleaned, _context.BatchNo, StringComparison.OrdinalIgnoreCase) ||
+                     (!string.IsNullOrEmpty(_context.SubBatchNo) && string.Equals(cleaned, _context.SubBatchNo, StringComparison.OrdinalIgnoreCase)))
             {
                 checkResult = ProcessTapingNoScan(cleaned, time);
             }
@@ -116,12 +118,6 @@ public class ReelCheckEngine
     /// </summary>
     private ReelCheckResult ProcessMatNoScan(string barcode, DateTime time)
     {
-        if (_activeReel != null)
-        {
-            _activeReel.MatNoScanCount++;
-            _activeReel.LastUpdateTime = time;
-        }
-
         // 主料製程但掃入副料號檢驗 (NG-0101)
         if (_context!.IsMainMaterial && !string.IsNullOrEmpty(_context.SubMatNo) &&
             string.Equals(barcode, _context.SubMatNo, StringComparison.OrdinalIgnoreCase))
@@ -136,6 +132,12 @@ public class ReelCheckEngine
             return ReelCheckResult.Ng(barcode, "NG-0102", $"當前為副料作業，但掃入主料號 [{barcode}]", CheckDisposition.BlockWorkOrder, BarcodeKind.MatNo);
         }
 
+        if (_activeReel != null)
+        {
+            _activeReel.MatNoScanCount++;
+            _activeReel.LastUpdateTime = time;
+        }
+
         return ReelCheckResult.Ok(barcode, BarcodeKind.MatNo, "大標籤料號掃描成功", _activeReel);
     }
 
@@ -148,6 +150,20 @@ public class ReelCheckEngine
         {
             _activeReel.TPNoScanCount++;
             _activeReel.LastUpdateTime = time;
+        }
+
+        // 主料製程但掃入副料批號檢驗 (NG-0103)
+        if (_context!.IsMainMaterial && !string.IsNullOrEmpty(_context.SubBatchNo) &&
+            string.Equals(barcode, _context.SubBatchNo, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReelCheckResult.Ng(barcode, "NG-0103", $"上機異常(NG-0103), 當前作業是主料, T/P NO.:[{_context.BatchNo}], 但掃進來的是副料條碼 [{barcode}]", CheckDisposition.BlockWorkOrder, BarcodeKind.TapingNo);
+        }
+
+        // 副料製程但掃入主料批號檢驗 (NG-0104)
+        if (!_context.IsMainMaterial && !string.IsNullOrEmpty(_context.SubBatchNo) &&
+            string.Equals(barcode, _context.BatchNo, StringComparison.OrdinalIgnoreCase))
+        {
+            return ReelCheckResult.Ng(barcode, "NG-0104", $"上機異常(NG-0104), 當前作業是副料, T/P No.:[{_context.SubBatchNo}], 但掃進來的是主料條碼 [{barcode}]", CheckDisposition.BlockWorkOrder, BarcodeKind.TapingNo);
         }
 
         return ReelCheckResult.Ok(barcode, BarcodeKind.TapingNo, "大標籤批號(TapingNo)掃描成功", _activeReel);
@@ -181,7 +197,16 @@ public class ReelCheckEngine
         // 【防混規則 3：Reel 工單綁定檢驗 (NG-0301 / NG-0401)】
         if (!_reels.TryGetValue(decodedReelId, out var targetReel))
         {
-            return ReelCheckResult.Ng(rawBarcode, "NG-0301", $"歸屬防混異常：Reel ID [{decodedReelId}] 不屬於本工單合法清單！", CheckDisposition.BlockWorkOrder, BarcodeKind.Reel2D);
+            return new ReelCheckResult
+            {
+                IsSuccess = false,
+                Disposition = CheckDisposition.BlockWorkOrder,
+                ErrorCode = "NG-0301",
+                RawBarcode = rawBarcode,
+                DecodedReelId = decodedReelId,
+                BarcodeType = BarcodeKind.Reel2D,
+                Message = $"歸屬防混異常：Reel ID [{decodedReelId}] 不屬於本工單合法清單！"
+            };
         }
 
         // 【防混規則 4：Reel 狀態防呆 (NG-0108 - 防止已出站重複投料)】

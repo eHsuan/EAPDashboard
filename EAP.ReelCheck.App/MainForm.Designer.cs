@@ -393,9 +393,9 @@ partial class MainForm
         _btnTestScanIllegalReel.ForeColor = Color.DarkRed;
         _btnTestScanIllegalReel.Location = new Point(336, 3);
         _btnTestScanIllegalReel.Name = "_btnTestScanIllegalReel";
-        _btnTestScanIllegalReel.Size = new Size(135, 30);
+        _btnTestScanIllegalReel.Size = new Size(185, 30);
         _btnTestScanIllegalReel.TabIndex = 3;
-        _btnTestScanIllegalReel.Text = "刷 混料 Reel (NG)";
+        _btnTestScanIllegalReel.Text = "刷 跨工單 Reel (NG-0401)";
         _btnTestScanIllegalReel.UseVisualStyleBackColor = false;
         // 
         // _pnlStatusLight

@@ -88,18 +88,55 @@ public class ReelCheckService
     {
         var result = _engine.ProcessBarcode(rawBarcode);
 
+        // 若本機判定清單找不到 Reel (NG-0301)，向 MES 進行反查是否屬於其他工單 (NG-0401)
+        if (!result.IsSuccess && result.ErrorCode == "NG-0301" && !string.IsNullOrEmpty(result.DecodedReelId))
+        {
+            try
+            {
+                var otherWo = await _mesService.QueryOtherWorkOrderByBarcodeAsync(result.DecodedReelId, ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(otherWo) &&
+                    !string.Equals(otherWo, _engine.CurrentContext?.WONo, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 升級判定為 NG-0401：當前工單 A，但掃到其他工單 B 的 Reel
+                    result = ReelCheckResult.CrossWoNg(
+                        rawBarcode,
+                        "NG-0401",
+                        $"與工單不匹配(NG-0401), 當前工單({_engine.CurrentContext?.WONo}), 但掃到其他工單({otherWo})的Reel({result.DecodedReelId})。",
+                        result.DecodedReelId,
+                        otherWo);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "向 MES 反查 ReelID [{ReelId}] 所屬工單失敗: {Msg}", result.DecodedReelId, ex.Message);
+            }
+        }
+
         // 若判定為重大混料需鎖單
         if (result.ShouldBlockWorkOrder && _engine.CurrentContext != null)
         {
             _logger.LogWarning("觸發防呆鎖單機制！原因: [{Code}] {Msg}", result.ErrorCode, result.Message);
             try
             {
+                // 1. 鎖定當前工單
                 await _mesService.BlockWorkOrderAsync(
                     _engine.CurrentContext.WONo,
                     result.ErrorCode,
                     result.Message,
                     ct
                 ).ConfigureAwait(false);
+
+                // 2. 若為 NG-0401 跨工單混料，同步鎖定被誤拿料捲之問題工單 (ProblemWoNo)
+                if (!string.IsNullOrWhiteSpace(result.ProblemWoNo))
+                {
+                    _logger.LogWarning("觸發雙向鎖單！鎖定被誤拿料捲之問題工單: {OtherWo}", result.ProblemWoNo);
+                    await _mesService.BlockWorkOrderAsync(
+                        result.ProblemWoNo,
+                        "NG-0401B",
+                        $"問題工單({result.ProblemWoNo})的Reel({result.DecodedReelId})在工單({_engine.CurrentContext.WONo})的作業當中發現",
+                        ct
+                    ).ConfigureAwait(false);
+                }
 
                 OnReelBlocked?.Invoke(this, result);
             }

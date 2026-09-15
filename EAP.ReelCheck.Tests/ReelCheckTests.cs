@@ -364,4 +364,74 @@ public class ReelCheckTests
             .WithMessage("*Context 為空*");
         service.IsInitialized.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task ReelCheckService_CrossWorkOrderReel_ShouldTriggerNG0401AndDualBlock()
+    {
+        // Arrange
+        var mockMes = new Moq.Mock<EAP.ReelCheck.Communication.IReelCheckMesService>();
+        mockMes.Setup(m => m.QueryWorkOrderInfoAsync("WO-CURRENT", "EQ-01", "OP-01", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new WorkOrderContext
+            {
+                WONo = "WO-CURRENT",
+                MatNo = "MAT-1001-CYN",
+                BatchNo = "BATCH-888888",
+                MachineNo = "EQ-01",
+                OperatorId = "OP-01"
+            });
+
+        mockMes.Setup(m => m.QueryReelListAsync("WO-CURRENT", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync(new List<ReelItem>
+            {
+                new() { ReelId = "REEL-LEGIT-001", Status = "00", TPMachNo = "EQ-01" }
+            });
+
+        // 模擬 MES 反查：REEL-OTHER-001 屬於其他工單 WO-OTHER-999
+        mockMes.Setup(m => m.QueryOtherWorkOrderByBarcodeAsync("REEL-OTHER-001", Moq.It.IsAny<System.Threading.CancellationToken>()))
+            .ReturnsAsync("WO-OTHER-999");
+
+        var service = new EAP.ReelCheck.Service.ReelCheckService(mockMes.Object);
+        await service.InitializeWorkOrderAsync("WO-CURRENT", "EQ-01", "OP-01");
+
+        // Act: 掃入屬於其他工單的 Reel
+        string cipherOther = Barcode2DParser.EncodeReelId("REEL-OTHER-001");
+        string barcode = Build2DBarcode("MAT-1001-CYN", "BATCH-888888", "88", cipherOther);
+        var result = await service.ScanAsync(barcode);
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NG-0401");
+        result.ProblemWoNo.Should().Be("WO-OTHER-999");
+        result.Message.Should().Contain("WO-CURRENT").And.Contain("WO-OTHER-999");
+
+        // 驗證雙向鎖單：同時鎖定當前工單與對方問題工單
+        mockMes.Verify(m => m.BlockWorkOrderAsync("WO-CURRENT", "NG-0401", Moq.It.IsAny<string>(), Moq.It.IsAny<System.Threading.CancellationToken>()), Moq.Times.Once);
+        mockMes.Verify(m => m.BlockWorkOrderAsync("WO-OTHER-999", "NG-0401B", Moq.It.IsAny<string>(), Moq.It.IsAny<System.Threading.CancellationToken>()), Moq.Times.Once);
+    }
+
+    [Fact]
+    public void ReelCheckEngine_MainMaterial_ScanSubBatch_ShouldTriggerNG0103()
+    {
+        // Arrange
+        var engine = new ReelCheckEngine();
+        var context = new WorkOrderContext
+        {
+            WONo = "WO-01",
+            MatNo = "MAT-MAIN",
+            BatchNo = "BATCH-MAIN-001",
+            SubMatNo = "MAT-SUB",
+            SubBatchNo = "BATCH-SUB-999",
+            IsMainMaterial = true,
+            MachineNo = "EQ-01"
+        };
+        engine.Initialize(context, new List<ReelItem>());
+
+        // Act: 掃入副料批號
+        var result = engine.ProcessBarcode("BATCH-SUB-999");
+
+        // Assert
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("NG-0103");
+        result.ShouldBlockWorkOrder.Should().BeTrue();
+    }
 }
