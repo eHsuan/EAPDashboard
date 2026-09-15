@@ -15,7 +15,7 @@ using EAP.ReelCheck.Service;
 
 namespace EAP.ReelCheck.App;
 
-public class MainForm : Form
+public partial class MainForm : Form
 {
     // 核心服務
     private ReelCheckService? _reelCheckService;
@@ -23,161 +23,29 @@ public class MainForm : Form
     private ReelCheckOptions _options = new();
     private WorkOrderContext? _currentContext;
 
-    // UI 控制項 - 頂部工單設定區
-    private TextBox _txtMachineNo = null!;
-    private TextBox _txtWoNo = null!;
-    private TextBox _txtUserId = null!;
-    private TextBox _txtMatNo = null!;
-    private TextBox _txtBatchNo = null!;
-    private Button _btnInitWorkOrder = null!;
-    private CheckBox _chkSimulateOffline = null!;
-
-    // UI 控制項 - 條碼輸入與檢驗狀態區
-    private TextBox _txtBarcodeScan = null!;
-    private Button _btnSubmitScan = null!;
-    private Panel _pnlStatusLight = null!;
-    private Label _lblStatusText = null!;
-    private Label _lblStatusDetail = null!;
-    private Label _lblDecodedReelId = null!;
-
-    // UI 控制項 - 快捷測試工具按鈕
-    private Button _btnTestScanMatNo = null!;
-    private Button _btnTestScanBatchNo = null!;
-    private Button _btnTestScanLegalReel = null!;
-    private Button _btnTestScanIllegalReel = null!;
-
-    // UI 控制項 - 表格與日誌
-    private DataGridView _dgvReels = null!;
-    private RichTextBox _rtbLog = null!;
-
     public MainForm()
     {
-        InitializeCustomComponents();
+        InitializeComponent();
+        AttachEventHandlers();
         LoadConfiguration();
     }
 
-    private void InitializeCustomComponents()
+    private void AttachEventHandlers()
     {
-        this.Text = "EAP 標籤防混檢驗展示系統 (EAP.ReelCheck Demo)";
-        this.Size = new Size(1200, 850);
-        this.StartPosition = FormStartPosition.CenterScreen;
-        this.Font = new Font("Segoe UI", 9.5F, FontStyle.Regular);
-        this.BackColor = Color.FromArgb(245, 247, 250);
-
-        // 主容器
-        var mainLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 4,
-            Padding = new Padding(12)
-        };
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 110F)); // 1. 工單設定
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 130F)); // 2. 掃碼檢驗看板
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 55F));    // 3. Reel 清單表格
-        mainLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 45F));    // 4. 即時日誌
-
-        // 1. 工單設定群組
-        var grpWo = new GroupBox
-        {
-            Text = "🏭 工單與機台作業設定",
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-        };
-        var woPanel = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            AutoScroll = true,
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular),
-            Padding = new Padding(8)
-        };
-
-        woPanel.Controls.Add(new Label { Text = "機台編號:", AutoSize = true, Margin = new Padding(0, 8, 4, 0) });
-        _txtMachineNo = new TextBox { Text = "TP-01", Width = 90 };
-        woPanel.Controls.Add(_txtMachineNo);
-
-        woPanel.Controls.Add(new Label { Text = "工單號碼:", AutoSize = true, Margin = new Padding(10, 8, 4, 0) });
-        _txtWoNo = new TextBox { Text = "WO2026091101", Width = 130 };
-        woPanel.Controls.Add(_txtWoNo);
-
-        woPanel.Controls.Add(new Label { Text = "作業人員:", AutoSize = true, Margin = new Padding(10, 8, 4, 0) });
-        _txtUserId = new TextBox { Text = "OP001", Width = 90 };
-        woPanel.Controls.Add(_txtUserId);
-
-        _btnInitWorkOrder = new Button
-        {
-            Text = "🚀 開工初始化",
-            Width = 110,
-            Height = 30,
-            BackColor = Color.FromArgb(41, 128, 185),
-            ForeColor = Color.White,
-            FlatStyle = FlatStyle.Flat
-        };
         _btnInitWorkOrder.Click += async (s, e) => await InitializeWorkOrderAsync();
-        woPanel.Controls.Add(_btnInitWorkOrder);
-
-        _chkSimulateOffline = new CheckBox
-        {
-            Text = "離線模擬模式 (免接 MES)",
-            AutoSize = true,
-            Checked = true,
-            Margin = new Padding(15, 6, 0, 0)
-        };
-        woPanel.Controls.Add(_chkSimulateOffline);
-
-        // 第二行顯示工單料號與批號
-        var woDetailPanel = new FlowLayoutPanel { Width = 1100, Height = 35, Margin = new Padding(0, 4, 0, 0) };
-        woDetailPanel.Controls.Add(new Label { Text = "工單料號 (MatNo):", AutoSize = true, Margin = new Padding(0, 6, 4, 0) });
-        _txtMatNo = new TextBox { Width = 150, ReadOnly = true, BackColor = Color.FromArgb(235, 235, 235) };
-        woDetailPanel.Controls.Add(_txtMatNo);
-
-        woDetailPanel.Controls.Add(new Label { Text = "工單批號 (BatchNo):", AutoSize = true, Margin = new Padding(20, 6, 4, 0) });
-        _txtBatchNo = new TextBox { Width = 150, ReadOnly = true, BackColor = Color.FromArgb(235, 235, 235) };
-        woDetailPanel.Controls.Add(_txtBatchNo);
-        woPanel.Controls.Add(woDetailPanel);
-
-        grpWo.Controls.Add(woPanel);
-        mainLayout.Controls.Add(grpWo, 0, 0);
-
-        // 2. 條碼掃描與檢驗結果看板
-        var grpScan = new GroupBox
-        {
-            Text = "🔍 條碼掃描與防混檢驗",
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-        };
-        var scanLayout = new TableLayoutPanel
-        {
-            Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 1
-        };
-        scanLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 55F));
-        scanLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 45F));
-
-        // 左側：輸入框與快捷按鈕
-        var scanLeft = new FlowLayoutPanel { Dock = DockStyle.Fill, Padding = new Padding(6) };
-        scanLeft.Controls.Add(new Label { Text = "請掃入條碼 (1D 料號/批號 或 2D Reel 標籤):", AutoSize = true, Font = new Font("Segoe UI", 9F) });
-        
-        var inputRow = new FlowLayoutPanel { Width = 550, Height = 35 };
-        _txtBarcodeScan = new TextBox { Width = 400, Font = new Font("Consolas", 11F) };
-        _txtBarcodeScan.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; await ProcessScanAsync(); } };
-        inputRow.Controls.Add(_txtBarcodeScan);
-
-        _btnSubmitScan = new Button { Text = "驗證 ⏎", Width = 80, Height = 28, BackColor = Color.FromArgb(46, 204, 113), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
         _btnSubmitScan.Click += async (s, e) => await ProcessScanAsync();
-        inputRow.Controls.Add(_btnSubmitScan);
-        scanLeft.Controls.Add(inputRow);
+        _txtBarcodeScan.KeyDown += async (s, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                await ProcessScanAsync();
+            }
+        };
 
-        // 快捷模擬測試按鈕
-        var testButtonsRow = new FlowLayoutPanel { Width = 600, Height = 35, Margin = new Padding(0, 4, 0, 0) };
-        _btnTestScanMatNo = new Button { Text = "刷 1D 料號", Width = 95, Height = 26 };
         _btnTestScanMatNo.Click += (s, e) => { if (_currentContext != null) _txtBarcodeScan.Text = _currentContext.MatNo; };
-
-        _btnTestScanBatchNo = new Button { Text = "刷 1D 批號", Width = 95, Height = 26 };
         _btnTestScanBatchNo.Click += (s, e) => { if (_currentContext != null) _txtBarcodeScan.Text = _currentContext.BatchNo; };
 
-        _btnTestScanLegalReel = new Button { Text = "刷 合法 Reel", Width = 110, Height = 26, BackColor = Color.FromArgb(230, 247, 235) };
         _btnTestScanLegalReel.Click += (s, e) =>
         {
             if (_currentContext != null && _dgvReels.Rows.Count > 0)
@@ -188,7 +56,6 @@ public class MainForm : Form
             }
         };
 
-        _btnTestScanIllegalReel = new Button { Text = "刷 混料 Reel (NG)", Width = 130, Height = 26, BackColor = Color.FromArgb(255, 235, 235), ForeColor = Color.DarkRed };
         _btnTestScanIllegalReel.Click += (s, e) =>
         {
             if (_currentContext != null)
@@ -197,102 +64,6 @@ public class MainForm : Form
                 _txtBarcodeScan.Text = _currentContext.MatNo + "{{{{" + _currentContext.BatchNo + "{88{{{" + cipher;
             }
         };
-
-        testButtonsRow.Controls.AddRange(new Control[] { _btnTestScanMatNo, _btnTestScanBatchNo, _btnTestScanLegalReel, _btnTestScanIllegalReel });
-        scanLeft.Controls.Add(testButtonsRow);
-        scanLayout.Controls.Add(scanLeft, 0, 0);
-
-        // 右側：大型狀態指示面板
-        _pnlStatusLight = new Panel
-        {
-            Dock = DockStyle.Fill,
-            BackColor = Color.FromArgb(230, 230, 230),
-            Padding = new Padding(10)
-        };
-        _lblStatusText = new Label
-        {
-            Text = "STANDBY 等待開工",
-            Font = new Font("Segoe UI", 18F, FontStyle.Bold),
-            ForeColor = Color.DimGray,
-            Dock = DockStyle.Top,
-            Height = 35,
-            TextAlign = ContentAlignment.MiddleCenter
-        };
-        _lblStatusDetail = new Label
-        {
-            Text = "請點擊 [開工初始化] 載入工單",
-            Font = new Font("Segoe UI", 10F),
-            ForeColor = Color.FromArgb(60, 60, 60),
-            Dock = DockStyle.Top,
-            Height = 25,
-            TextAlign = ContentAlignment.MiddleCenter
-        };
-        _lblDecodedReelId = new Label
-        {
-            Text = "還原 Reel ID: ---",
-            Font = new Font("Consolas", 10.5F, FontStyle.Bold),
-            ForeColor = Color.FromArgb(40, 40, 40),
-            Dock = DockStyle.Top,
-            Height = 25,
-            TextAlign = ContentAlignment.MiddleCenter
-        };
-        _pnlStatusLight.Controls.Add(_lblDecodedReelId);
-        _pnlStatusLight.Controls.Add(_lblStatusDetail);
-        _pnlStatusLight.Controls.Add(_lblStatusText);
-        scanLayout.Controls.Add(_pnlStatusLight, 1, 0);
-
-        grpScan.Controls.Add(scanLayout);
-        mainLayout.Controls.Add(grpScan, 0, 1);
-
-        // 3. Reel 清單表格
-        var grpGrid = new GroupBox
-        {
-            Text = "📋 工單料捲 (Reel) 狀態清單",
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-        };
-        _dgvReels = new DataGridView
-        {
-            Dock = DockStyle.Fill,
-            ReadOnly = true,
-            AllowUserToAddRows = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            BackgroundColor = Color.White,
-            BorderStyle = BorderStyle.None,
-            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-            RowHeadersVisible = false,
-            Font = new Font("Segoe UI", 9F, FontStyle.Regular)
-        };
-        _dgvReels.Columns.Add("ReelId", "Reel ID (料捲編號)");
-        _dgvReels.Columns.Add("Status", "狀態");
-        _dgvReels.Columns.Add("MachNo", "綁定機台");
-        _dgvReels.Columns.Add("StartTime", "上機起始時間");
-        _dgvReels.Columns.Add("ReelScanCount", "Reel 刷次");
-        _dgvReels.Columns.Add("MatScanCount", "料號刷次");
-        _dgvReels.Columns.Add("TPScanCount", "批號刷次");
-        grpGrid.Controls.Add(_dgvReels);
-        mainLayout.Controls.Add(grpGrid, 0, 2);
-
-        // 4. 即時日誌區
-        var grpLog = new GroupBox
-        {
-            Text = "📜 即時操作與通訊歷程 (Log)",
-            Dock = DockStyle.Fill,
-            Font = new Font("Segoe UI", 9.5F, FontStyle.Bold)
-        };
-        _rtbLog = new RichTextBox
-        {
-            Dock = DockStyle.Fill,
-            ReadOnly = true,
-            BackColor = Color.FromArgb(30, 30, 30),
-            ForeColor = Color.FromArgb(220, 220, 220),
-            Font = new Font("Consolas", 9F),
-            BorderStyle = BorderStyle.None
-        };
-        grpLog.Controls.Add(_rtbLog);
-        mainLayout.Controls.Add(grpLog, 0, 3);
-
-        this.Controls.Add(mainLayout);
     }
 
     private void LoadConfiguration()
