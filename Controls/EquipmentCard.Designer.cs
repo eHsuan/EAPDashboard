@@ -11,6 +11,7 @@ namespace EAPDashboard.Controls
         private System.Windows.Forms.Label lblStatus;
         private System.Windows.Forms.Label lblRecipe;
         private System.Windows.Forms.Label lblConnection;
+        private System.Windows.Forms.Button btnReel;
 
         private void InitializeComponent()
         {
@@ -102,12 +103,29 @@ namespace EAPDashboard.Controls
             this.lblConnection.Text = "DISCONNECTED";
             
             // 
+            // btnReel
+            // 
+            this.btnReel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnReel.BackColor = System.Drawing.Color.FromArgb(41, 128, 185);
+            this.btnReel.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnReel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnReel.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnReel.ForeColor = System.Drawing.Color.White;
+            this.btnReel.Location = new System.Drawing.Point(260, 140);
+            this.btnReel.Name = "btnReel";
+            this.btnReel.Size = new System.Drawing.Size(75, 28);
+            this.btnReel.TabIndex = 7;
+            this.btnReel.Text = "Reel";
+            this.btnReel.UseVisualStyleBackColor = false;
+            this.btnReel.Visible = false;
+            // 
             // EquipmentCard
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.Controls.Add(this.btnReel);
             this.Controls.Add(this.lblConnection);
             this.Controls.Add(this.lblRecipe);
             this.Controls.Add(this.lblStatus);

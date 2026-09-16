@@ -48,6 +48,7 @@
 
   <ItemGroup>
     <ProjectReference Include="CyntecMqttLib\CyntecMqttLib.csproj" />
+    <ProjectReference Include="EAP.ReelCheck\EAP.ReelCheck.csproj" />
     <Reference Include="Protocol.Core">
       <HintPath>dll\Protocol.Core.dll\Protocol.Core.dll</HintPath>
     </Reference>

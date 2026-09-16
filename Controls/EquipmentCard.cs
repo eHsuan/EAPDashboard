@@ -16,7 +16,8 @@ namespace EAPDashboard.Controls
             _equipment = equipment;
             _equipment.PropertyChanged += Equipment_PropertyChanged;
             
-            BindClickEvent(this); // Make the card and all its children clickable
+            btnReel.Click += (s, e) => OpenReelForm();
+            BindClickEvent(this); // Make the card and all its children clickable (excluding buttons)
             
             UpdateUI();
         }
@@ -37,9 +38,27 @@ namespace EAPDashboard.Controls
             newLogForm.Show();
         }
 
-        // Recursively add click event to all child controls
+        private void OpenReelForm()
+        {
+            // Check if a reel form for this equipment is already open
+            foreach (Form openForm in Application.OpenForms)
+            {
+                if (openForm is EquipmentReelForm reelForm && reelForm.Text.Contains(_equipment.Id))
+                {
+                    reelForm.BringToFront();
+                    return;
+                }
+            }
+
+            var newReelForm = new EquipmentReelForm(_equipment);
+            newReelForm.Show();
+        }
+
+        // Recursively add click event to all child controls except buttons
         private void BindClickEvent(Control control)
         {
+            if (control is Button) return; // 避免與按鈕專屬點擊事件衝突
+
             control.Click += (s, e) => OpenLogForm();
             foreach (Control child in control.Controls)
             {
@@ -86,6 +105,11 @@ namespace EAPDashboard.Controls
             // State and Status Strip
             lblStatus.Text = _equipment.State.ToString();
             panelStatus.BackColor = EquipmentBase.GetColorForState(_equipment.State);
+
+            // 若設備名稱或編號為 TP 開頭，則顯示 Reel 專案按鈕
+            bool isTp = (_equipment.Name?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true) ||
+                        (_equipment.Id?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true);
+            btnReel.Visible = isTp;
         }
 
         // Clean up event handler to prevent memory leaks
