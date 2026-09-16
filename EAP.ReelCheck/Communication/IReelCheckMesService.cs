@@ -48,6 +48,26 @@ public interface IReelCheckMesService
     Task<bool> SavePackingAsync(string woNo, string batchNo, string matNo, string reelId, string userId, string workCenterNo, CancellationToken ct = default);
 
     /// <summary>
+    /// 檢驗工單動態狀態 (WOConfirm_Get: 比對刪單 Confirm、進站時間變動過帳、工單出站)
+    /// </summary>
+    Task<WorkOrderStatusCheckResult> CheckWorkOrderStatusAsync(string woNo, string workCenterNo, DateTime initialInTime, CancellationToken ct = default);
+
+    /// <summary>
+    /// 透過 1D 批號反查全廠所屬工單 (WO_ReelID_Get_WCF，用於 NG-0105 跨工單批號防混)
+    /// </summary>
+    Task<string?> QueryWorkOrderByBatchNoAsync(string batchNo, CancellationToken ct = default);
+
+    /// <summary>
+    /// 檢驗 1D 料號是否存在於 MES 主檔 (MatView_Get，用於 NG-0106 其他工單料號防混)
+    /// </summary>
+    Task<bool> IsMaterialExistsAsync(string matNo, CancellationToken ct = default);
+
+    /// <summary>
+    /// 工單結束結案作業 (WoFinish)，結算最後一捲並回寫 MES
+    /// </summary>
+    Task<bool> FinishWorkOrderAsync(string woNo, ReelItem? lastReel, string machNo, string userId, CancellationToken ct = default);
+
+    /// <summary>
     /// 向 MES 查詢工單詳細資訊與機台防呆檢驗門檻
     /// </summary>
     Task<WorkOrderContext> QueryWorkOrderInfoAsync(string woNo, string machNo, string userId, CancellationToken ct = default);

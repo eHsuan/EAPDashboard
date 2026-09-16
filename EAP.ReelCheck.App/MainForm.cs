@@ -33,6 +33,7 @@ public partial class MainForm : Form
     private void AttachEventHandlers()
     {
         _btnInitWorkOrder.Click += async (s, e) => await InitializeWorkOrderAsync();
+        _btnFinishWorkOrder.Click += async (s, e) => await ProcessFinishWorkOrderAsync();
         _btnSubmitScan.Click += async (s, e) => await ProcessScanAsync();
         _txtBarcodeScan.KeyDown += async (s, e) =>
         {
@@ -175,6 +176,40 @@ public partial class MainForm : Form
         RefreshReelsGrid();
     }
 
+    private async Task ProcessFinishWorkOrderAsync()
+    {
+        if (_reelCheckService == null || !_reelCheckService.IsInitialized)
+        {
+            MessageBox.Show("請先完成工單開工初始化！", "提示", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var dialogResult = MessageBox.Show(
+            $"確定要結束工單 [{_currentContext?.WONo}] 生產作業嗎？\n系統將對最後一捲料捲執行防呆指標結算與過帳。",
+            "確認工單結束",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (dialogResult != DialogResult.Yes) return;
+
+        Log($"[FINISH] 正在執行工單結案 (WoFinish)...", Color.Plum);
+        var result = await _reelCheckService.FinishWorkOrderAsync();
+        RefreshReelsGrid();
+
+        if (result.IsSuccess)
+        {
+            SetStatusLight("FINISHED 工單已結案", result.Message, Color.FromArgb(142, 68, 173));
+            Log($"[FINISH OK] {result.Message}", Color.Plum);
+            MessageBox.Show($"工單 [{_currentContext?.WONo}] 結案成功！\n\n{result.Message}", "結案完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        else
+        {
+            SetStatusLight($"LOCK 結案異常 [{result.ErrorCode}]", result.Message, Color.FromArgb(192, 57, 43));
+            Log($"[FINISH NG] 結案失敗：[{result.ErrorCode}] {result.Message}", Color.OrangeRed);
+            MessageBox.Show($"工單結案異常：\n\n代碼：{result.ErrorCode}\n原因：{result.Message}", "結案防呆阻斷", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
     private void UpdateScanResultUI(ReelCheckResult result)
     {
         if (result.IsSuccess)
@@ -303,6 +338,7 @@ public class MockOfflineMesService : IReelCheckMesService
             OperatorId = userId,
             MatNo = "MAT-1001-CYN",
             BatchNo = "BATCH-888888",
+            ConfirmInTime = DateTime.Now,
             MinMatNoScanCount = 1,
             MinTPNoScanCount = 1,
             MinReelDurationMinutes = 0,
@@ -313,6 +349,44 @@ public class MockOfflineMesService : IReelCheckMesService
     public Task<List<ReelItem>> QueryReelListAsync(string woNo, System.Threading.CancellationToken ct = default)
     {
         return Task.FromResult(_mockReels.ToList());
+    }
+
+    public Task<WorkOrderStatusCheckResult> CheckWorkOrderStatusAsync(string woNo, string workCenterNo, DateTime initialInTime, System.Threading.CancellationToken ct = default)
+    {
+        if (woNo.Contains("NG-0201", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(WorkOrderStatusCheckResult.Ng("NG-0201", "工單狀態異動(NG-0201), 工單可能已被刪除 Confirm。"));
+        if (woNo.Contains("NG-0202", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(WorkOrderStatusCheckResult.Ng("NG-0202", "工單狀態異動(NG-0202), 工單已被重新過帳"));
+        if (woNo.Contains("NG-0203", StringComparison.OrdinalIgnoreCase))
+            return Task.FromResult(WorkOrderStatusCheckResult.Ng("NG-0203", "工單狀態變動(NG-0203), 工單出站狀態改變: 工單已出站"));
+
+        return Task.FromResult(WorkOrderStatusCheckResult.Ok());
+    }
+
+    public Task<string?> QueryWorkOrderByBatchNoAsync(string batchNo, System.Threading.CancellationToken ct = default)
+    {
+        // 離線模擬 1D 批號反查：若包含 WRONG 或 OTHER，模擬為其他工單之批號 (觸發 NG-0105)
+        if (batchNo.Contains("WRONG", StringComparison.OrdinalIgnoreCase) ||
+            batchNo.Contains("OTHER", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult<string?>("WO2026098888");
+        }
+        return Task.FromResult<string?>(null);
+    }
+
+    public Task<bool> IsMaterialExistsAsync(string matNo, System.Threading.CancellationToken ct = default)
+    {
+        // 離線模擬料號主檔：以 MAT- 開頭視為合法存在之料號 (若非當前工單料號則觸發 NG-0106)
+        if (matNo.StartsWith("MAT-", StringComparison.OrdinalIgnoreCase))
+        {
+            return Task.FromResult(true);
+        }
+        return Task.FromResult(false);
+    }
+
+    public Task<bool> FinishWorkOrderAsync(string woNo, ReelItem? lastReel, string machNo, string userId, System.Threading.CancellationToken ct = default)
+    {
+        return Task.FromResult(true);
     }
 
     public Task<bool> UpdateReelStatusAsync(string reelId, string statusCode, string machNo, string userId, DateTime startTime, DateTime endTime, System.Threading.CancellationToken ct = default)

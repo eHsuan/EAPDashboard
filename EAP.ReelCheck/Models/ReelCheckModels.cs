@@ -10,7 +10,8 @@ public enum BarcodeKind
     Unknown = 0,
     MatNo = 1,       // 1D 大標籤料號
     TapingNo = 2,    // 1D 大標籤批號 (TP No)
-    Reel2D = 3       // 2D Reel 標籤條碼
+    Reel2D = 3,      // 2D Reel 標籤條碼
+    Unknown1D = 4    // 1D 條碼但非當前工單料號或批號 (需全廠反查)
 }
 
 /// <summary>
@@ -43,11 +44,28 @@ public class WorkOrderContext
     public string OrderType { get; set; } = string.Empty; // 如 ZE01
     public bool IsCheckEnabled { get; set; } = true;     // Property20 != "N"
 
+    // 工單進站狀態檢核 (WOConfirm)
+    public DateTime ConfirmInTime { get; set; } = DateTime.MinValue; // 開工刷入時之進站時間
+
     // 防呆參數門檻
     public int MinMatNoScanCount { get; set; } = 1;
     public int MinTPNoScanCount { get; set; } = 1;
     public decimal MinReelDurationMinutes { get; set; } = 0;
     public double ReelUpdateDelayMinutes { get; set; } = 1.0;
+}
+
+/// <summary>
+/// 工單動態狀態檢驗結果 (WOConfirm_Get)
+/// </summary>
+public record WorkOrderStatusCheckResult
+{
+    public bool IsOk { get; init; } = true;
+    public string ErrorCode { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+
+    public static WorkOrderStatusCheckResult Ok() => new() { IsOk = true };
+    public static WorkOrderStatusCheckResult Ng(string errorCode, string message) =>
+        new() { IsOk = false, ErrorCode = errorCode, Message = message };
 }
 
 /// <summary>
@@ -138,5 +156,16 @@ public record ReelCheckResult
             BarcodeType = BarcodeKind.Reel2D,
             Message = message,
             ProblemWoNo = problemWoNo
+        };
+
+    public static ReelCheckResult Unknown1DResult(string rawBarcode, string cleanedBarcode) =>
+        new()
+        {
+            IsSuccess = false,
+            Disposition = CheckDisposition.Warning,
+            RawBarcode = rawBarcode,
+            DecodedReelId = cleanedBarcode,
+            BarcodeType = BarcodeKind.Unknown1D,
+            Message = $"1D 條碼 [{cleanedBarcode}] 非當前工單料號或批號，準備反查 MES"
         };
 }

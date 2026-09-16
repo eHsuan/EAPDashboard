@@ -39,6 +39,7 @@ partial class MainForm
         _lblUserId = new Label();
         _txtUserId = new TextBox();
         _btnInitWorkOrder = new Button();
+        _btnFinishWorkOrder = new Button();
         _chkSimulateOffline = new CheckBox();
         _woDetailPanel = new FlowLayoutPanel();
         _lblMatNo = new Label();
@@ -129,6 +130,7 @@ partial class MainForm
         _woPanel.Controls.Add(_lblUserId);
         _woPanel.Controls.Add(_txtUserId);
         _woPanel.Controls.Add(_btnInitWorkOrder);
+        _woPanel.Controls.Add(_btnFinishWorkOrder);
         _woPanel.Controls.Add(_chkSimulateOffline);
         _woPanel.Controls.Add(_woDetailPanel);
         _woPanel.Dock = DockStyle.Fill;
@@ -205,16 +207,28 @@ partial class MainForm
         _btnInitWorkOrder.Text = "🚀 開工初始化";
         _btnInitWorkOrder.UseVisualStyleBackColor = false;
         // 
+        // _btnFinishWorkOrder
+        // 
+        _btnFinishWorkOrder.BackColor = Color.FromArgb(142, 68, 173);
+        _btnFinishWorkOrder.FlatStyle = FlatStyle.Flat;
+        _btnFinishWorkOrder.ForeColor = Color.White;
+        _btnFinishWorkOrder.Location = new Point(715, 11);
+        _btnFinishWorkOrder.Name = "_btnFinishWorkOrder";
+        _btnFinishWorkOrder.Size = new Size(110, 30);
+        _btnFinishWorkOrder.TabIndex = 7;
+        _btnFinishWorkOrder.Text = "🏁 工單結束";
+        _btnFinishWorkOrder.UseVisualStyleBackColor = false;
+        // 
         // _chkSimulateOffline
         // 
         _chkSimulateOffline.AutoSize = true;
         _chkSimulateOffline.Checked = true;
         _chkSimulateOffline.CheckState = CheckState.Checked;
-        _chkSimulateOffline.Location = new Point(727, 14);
+        _chkSimulateOffline.Location = new Point(840, 14);
         _chkSimulateOffline.Margin = new Padding(15, 6, 0, 0);
         _chkSimulateOffline.Name = "_chkSimulateOffline";
         _chkSimulateOffline.Size = new Size(206, 24);
-        _chkSimulateOffline.TabIndex = 7;
+        _chkSimulateOffline.TabIndex = 8;
         _chkSimulateOffline.Text = "離線模擬模式 (免接 MES)";
         _chkSimulateOffline.UseVisualStyleBackColor = true;
         // 
@@ -603,6 +617,7 @@ partial class MainForm
     private System.Windows.Forms.Label _lblUserId;
     private System.Windows.Forms.TextBox _txtUserId;
     private System.Windows.Forms.Button _btnInitWorkOrder;
+    private System.Windows.Forms.Button _btnFinishWorkOrder;
     private System.Windows.Forms.CheckBox _chkSimulateOffline;
     private System.Windows.Forms.FlowLayoutPanel _woDetailPanel;
     private System.Windows.Forms.Label _lblMatNo;

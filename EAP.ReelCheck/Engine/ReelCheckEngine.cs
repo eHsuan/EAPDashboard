@@ -102,10 +102,19 @@ public class ReelCheckEngine
             {
                 checkResult = ProcessTapingNoScan(cleaned, time);
             }
-            // 分流 C: 2D Reel 標籤條碼
+            // 分流 C: 2D Reel 標籤條碼 或 未知 1D 條碼
             else
             {
-                checkResult = ProcessReel2DScan(cleaned, rawBarcode, time);
+                var parsed2D = Barcode2DParser.Parse(cleaned);
+                if (parsed2D.IsValid && parsed2D.Is2D)
+                {
+                    checkResult = ProcessReel2DScan(cleaned, rawBarcode, time);
+                }
+                else
+                {
+                    // 既非本單主/副料號、主/副批號，亦非標準 2D Reel 標籤 => 標記為 Unknown1D 轉交服務層反查全廠 MES (NG-0105/0106/0107)
+                    checkResult = ReelCheckResult.Unknown1DResult(rawBarcode, cleaned);
+                }
             }
 
             OnCheckCompleted?.Invoke(this, checkResult);
@@ -297,6 +306,46 @@ public class ReelCheckEngine
         }
 
         return ReelCheckResult.Ok(prevReel.ReelId, BarcodeKind.Reel2D, "前一捲作業檢驗合格", prevReel);
+    }
+
+    /// <summary>
+    /// 工單結束作業 (WoFinish)，結算最後一捲 Reel 作業指標並完成工單
+    /// </summary>
+    public ReelCheckResult FinishWorkOrder(DateTime? finishTime = null)
+    {
+        DateTime time = finishTime ?? DateTime.Now;
+
+        lock (_syncRoot)
+        {
+            if (_context == null)
+            {
+                return ReelCheckResult.Ng(string.Empty, "NG-0001", "防混引擎尚未初始化工單資訊", CheckDisposition.Warning);
+            }
+
+            // 若當前有正在作業之最後一捲 Reel，檢驗指標
+            if (_activeReel != null)
+            {
+                var valResult = ValidatePreviousReel(_activeReel, time);
+                if (!valResult.IsSuccess)
+                {
+                    OnCheckCompleted?.Invoke(this, valResult);
+                    return valResult;
+                }
+
+                _activeReel.EndTime = time;
+                _activeReel.IsCompleted = true;
+                _activeReel.IsCurrentActive = false;
+            }
+
+            var finishResult = ReelCheckResult.Ok(
+                string.Empty,
+                BarcodeKind.Unknown,
+                $"工單 [{_context.WONo}] 結案完成 (WoFinish)，最後一捲生產檢驗合格",
+                _activeReel);
+
+            OnCheckCompleted?.Invoke(this, finishResult);
+            return finishResult;
+        }
     }
 
     /// <summary>

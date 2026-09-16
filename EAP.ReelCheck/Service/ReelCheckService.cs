@@ -86,9 +86,86 @@ public class ReelCheckService
     /// </summary>
     public async Task<ReelCheckResult> ScanAsync(string rawBarcode, CancellationToken ct = default)
     {
+        // 1. 動態狀態檢查 (WOConfirm_Get: 檢查工單是否被刪除 Confirm、被重新過帳或已出站)
+        if (_engine.CurrentContext != null && _engine.CurrentContext.ConfirmInTime != DateTime.MinValue)
+        {
+            var statusCheck = await _mesService.CheckWorkOrderStatusAsync(
+                _engine.CurrentContext.WONo,
+                _engine.CurrentContext.WorkCenterNo,
+                _engine.CurrentContext.ConfirmInTime,
+                ct).ConfigureAwait(false);
+
+            if (!statusCheck.IsOk)
+            {
+                var lockResult = ReelCheckResult.Ng(
+                    rawBarcode,
+                    statusCheck.ErrorCode,
+                    statusCheck.Message,
+                    CheckDisposition.BlockWorkOrder);
+
+                _logger.LogCritical("工單動態狀態檢核異常！觸發防呆鎖單：[{Code}] {Msg}", statusCheck.ErrorCode, statusCheck.Message);
+                await _mesService.BlockWorkOrderAsync(
+                    _engine.CurrentContext.WONo,
+                    statusCheck.ErrorCode,
+                    statusCheck.Message,
+                    ct).ConfigureAwait(false);
+
+                OnReelBlocked?.Invoke(this, lockResult);
+                return lockResult;
+            }
+        }
+
         var result = _engine.ProcessBarcode(rawBarcode);
 
-        // 若本機判定清單找不到 Reel (NG-0301)，向 MES 進行反查是否屬於其他工單 (NG-0401)
+        // 2. 處理 1D 非本單條碼反查防呆 (NG-0105 / NG-0106 / NG-0107)
+        if (result.BarcodeType == BarcodeKind.Unknown1D)
+        {
+            string candidateBarcode = result.DecodedReelId;
+            try
+            {
+                // A. 反查是否為全廠其他工單之批號 (NG-0105)
+                var batchWo = await _mesService.QueryWorkOrderByBatchNoAsync(candidateBarcode, ct).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(batchWo))
+                {
+                    result = ReelCheckResult.CrossWoNg(
+                        rawBarcode,
+                        "NG-0105",
+                        $"上機異常(NG-0105), 當前作業工單:{_engine.CurrentContext?.WONo}, 但掃進來的T/P No.條碼:{candidateBarcode}, 屬於另一個工單:{batchWo}",
+                        candidateBarcode,
+                        batchWo);
+                }
+                else
+                {
+                    // B. 查詢是否為其他料號主檔 (NG-0106)
+                    bool isMat = await _mesService.IsMaterialExistsAsync(candidateBarcode, ct).ConfigureAwait(false);
+                    if (isMat)
+                    {
+                        result = ReelCheckResult.Ng(
+                            rawBarcode,
+                            "NG-0106",
+                            $"上機異常(NG-0106), 當前作業工單:{_engine.CurrentContext?.WONo}, 但掃進來的料號條碼:{candidateBarcode}, 屬於另一個工單(未知)",
+                            CheckDisposition.BlockWorkOrder,
+                            BarcodeKind.MatNo);
+                    }
+                    else
+                    {
+                        // C. 皆非，判定為無法識別條碼 (NG-0107)
+                        result = ReelCheckResult.Ng(
+                            rawBarcode,
+                            "NG-0107",
+                            $"上機異常(NG-0107), 當前作業工單:{_engine.CurrentContext?.WONo}, 但掃進來的條碼:{candidateBarcode}無法識別。",
+                            CheckDisposition.BlockWorkOrder,
+                            BarcodeKind.Unknown);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "向 MES 反查 1D 條碼 [{Barcode}] 失敗: {Msg}", candidateBarcode, ex.Message);
+            }
+        }
+
+        // 3. 若本機判定清單找不到 2D Reel (NG-0301)，向 MES 進行反查是否屬於其他工單 (NG-0401)
         if (!result.IsSuccess && result.ErrorCode == "NG-0301" && !string.IsNullOrEmpty(result.DecodedReelId))
         {
             try
@@ -112,7 +189,7 @@ public class ReelCheckService
             }
         }
 
-        // 若判定為重大混料需鎖單
+        // 4. 若判定為重大混料需鎖單
         if (result.ShouldBlockWorkOrder && _engine.CurrentContext != null)
         {
             _logger.LogWarning("觸發防呆鎖單機制！原因: [{Code}] {Msg}", result.ErrorCode, result.Message);
@@ -126,14 +203,14 @@ public class ReelCheckService
                     ct
                 ).ConfigureAwait(false);
 
-                // 2. 若為 NG-0401 跨工單混料，同步鎖定被誤拿料捲之問題工單 (ProblemWoNo)
+                // 2. 若為 NG-0401 / NG-0105 跨工單混料，同步鎖定被誤拿料捲之問題工單 (ProblemWoNo)
                 if (!string.IsNullOrWhiteSpace(result.ProblemWoNo))
                 {
                     _logger.LogWarning("觸發雙向鎖單！鎖定被誤拿料捲之問題工單: {OtherWo}", result.ProblemWoNo);
                     await _mesService.BlockWorkOrderAsync(
                         result.ProblemWoNo,
                         "NG-0401B",
-                        $"問題工單({result.ProblemWoNo})的Reel({result.DecodedReelId})在工單({_engine.CurrentContext.WONo})的作業當中發現",
+                        $"問題工單({result.ProblemWoNo})的條碼在工單({_engine.CurrentContext.WONo})的作業當中發現",
                         ct
                     ).ConfigureAwait(false);
                 }
@@ -170,6 +247,50 @@ public class ReelCheckService
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// 工單結束作業 (WoFinish)，結算最後一捲指標並回寫 MES
+    /// </summary>
+    public async Task<ReelCheckResult> FinishWorkOrderAsync(CancellationToken ct = default)
+    {
+        if (_engine.CurrentContext == null)
+        {
+            return ReelCheckResult.Ng(string.Empty, "NG-0001", "防混引擎尚未初始化工單資訊", CheckDisposition.Warning);
+        }
+
+        var ctx = _engine.CurrentContext;
+        var finishResult = _engine.FinishWorkOrder();
+
+        if (!finishResult.IsSuccess && finishResult.ShouldBlockWorkOrder)
+        {
+            _logger.LogWarning("工單結案檢驗不合格！原因: [{Code}] {Msg}", finishResult.ErrorCode, finishResult.Message);
+            try
+            {
+                await _mesService.BlockWorkOrderAsync(ctx.WONo, finishResult.ErrorCode, finishResult.Message, ct).ConfigureAwait(false);
+                OnReelBlocked?.Invoke(this, finishResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "呼叫 MES 鎖定工單失敗: {Msg}", ex.Message);
+            }
+            return finishResult;
+        }
+
+        if (finishResult.IsSuccess)
+        {
+            _logger.LogInformation("工單結案合格，回寫 MES 結案歷程...");
+            try
+            {
+                await _mesService.FinishWorkOrderAsync(ctx.WONo, finishResult.ActiveReel, ctx.MachineNo, ctx.OperatorId, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "呼叫 MES FinishWorkOrder 發生異常: {Msg}", ex.Message);
+            }
+        }
+
+        return finishResult;
     }
 
     /// <summary>
