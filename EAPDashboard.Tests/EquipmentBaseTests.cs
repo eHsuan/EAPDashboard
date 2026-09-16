@@ -70,6 +70,7 @@ namespace EAPDashboard.Tests
         }
         public override Task SendTimeCalibration() => Task.CompletedTask;
         public override void Start(System.Threading.CancellationToken externalCancellationToken, CyntecMqttLib.Interfaces.MqttBus bus = null, int heartbeatIntervalSeconds = 30) { }
+        public Task InvokeStartPeriodicStatusReportLoop(System.Threading.CancellationToken ct) => StartPeriodicStatusReportLoop(ct);
     }
 
     public class EquipmentBaseTests
@@ -1641,6 +1642,26 @@ namespace EAPDashboard.Tests
                 EquipmentBase.MesMappingFilePath = originalPath;
                 EquipmentBase.ResetMesMappingCache();
             }
+        }
+
+        [Fact]
+        public void AutoReportStatus_DefaultValue_ShouldBeFalse()
+        {
+            var eq = new TestableEquipment("EQ_AUTOREPORT_DEFAULT");
+            eq.AutoReportStatus.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task StartPeriodicStatusReportLoop_WhenAutoReportStatusIsFalse_ShouldLogDisabledAndReturnImmediately()
+        {
+            var eq = new TestableEquipment("EQ_AUTOREPORT_FALSE");
+            eq.AutoReportStatus = false;
+            eq.StatusReportIntervalSeconds = 10;
+
+            using var cts = new System.Threading.CancellationTokenSource();
+            await eq.InvokeStartPeriodicStatusReportLoop(cts.Token);
+
+            eq.LogHistory.Should().Contain(x => x.Contains("[MES PERIODIC] Periodic EQPSTATUS report loop disabled for EQ_AUTOREPORT_FALSE"));
         }
     }
 }

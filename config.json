@@ -5,7 +5,7 @@
   "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
   "HeartbeatIntervalSeconds": 30,
-  "EqpStatusReportIntervalSeconds": 0,
+  "EqpStatusReportIntervalSeconds": 60,
   "EnableCassetteBinding": false,
   "MinimizeToTray": true,
   "MesSettings": {
@@ -46,7 +46,8 @@
       "Topic": "TN2/YELLOW/machine/ET0026",
       "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": true,
+      "autoreportstatus": false
     },
     {
       "Id": "ET0023",
@@ -82,7 +83,7 @@
       "Topic": "TN2/Floor2/Yellow/MK0158",
       "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "ZZ0304",

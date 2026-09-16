@@ -71,6 +71,7 @@ namespace EAPDashboard
         public string StatusType { get; set; } = "Delta";
         public bool? EnableCassetteBinding { get; set; }
         public int? EqpStatusReportIntervalSeconds { get; set; }
+        public bool AutoReportStatus { get; set; } = false;
     }
 
     public partial class MainForm : Form
@@ -283,6 +284,7 @@ namespace EAPDashboard
                             eq.IsSimulator = isSim;
                             eq.EnableCassetteBinding = config.EnableCassetteBinding ?? _appConfig.EnableCassetteBinding;
                             eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? _appConfig.EqpStatusReportIntervalSeconds;
+                            eq.AutoReportStatus = config.AutoReportStatus;
                             eq.PostgresConnectionString = _appConfig.PostgresDbSettings?.ConnectionString;
                             eq.MinYieldRate = _appConfig.YieldSettings?.MinYieldRate ?? 0.95;
                             eq.MaxYieldRate = _appConfig.YieldSettings?.MaxYieldRate ?? 1.00;

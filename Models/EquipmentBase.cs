@@ -794,6 +794,7 @@ namespace EAPDashboard.Models
         public bool IsMesSimulator { get; set; } = false;
         public bool EnableCassetteBinding { get; set; } = false;
         public int StatusReportIntervalSeconds { get; set; } = 60;
+        public bool AutoReportStatus { get; set; } = false;
         public LocalDataService LocalDataServiceInstance { get; set; }
         public DbSettings DbConfig { get; set; }
         public string DictionaryPath { get; set; } = string.Empty;
@@ -812,7 +813,11 @@ namespace EAPDashboard.Models
 
         protected async Task StartPeriodicStatusReportLoop(CancellationToken ct)
         {
-            if (StatusReportIntervalSeconds <= 0) return;
+            if (!AutoReportStatus || StatusReportIntervalSeconds <= 0)
+            {
+                OnLogReceived(LogLevel.Info, $"[MES PERIODIC] Periodic EQPSTATUS report loop disabled for {Id} (AutoReportStatus={AutoReportStatus}, Interval={StatusReportIntervalSeconds}s).");
+                return;
+            }
             OnLogReceived(LogLevel.Info, $"[MES PERIODIC] Started periodic EQPSTATUS report loop for {Id} (Interval: {StatusReportIntervalSeconds}s).");
 
             while (!ct.IsCancellationRequested)
