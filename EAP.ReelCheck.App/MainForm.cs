@@ -22,6 +22,7 @@ public partial class MainForm : Form
     private IReelCheckMesService? _mesService;
     private ReelCheckOptions _options = new();
     private WorkOrderContext? _currentContext;
+    private string _activeEnvironment = "Test";
 
     public MainForm()
     {
@@ -72,16 +73,46 @@ public partial class MainForm : Form
     {
         try
         {
-            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            // 優先讀取 config.json，若不存在則相容讀取 appsettings.json
+            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+            if (!File.Exists(configPath))
+            {
+                configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            }
+
             if (File.Exists(configPath))
             {
                 string json = File.ReadAllText(configPath);
                 var jObj = JObject.Parse(json);
-                if (jObj["ReelCheck"] != null)
+
+                // 優先解析 ReelCheckSettings，若無則相容舊版 ReelCheck 區塊
+                var reelSettings = jObj["ReelCheckSettings"] ?? jObj["ReelCheck"];
+                if (reelSettings != null)
                 {
-                    _options.ServerUrl = jObj["ReelCheck"]?["ServerUrl"]?.ToString() ?? _options.ServerUrl;
-                    _options.ClientUrl = jObj["ReelCheck"]?["ClientUrl"]?.ToString() ?? _options.ClientUrl;
+                    _activeEnvironment = reelSettings["ActiveEnvironment"]?.ToString() ?? "Test";
+                    string? prodUrl = reelSettings["ProductionUrl"]?.ToString();
+                    string? testUrl = reelSettings["TestUrl"]?.ToString();
+                    string? legacyServerUrl = reelSettings["ServerUrl"]?.ToString();
+
+                    if (string.Equals(_activeEnvironment, "Production", StringComparison.OrdinalIgnoreCase))
+                    {
+                        _options.ServerUrl = !string.IsNullOrWhiteSpace(prodUrl) ? prodUrl : (legacyServerUrl ?? _options.ServerUrl);
+                    }
+                    else
+                    {
+                        _options.ServerUrl = !string.IsNullOrWhiteSpace(testUrl) ? testUrl : (legacyServerUrl ?? _options.ServerUrl);
+                    }
+
+                    if (reelSettings["ClientUrl"] != null)
+                    {
+                        _options.ClientUrl = reelSettings["ClientUrl"]!.ToString();
+                    }
+                    if (reelSettings["TimeoutSeconds"] != null && int.TryParse(reelSettings["TimeoutSeconds"]!.ToString(), out int timeout))
+                    {
+                        _options.TimeoutSeconds = timeout;
+                    }
                 }
+
                 if (jObj["Defaults"] != null)
                 {
                     _txtMachineNo.Text = jObj["Defaults"]?["MachineNo"]?.ToString() ?? _txtMachineNo.Text;
@@ -122,7 +153,7 @@ public partial class MainForm : Form
             else
             {
                 _mesService = new WcfReelCheckMesService(_options);
-                Log($"模式: MES WCF 實體連線 ({_options.ServerUrl})", Color.Yellow);
+                Log($"[環境: {_activeEnvironment}] 模式: MES WCF 實體連線 ({_options.ServerUrl})", Color.Yellow);
             }
 
             _reelCheckService = new ReelCheckService(_mesService);
