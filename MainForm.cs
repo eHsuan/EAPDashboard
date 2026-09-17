@@ -39,6 +39,7 @@ namespace EAPDashboard
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
         public PostgresDbSettings PostgresDbSettings { get; set; }
         public LogSettings LogSettings { get; set; }
+        public ReelCheckSettings ReelCheckSettings { get; set; } = new ReelCheckSettings();
         public List<EquipmentConfig> Equipments { get; set; }
     }
 
@@ -54,6 +55,13 @@ namespace EAPDashboard
         public string TestUrl { get; set; }
         public string ActiveEnvironment { get; set; }
         public List<string> FilterNullApis { get; set; } = new List<string>();
+    }
+
+    public class ReelCheckSettings
+    {
+        public string ServerUrl { get; set; } = "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc";
+        public string ClientUrl { get; set; } = "http://127.0.0.1:8080/EAP_ReelCheck";
+        public int TimeoutSeconds { get; set; } = 30;
     }
 
     public class EquipmentConfig

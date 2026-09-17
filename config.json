@@ -17,6 +17,11 @@
       "WOCHECKOUT_MULTI"
     ]
   },
+  "ReelCheckSettings": {
+    "ServerUrl": "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc",
+    "ClientUrl": "http://127.0.0.1:8080/EAP_ReelCheck",
+    "TimeoutSeconds": 30
+  },
   "YieldSettings": {
     "MinYieldRate": 0.95,
     "MaxYieldRate": 1.00
@@ -107,7 +112,7 @@
       "Id": "DR0026",
       "Name": "DR0026",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/DR0026",
+      "Topic": "TN2/Floor2/Yellow/DR0026",
       "DictionaryPath": "Dictionaries/DR0026.json",
       "StatusType": "Delta",
       "IsActive": true

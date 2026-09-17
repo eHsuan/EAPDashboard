@@ -18,15 +18,17 @@ namespace EAPDashboard;
 public partial class EquipmentReelForm : Form
 {
     private readonly EquipmentBase _equipment;
+    private readonly ReelCheckSettings? _reelCheckSettings;
     private readonly MesSettings? _mesSettings;
     private ReelCheckService? _reelCheckService;
     private IReelCheckMesService? _mesService;
     private WorkOrderContext? _currentContext;
 
-    public EquipmentReelForm(EquipmentBase equipment, MesSettings? mesSettings = null)
+    public EquipmentReelForm(EquipmentBase equipment, ReelCheckSettings? reelCheckSettings = null, MesSettings? mesSettings = null)
     {
         InitializeComponent();
         _equipment = equipment ?? throw new ArgumentNullException(nameof(equipment));
+        _reelCheckSettings = reelCheckSettings ?? LoadReelCheckSettingsFromConfig();
         _mesSettings = mesSettings ?? LoadMesSettingsFromConfig();
 
         this.Text = $"TP 防混料監控 - {_equipment.Id} ({_equipment.Name})";
@@ -36,6 +38,26 @@ public partial class EquipmentReelForm : Form
         TryPreloadWorkOrderFromEquipment();
 
         AttachEventHandlers();
+    }
+
+    private static ReelCheckSettings? LoadReelCheckSettingsFromConfig()
+    {
+        try
+        {
+            string configPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "config.json");
+            if (System.IO.File.Exists(configPath))
+            {
+                string json = System.IO.File.ReadAllText(configPath);
+                var jObj = Newtonsoft.Json.Linq.JObject.Parse(json);
+                var rObj = jObj["ReelCheckSettings"];
+                if (rObj != null)
+                {
+                    return rObj.ToObject<ReelCheckSettings>();
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     private static MesSettings? LoadMesSettingsFromConfig()
@@ -153,7 +175,22 @@ public partial class EquipmentReelForm : Form
             else
             {
                 var options = new ReelCheckOptions();
-                if (_mesSettings != null)
+                if (_reelCheckSettings != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(_reelCheckSettings.ServerUrl))
+                    {
+                        options.ServerUrl = _reelCheckSettings.ServerUrl;
+                    }
+                    if (!string.IsNullOrWhiteSpace(_reelCheckSettings.ClientUrl))
+                    {
+                        options.ClientUrl = _reelCheckSettings.ClientUrl;
+                    }
+                    if (_reelCheckSettings.TimeoutSeconds > 0)
+                    {
+                        options.TimeoutSeconds = _reelCheckSettings.TimeoutSeconds;
+                    }
+                }
+                else if (_mesSettings != null)
                 {
                     string targetUrl = _mesSettings.ActiveEnvironment == "Test"
                         ? _mesSettings.TestUrl

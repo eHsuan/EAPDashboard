@@ -142,5 +142,33 @@ namespace EAPDashboard.Tests
             deserialized.Should().NotBeNull();
             deserialized.MinimizeToTray.Should().BeTrue();
         }
+
+        [Fact]
+        public void AppConfig_ReelCheckSettings_ShouldDefault_And_SupportCustomConfig()
+        {
+            // Arrange & Act - Default instance
+            var config = new AppConfig();
+
+            // Assert
+            config.ReelCheckSettings.Should().NotBeNull();
+            config.ReelCheckSettings.ServerUrl.Should().Be("http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc");
+            config.ReelCheckSettings.ClientUrl.Should().Be("http://127.0.0.1:8080/EAP_ReelCheck");
+            config.ReelCheckSettings.TimeoutSeconds.Should().Be(30);
+
+            // Custom config
+            string json = @"{
+                ""ReelCheckSettings"": {
+                    ""ServerUrl"": ""http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc"",
+                    ""ClientUrl"": ""http://10.1.2.3:8080/EAP"",
+                    ""TimeoutSeconds"": 60
+                }
+            }";
+            var deserialized = JsonConvert.DeserializeObject<AppConfig>(json);
+            deserialized.Should().NotBeNull();
+            deserialized.ReelCheckSettings.Should().NotBeNull();
+            deserialized.ReelCheckSettings.ServerUrl.Should().Be("http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc");
+            deserialized.ReelCheckSettings.ClientUrl.Should().Be("http://10.1.2.3:8080/EAP");
+            deserialized.ReelCheckSettings.TimeoutSeconds.Should().Be(60);
+        }
     }
 }
