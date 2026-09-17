@@ -268,10 +268,14 @@ namespace EAPDashboard.Models
                 {
                     OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
                 }
+                else if (msg.CMD == CommandType.AreYouThere || msg.CMD == CommandType.IamHere)
+                {
+                    OnLogReceived(LogLevel.Debug, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
+                }
 
                 switch (msg.CMD)
                 {
-                    case CommandType.AreYouThere: await SendReply(new IamHereMessage { CMD = CommandType.IamHere }); break;
+                    case CommandType.AreYouThere: await SendReply(new IamHereMessage { CMD = CommandType.IamHere }, msg); break;
                     case CommandType.IamHere: break;
                     case CommandType.ReplyStatusReq:
                         var rs = (ReplyStatusReqMessage)msg;
@@ -835,6 +839,10 @@ namespace EAPDashboard.Models
                 if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere)
                 {
                     OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
+                }
+                else
+                {
+                    OnLogReceived(LogLevel.Debug, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
                 }
             }
         }

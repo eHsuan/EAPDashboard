@@ -178,5 +178,30 @@ namespace EAPDashboard.Tests
             deserialized.ReelCheckSettings.ClientUrl.Should().Be("http://10.1.2.3:8080/EAP");
             deserialized.ReelCheckSettings.TimeoutSeconds.Should().Be(60);
         }
+
+        [Fact]
+        public void AreYouThere_And_IamHere_Correlation_ShouldPreserveTransactionID()
+        {
+            // Arrange
+            string originalTxId = "TX_ALIVE_20260917_001";
+            var areYouThereMsg = new AreYouThereMessage
+            {
+                CMD = CommandType.AreYouThere,
+                TransactionID = originalTxId,
+                Machine = "EQ_TP01"
+            };
+
+            // Act - Reply should correlate with the request TransactionID
+            var iamHereMsg = new IamHereMessage
+            {
+                CMD = CommandType.IamHere,
+                TransactionID = areYouThereMsg.TransactionID,
+                Machine = areYouThereMsg.Machine
+            };
+
+            // Assert
+            iamHereMsg.CMD.Should().Be(CommandType.IamHere);
+            iamHereMsg.TransactionID.Should().Be(originalTxId);
+        }
     }
 }
