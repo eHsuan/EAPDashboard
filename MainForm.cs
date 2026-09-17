@@ -59,9 +59,24 @@ namespace EAPDashboard
 
     public class ReelCheckSettings
     {
-        public string ServerUrl { get; set; } = "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc";
+        public string ProductionUrl { get; set; } = "http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc";
+        public string TestUrl { get; set; } = "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc";
+        public string ActiveEnvironment { get; set; } = "Test";
+        public string? ServerUrl { get; set; }
         public string ClientUrl { get; set; } = "http://127.0.0.1:8080/EAP_ReelCheck";
         public int TimeoutSeconds { get; set; } = 30;
+
+        /// <summary>
+        /// 取得當前環境生效之 MES WCF 端點
+        /// </summary>
+        public string GetEffectiveServerUrl()
+        {
+            if (string.Equals(ActiveEnvironment, "Production", StringComparison.OrdinalIgnoreCase))
+            {
+                return !string.IsNullOrWhiteSpace(ProductionUrl) ? ProductionUrl : (ServerUrl ?? "");
+            }
+            return !string.IsNullOrWhiteSpace(TestUrl) ? TestUrl : (ServerUrl ?? "");
+        }
     }
 
     public class EquipmentConfig

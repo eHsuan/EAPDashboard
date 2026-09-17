@@ -151,14 +151,19 @@ namespace EAPDashboard.Tests
 
             // Assert
             config.ReelCheckSettings.Should().NotBeNull();
-            config.ReelCheckSettings.ServerUrl.Should().Be("http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc");
+            config.ReelCheckSettings.ProductionUrl.Should().Be("http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc");
+            config.ReelCheckSettings.TestUrl.Should().Be("http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc");
+            config.ReelCheckSettings.ActiveEnvironment.Should().Be("Test");
+            config.ReelCheckSettings.GetEffectiveServerUrl().Should().Be("http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc");
             config.ReelCheckSettings.ClientUrl.Should().Be("http://127.0.0.1:8080/EAP_ReelCheck");
             config.ReelCheckSettings.TimeoutSeconds.Should().Be(30);
 
-            // Custom config
+            // Custom config (Production)
             string json = @"{
                 ""ReelCheckSettings"": {
-                    ""ServerUrl"": ""http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc"",
+                    ""ProductionUrl"": ""http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc"",
+                    ""TestUrl"": ""http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc"",
+                    ""ActiveEnvironment"": ""Production"",
                     ""ClientUrl"": ""http://10.1.2.3:8080/EAP"",
                     ""TimeoutSeconds"": 60
                 }
@@ -166,7 +171,10 @@ namespace EAPDashboard.Tests
             var deserialized = JsonConvert.DeserializeObject<AppConfig>(json);
             deserialized.Should().NotBeNull();
             deserialized.ReelCheckSettings.Should().NotBeNull();
-            deserialized.ReelCheckSettings.ServerUrl.Should().Be("http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc");
+            deserialized.ReelCheckSettings.ProductionUrl.Should().Be("http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc");
+            deserialized.ReelCheckSettings.TestUrl.Should().Be("http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc");
+            deserialized.ReelCheckSettings.ActiveEnvironment.Should().Be("Production");
+            deserialized.ReelCheckSettings.GetEffectiveServerUrl().Should().Be("http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc");
             deserialized.ReelCheckSettings.ClientUrl.Should().Be("http://10.1.2.3:8080/EAP");
             deserialized.ReelCheckSettings.TimeoutSeconds.Should().Be(60);
         }

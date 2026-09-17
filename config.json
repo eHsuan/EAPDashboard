@@ -18,7 +18,9 @@
     ]
   },
   "ReelCheckSettings": {
-    "ServerUrl": "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc",
+    "ProductionUrl": "http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc",
+    "TestUrl": "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc",
+    "ActiveEnvironment": "Test",
     "ClientUrl": "http://127.0.0.1:8080/EAP_ReelCheck",
     "TimeoutSeconds": 30
   },

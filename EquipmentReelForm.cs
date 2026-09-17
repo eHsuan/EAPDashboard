@@ -175,11 +175,14 @@ public partial class EquipmentReelForm : Form
             else
             {
                 var options = new ReelCheckOptions();
+                string activeEnv = "Test";
                 if (_reelCheckSettings != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(_reelCheckSettings.ServerUrl))
+                    activeEnv = _reelCheckSettings.ActiveEnvironment ?? "Test";
+                    string targetUrl = _reelCheckSettings.GetEffectiveServerUrl();
+                    if (!string.IsNullOrWhiteSpace(targetUrl))
                     {
-                        options.ServerUrl = _reelCheckSettings.ServerUrl;
+                        options.ServerUrl = targetUrl;
                     }
                     if (!string.IsNullOrWhiteSpace(_reelCheckSettings.ClientUrl))
                     {
@@ -192,9 +195,10 @@ public partial class EquipmentReelForm : Form
                 }
                 else if (_mesSettings != null)
                 {
-                    string targetUrl = _mesSettings.ActiveEnvironment == "Test"
-                        ? _mesSettings.TestUrl
-                        : _mesSettings.ProductionUrl;
+                    activeEnv = _mesSettings.ActiveEnvironment ?? "Test";
+                    string targetUrl = string.Equals(_mesSettings.ActiveEnvironment, "Production", StringComparison.OrdinalIgnoreCase)
+                        ? _mesSettings.ProductionUrl
+                        : _mesSettings.TestUrl;
 
                     if (!string.IsNullOrWhiteSpace(targetUrl))
                     {
@@ -203,7 +207,7 @@ public partial class EquipmentReelForm : Form
                 }
 
                 _mesService = new WcfReelCheckMesService(options);
-                Log($"模式: MES WCF 實體連線 ({options.ServerUrl})", Color.Yellow);
+                Log($"[環境: {activeEnv}] 模式: MES WCF 實體連線 ({options.ServerUrl})", Color.Yellow);
             }
 
             _reelCheckService = new ReelCheckService(_mesService);
