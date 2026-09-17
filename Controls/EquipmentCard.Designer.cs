@@ -22,6 +22,7 @@ namespace EAPDashboard.Controls
             this.lblStatus = new System.Windows.Forms.Label();
             this.lblRecipe = new System.Windows.Forms.Label();
             this.lblConnection = new System.Windows.Forms.Label();
+            this.btnReel = new System.Windows.Forms.Button();
             this.SuspendLayout();
             
             // 

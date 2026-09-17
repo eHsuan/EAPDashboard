@@ -16,7 +16,10 @@ namespace EAPDashboard.Controls
             _equipment = equipment;
             _equipment.PropertyChanged += Equipment_PropertyChanged;
             
-            btnReel.Click += (s, e) => OpenReelForm();
+            if (btnReel != null)
+            {
+                btnReel.Click += (s, e) => OpenReelForm();
+            }
             BindClickEvent(this); // Make the card and all its children clickable (excluding buttons)
             
             UpdateUI();
@@ -109,7 +112,10 @@ namespace EAPDashboard.Controls
             // 若設備名稱或編號為 TP 開頭，則顯示 Reel 專案按鈕
             bool isTp = (_equipment.Name?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true) ||
                         (_equipment.Id?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true);
-            btnReel.Visible = isTp;
+            if (btnReel != null)
+            {
+                btnReel.Visible = isTp;
+            }
         }
 
         // Clean up event handler to prevent memory leaks
