@@ -43,7 +43,8 @@
     "Enabled": true,
     "CompressDays": 3,
     "RetentionDays": 30,
-    "MaxFileSizeMB": 20
+    "MaxFileSizeMB": 20,
+    "LogAreYouThere": false
   },
   "Equipments": [
     {

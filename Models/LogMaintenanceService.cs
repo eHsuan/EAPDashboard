@@ -14,6 +14,7 @@ namespace EAPDashboard.Models
         public int CompressDays { get; set; } = 3;
         public int RetentionDays { get; set; } = 30;
         public int MaxFileSizeMB { get; set; } = 20;
+        public bool LogAreYouThere { get; set; } = false;
     }
 
     public static class LogMaintenanceService

@@ -264,13 +264,19 @@ namespace EAPDashboard.Models
                     }
                 }
 
-                if (!isDuplicateStatusChange && msg.CMD != CommandType.AreYouThere && msg.CMD != CommandType.IamHere)
+                bool isHeartbeatMsg = (msg.CMD == CommandType.AreYouThere || msg.CMD == CommandType.IamHere);
+                bool enableHeartbeatLog = LogMaintenanceService.CurrentSettings?.LogAreYouThere ?? false;
+
+                if (!isDuplicateStatusChange)
                 {
-                    OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
-                }
-                else if (msg.CMD == CommandType.AreYouThere || msg.CMD == CommandType.IamHere)
-                {
-                    OnLogReceived(LogLevel.Debug, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
+                    if (!isHeartbeatMsg)
+                    {
+                        OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
+                    }
+                    else if (enableHeartbeatLog)
+                    {
+                        OnLogReceived(LogLevel.Info, string.Format("[RECV] {0}", JsonConvert.SerializeObject(msg, _logSettings)));
+                    }
                 }
 
                 switch (msg.CMD)
@@ -836,13 +842,12 @@ namespace EAPDashboard.Models
             await _bus.PublishAsync(_commandTopic, cmd);
             if (!silent && cmd is BaseMessage bm2)
             {
-                if (bm2.CMD != CommandType.AreYouThere && bm2.CMD != CommandType.IamHere)
+                bool isHeartbeatMsg = (bm2.CMD == CommandType.AreYouThere || bm2.CMD == CommandType.IamHere);
+                bool enableHeartbeatLog = LogMaintenanceService.CurrentSettings?.LogAreYouThere ?? false;
+
+                if (!isHeartbeatMsg || enableHeartbeatLog)
                 {
                     OnLogReceived(LogLevel.Info, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
-                }
-                else
-                {
-                    OnLogReceived(LogLevel.Debug, $"[SEND] {JsonConvert.SerializeObject(bm2, _logSettings)}");
                 }
             }
         }

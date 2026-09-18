@@ -39,6 +39,7 @@ namespace EAPDashboard
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
         public PostgresDbSettings PostgresDbSettings { get; set; }
         public LogSettings LogSettings { get; set; }
+        public bool? LogAreYouThere { get; set; }
         public ReelCheckSettings ReelCheckSettings { get; set; } = new ReelCheckSettings();
         public List<EquipmentConfig> Equipments { get; set; }
     }
@@ -262,7 +263,12 @@ namespace EAPDashboard
                 // 啟動日誌生命週期維運管理（歷史壓縮、過期刪除）
                 try
                 {
-                    LogMaintenanceService.Start(_appConfig.LogSettings ?? new LogSettings());
+                    var logSettings = _appConfig.LogSettings ?? new LogSettings();
+                    if (_appConfig.LogAreYouThere.HasValue)
+                    {
+                        logSettings.LogAreYouThere = _appConfig.LogAreYouThere.Value;
+                    }
+                    LogMaintenanceService.Start(logSettings);
                 }
                 catch { }
 

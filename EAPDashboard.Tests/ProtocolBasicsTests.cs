@@ -203,5 +203,28 @@ namespace EAPDashboard.Tests
             iamHereMsg.CMD.Should().Be(CommandType.IamHere);
             iamHereMsg.TransactionID.Should().Be(originalTxId);
         }
+
+        [Fact]
+        public void LogSettings_LogAreYouThere_ShouldDefaultToFalse_And_SupportCustomConfig()
+        {
+            // Arrange & Act
+            var defaultSettings = new EAPDashboard.Models.LogSettings();
+
+            // Assert
+            defaultSettings.LogAreYouThere.Should().BeFalse();
+
+            // Custom config via LogSettings
+            string json1 = "{\"LogSettings\": {\"LogAreYouThere\": true}}";
+            var config1 = JsonConvert.DeserializeObject<AppConfig>(json1);
+            config1.Should().NotBeNull();
+            config1.LogSettings.Should().NotBeNull();
+            config1.LogSettings.LogAreYouThere.Should().BeTrue();
+
+            // Custom config via top-level LogAreYouThere
+            string json2 = "{\"LogAreYouThere\": true}";
+            var config2 = JsonConvert.DeserializeObject<AppConfig>(json2);
+            config2.Should().NotBeNull();
+            config2.LogAreYouThere.Should().BeTrue();
+        }
     }
 }
