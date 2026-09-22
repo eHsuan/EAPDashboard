@@ -1,6 +1,6 @@
 {
   "ExitPassword": "CIM",
-  "EapId": "EAP01",
+  "EapId": "EAP99",
   "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
   "MqttBrokerHost": "127.0.0.1",
   "MqttBrokerPort": 1883,
@@ -36,7 +36,7 @@
   },
   "PostgresDbSettings": {
     "ConnectionString": "Host=localhost;Port=5432;Database=Protocol_localdata;Username=postgres;Password=PostgreSQL18;",
-    "Enabled": false,
+    "Enabled": true,
     "RetentionDays": 14
   },
   "LogSettings": {
@@ -72,8 +72,8 @@
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
-      "StatusType": "Cyntec",
-      "IsActive": false
+      "StatusType": "Delta",
+      "IsActive": true
     },
     {
       "Id": "AC3811",
