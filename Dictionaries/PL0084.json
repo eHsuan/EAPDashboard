@@ -1,0 +1,20 @@
+{
+  "Model": "PL0084",
+  "Events": {
+    "10001": "TrackIn",
+    "10002": "StatusChange",
+    "10003": "TrackOut"
+  },
+  "Variables": {
+    "1021": "EquipmentStatus",
+    "1022": "PlatingRawData"
+  },
+  "StatusMapping": {
+    "RUN": "Running",
+    "IDLE": "Idle",
+    "ALARM": "Down",
+    "DOWN": "Down"
+  },
+  "AlarmMapping": {},
+  "ManagementItems": {}
+}

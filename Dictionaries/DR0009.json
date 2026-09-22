@@ -1,0 +1,23 @@
+{
+  "Model": "DR0009",
+  "Events": {
+    "10001": "TrackIn",
+    "10002": "StatusChange",
+    "10003": "EDCData"
+  },
+  "Variables": {
+    "1104": "EquipmentStatus",
+    "1008": "ProgTimeMin",
+    "1009": "ProgTimeSec",
+    "1011": "RunCount",
+    "1002": "WorkOrder"
+  },
+  "StatusMapping": {
+    "RUN": "Running",
+    "IDLE": "Idle",
+    "ALARM": "Down",
+    "DOWN": "Down"
+  },
+  "AlarmMapping": {},
+  "ManagementItems": {}
+}

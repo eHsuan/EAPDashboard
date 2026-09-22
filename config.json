@@ -130,6 +130,28 @@
       "DictionaryPath": "Dictionaries/TOWA_YPM.json",
       "TimeFormat": "16",
       "IsActive": false
+    },
+    {
+      "Id": "PL0084",
+      "Name": "龍門掛鍍線",
+      "Protocol": "SECS",
+      "Ip": "127.0.0.1",
+      "Port": 5000,
+      "DeviceId": 0,
+      "DictionaryPath": "Dictionaries/PL0084.json",
+      "TimeFormat": "16",
+      "IsActive": false
+    },
+    {
+      "Id": "DR0009",
+      "Name": "雷射機",
+      "Protocol": "SECS",
+      "Ip": "192.168.10.79",
+      "Port": 5000,
+      "DeviceId": 0,
+      "DictionaryPath": "Dictionaries/DR0009.json",
+      "TimeFormat": "16",
+      "IsActive": false
     }
   ]
 }
