@@ -228,7 +228,7 @@ namespace EAPDashboard
             config.LogSettings.CompressDays = (int)numLogCompressDays.Value;
             config.LogSettings.MaxFileSizeMB = (int)numLogMaxSize.Value;
             config.LogSettings.LogAreYouThere = chkLogAreYouThere.Checked;
-            config.LogAreYouThere = chkLogAreYouThere.Checked;
+            config.LogAreYouThere = _originalConfig.LogAreYouThere.HasValue ? chkLogAreYouThere.Checked : (bool?)null;
 
             // 6. 機台清單
             var newEquipments = new List<EquipmentConfig>();

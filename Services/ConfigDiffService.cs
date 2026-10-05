@@ -161,11 +161,12 @@ namespace EAPDashboard.Services
                 CheckChange(changes, "日誌設定", "壓縮天數", oldLog.CompressDays.ToString(), newLog.CompressDays.ToString());
                 CheckChange(changes, "日誌設定", "保留天數", oldLog.RetentionDays.ToString(), newLog.RetentionDays.ToString());
                 CheckChange(changes, "日誌設定", "檔案大小上限(MB)", oldLog.MaxFileSizeMB.ToString(), newLog.MaxFileSizeMB.ToString());
-                CheckChange(changes, "日誌設定", "記錄存活交握(AreYouThere)", oldLog.LogAreYouThere.ToString(), newLog.LogAreYouThere.ToString());
+                CheckChange(changes, "日誌設定", "記錄雙向存活交握日誌 (AreYouThere)", oldLog.LogAreYouThere.ToString(), newLog.LogAreYouThere.ToString());
             }
-            if (oldCfg.LogAreYouThere.HasValue || newCfg.LogAreYouThere.HasValue)
+            if (oldCfg.LogAreYouThere.HasValue != newCfg.LogAreYouThere.HasValue ||
+                (oldCfg.LogAreYouThere.HasValue && newCfg.LogAreYouThere.HasValue && oldCfg.LogAreYouThere.Value != newCfg.LogAreYouThere.Value))
             {
-                CheckChange(changes, "日誌設定", "全域存活交握旗標", oldCfg.LogAreYouThere?.ToString(), newCfg.LogAreYouThere?.ToString());
+                CheckChange(changes, "日誌設定", "全域存活交握旗標 (相容屬性)", oldCfg.LogAreYouThere?.ToString(), newCfg.LogAreYouThere?.ToString());
             }
         }
 

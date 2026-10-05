@@ -202,5 +202,25 @@ namespace EAPDashboard.Tests
             eqDiff.DiffType.Should().Be(EquipmentDiffType.Removed);
             eqDiff.ChangeDetails.Should().Contain(d => d.Contains("由啟用轉為停用"));
         }
+
+        [Fact]
+        public void Compare_WhenRootLogAreYouThereIsNullInBoth_ShouldNotReportChanges()
+        {
+            var oldCfg = new AppConfig
+            {
+                LogSettings = new LogSettings { LogAreYouThere = false },
+                LogAreYouThere = null
+            };
+
+            var newCfg = new AppConfig
+            {
+                LogSettings = new LogSettings { LogAreYouThere = false },
+                LogAreYouThere = null
+            };
+
+            var result = ConfigDiffService.Compare(oldCfg, newCfg);
+            result.HasGlobalChanges.Should().BeFalse();
+            result.HasAnyChange.Should().BeFalse();
+        }
     }
 }
