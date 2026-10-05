@@ -13,7 +13,49 @@ namespace EAPDashboard
         {
             InitializeComponent();
             _diff = diff ?? new ConfigDiffResult();
+            SetupTableStyles();
             RenderDiff();
+        }
+
+        private void SetupTableStyles()
+        {
+            SetupSingleDgv(dgvGlobalChanges);
+            SetupSingleDgv(dgvEquipmentDiffs);
+        }
+
+        private void SetupSingleDgv(DataGridView dgv)
+        {
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.GridColor = Color.FromArgb(55, 55, 62);
+            dgv.BackgroundColor = Color.FromArgb(28, 28, 32);
+
+            var headerStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(45, 48, 58),
+                ForeColor = Color.White,
+                Font = new Font("Microsoft JhengHei UI", 9.5F, FontStyle.Bold),
+                SelectionBackColor = Color.FromArgb(45, 48, 58),
+                SelectionForeColor = Color.White
+            };
+            dgv.ColumnHeadersDefaultCellStyle = headerStyle;
+
+            var defaultStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(36, 36, 42),
+                ForeColor = Color.White,
+                SelectionBackColor = Color.FromArgb(50, 95, 150),
+                SelectionForeColor = Color.White
+            };
+            dgv.DefaultCellStyle = defaultStyle;
+
+            var altStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(30, 30, 35),
+                ForeColor = Color.White,
+                SelectionBackColor = Color.FromArgb(50, 95, 150),
+                SelectionForeColor = Color.White
+            };
+            dgv.AlternatingRowsDefaultCellStyle = altStyle;
         }
 
         private void RenderDiff()

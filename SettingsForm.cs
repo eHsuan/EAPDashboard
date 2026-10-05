@@ -31,7 +31,66 @@ namespace EAPDashboard
                 _originalConfig = new AppConfig();
             }
 
+            SetupDataGridViewStyle();
             LoadConfigToUI(_originalConfig);
+        }
+
+        private void SetupDataGridViewStyle()
+        {
+            dgvEquipments.EnableHeadersVisualStyles = false;
+            dgvEquipments.GridColor = Color.FromArgb(55, 55, 62);
+            dgvEquipments.BackgroundColor = Color.FromArgb(28, 28, 32);
+
+            // 標題列樣式 (深灰底白字)
+            var headerStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(45, 48, 58),
+                ForeColor = Color.White,
+                Font = new Font("Microsoft JhengHei UI", 9.5F, FontStyle.Bold),
+                Alignment = DataGridViewContentAlignment.MiddleLeft,
+                SelectionBackColor = Color.FromArgb(45, 48, 58),
+                SelectionForeColor = Color.White
+            };
+            dgvEquipments.ColumnHeadersDefaultCellStyle = headerStyle;
+
+            // 儲存格預設樣式 (深底白字，解決白底白字看不到內容之問題)
+            var defaultStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(36, 36, 42),
+                ForeColor = Color.White,
+                Font = new Font("Microsoft JhengHei UI", 9F, FontStyle.Regular),
+                SelectionBackColor = Color.FromArgb(50, 95, 150),
+                SelectionForeColor = Color.White
+            };
+            dgvEquipments.DefaultCellStyle = defaultStyle;
+
+            // 交替行底色
+            var altStyle = new DataGridViewCellStyle
+            {
+                BackColor = Color.FromArgb(30, 30, 35),
+                ForeColor = Color.White,
+                Font = new Font("Microsoft JhengHei UI", 9F, FontStyle.Regular),
+                SelectionBackColor = Color.FromArgb(50, 95, 150),
+                SelectionForeColor = Color.White
+            };
+            dgvEquipments.AlternatingRowsDefaultCellStyle = altStyle;
+
+            // 進入編輯模式時，確保輸入框或下拉選單也是深底白字
+            dgvEquipments.EditingControlShowing += DgvEquipments_EditingControlShowing;
+        }
+
+        private void DgvEquipments_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            if (e.Control is TextBox tb)
+            {
+                tb.BackColor = Color.FromArgb(45, 45, 52);
+                tb.ForeColor = Color.White;
+            }
+            else if (e.Control is ComboBox cb)
+            {
+                cb.BackColor = Color.FromArgb(45, 45, 52);
+                cb.ForeColor = Color.White;
+            }
         }
 
         private AppConfig LoadConfigFromFile()
