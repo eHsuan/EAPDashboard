@@ -1,6 +1,7 @@
 using CyntecMqttLib.Interfaces;
 using EAPDashboard.Controls;
 using EAPDashboard.Models;
+using EAPDashboard.Services;
 using Newtonsoft.Json;
 using Protocol.LocalData;
 using System;
@@ -275,54 +276,71 @@ namespace EAPDashboard
                 if (_appConfig.Equipments != null) {
                     foreach (var config in _appConfig.Equipments) {
                         if (!config.IsActive) continue;
-
-                        EquipmentBase eq = null;
-
-                        string dictPath = !string.IsNullOrEmpty(config.DictionaryPath)
-                            ? (Path.IsPathRooted(config.DictionaryPath) ? config.DictionaryPath : Path.Combine(Application.StartupPath, config.DictionaryPath))
-                            : null;
-
-                        if (config.Protocol == "MQTT") {
-                            eq = new MqttEquipment { 
-                                Id = config.Id, 
-                                Name = config.Name, 
-                                Topic = config.Topic, 
-                                StatusType = config.StatusType ?? "Delta",
-                                DictionaryPath = dictPath,
-                                DbConfig = _appConfig.DbSettings,
-                                IsMesSimulator = _appConfig.MesSettings.ActiveEnvironment == "Test"? true : false,
-                                LocalDataServiceInstance = _localDataService
-                            };
-                        }
-                        else if (config.Protocol == "SECS") {
-                            eq = new SecsEquipment { 
-                                Id = config.Id, 
-                                Name = config.Name, 
-                                Ip = config.Ip, 
-                                Port = config.Port, 
-                                DeviceId = config.DeviceId, 
-                                IsActive = config.IsActive, 
-                                DictionaryPath = dictPath, 
-                                DbConfig = _appConfig.DbSettings, 
-                                TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat,
-                                LocalDataServiceInstance = _localDataService
-                            };
-                        }
-                        
+                        var eq = CreateEquipmentInstance(config);
                         if (eq != null) {
-                            eq.IsSimulator = isSim;
-                            eq.EnableCassetteBinding = config.EnableCassetteBinding ?? _appConfig.EnableCassetteBinding;
-                            eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? _appConfig.EqpStatusReportIntervalSeconds;
-                            eq.AutoReportStatus = config.AutoReportStatus;
-                            eq.PostgresConnectionString = _appConfig.PostgresDbSettings?.ConnectionString;
-                            eq.MinYieldRate = _appConfig.YieldSettings?.MinYieldRate ?? 0.95;
-                            eq.MaxYieldRate = _appConfig.YieldSettings?.MaxYieldRate ?? 1.00;
                             _equipments.Add(eq);
                         }
                     }
                 }
                 foreach (var eq in _equipments) eq.LoadAlarmMappings();
             } catch (Exception ex) { MessageBox.Show("Load Error: " + ex.Message); }
+        }
+
+        private EquipmentBase CreateEquipmentInstance(EquipmentConfig config)
+        {
+            if (config == null) return null;
+
+            EquipmentBase eq = null;
+
+            string dictPath = !string.IsNullOrEmpty(config.DictionaryPath)
+                ? (Path.IsPathRooted(config.DictionaryPath) ? config.DictionaryPath : Path.Combine(Application.StartupPath, config.DictionaryPath))
+                : null;
+
+            bool isSim = !(_appConfig?.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
+
+            if (string.Equals(config.Protocol, "MQTT", StringComparison.OrdinalIgnoreCase))
+            {
+                eq = new MqttEquipment
+                {
+                    Id = config.Id,
+                    Name = config.Name,
+                    Topic = config.Topic,
+                    StatusType = config.StatusType ?? "Delta",
+                    DictionaryPath = dictPath,
+                    DbConfig = _appConfig?.DbSettings,
+                    IsMesSimulator = _appConfig?.MesSettings?.ActiveEnvironment == "Test",
+                    LocalDataServiceInstance = _localDataService
+                };
+            }
+            else if (string.Equals(config.Protocol, "SECS", StringComparison.OrdinalIgnoreCase))
+            {
+                eq = new SecsEquipment
+                {
+                    Id = config.Id,
+                    Name = config.Name,
+                    Ip = config.Ip,
+                    Port = config.Port,
+                    DeviceId = config.DeviceId,
+                    IsActive = config.IsActive,
+                    DictionaryPath = dictPath,
+                    DbConfig = _appConfig?.DbSettings,
+                    TimeFormat = string.IsNullOrEmpty(config.TimeFormat) ? "16" : config.TimeFormat,
+                    LocalDataServiceInstance = _localDataService
+                };
+            }
+
+            if (eq != null)
+            {
+                eq.IsSimulator = isSim;
+                eq.EnableCassetteBinding = config.EnableCassetteBinding ?? (_appConfig?.EnableCassetteBinding ?? false);
+                eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? (_appConfig?.EqpStatusReportIntervalSeconds ?? 60);
+                eq.AutoReportStatus = config.AutoReportStatus;
+                eq.PostgresConnectionString = _appConfig?.PostgresDbSettings?.ConnectionString;
+                eq.MinYieldRate = _appConfig?.YieldSettings?.MinYieldRate ?? 0.95;
+                eq.MaxYieldRate = _appConfig?.YieldSettings?.MaxYieldRate ?? 1.00;
+            }
+
+            return eq;
         }
 
         private void PopulateDashboard()
@@ -619,9 +637,221 @@ namespace EAPDashboard
 
             AdjustCardSize();
         }
-        private void MenuSettings_Click(object sender, EventArgs e) { using (var f = new SettingsForm()) f.ShowDialog(this); }
+        private void MenuSettings_Click(object sender, EventArgs e) 
+        { 
+            using (var f = new SettingsForm(this, _appConfig)) 
+            {
+                f.ShowDialog(this); 
+            }
+        }
         private async void MenuTimeSync_Click(object sender, EventArgs e) { foreach (var eq in _equipments) if (eq.Connection == ConnectionStatus.Connected) await eq.SendTimeCalibration(); }
         private void MenuTerminalDisplay_Click(object sender, EventArgs e) { using (var f = new TerminalDisplayForm(_equipments)) f.ShowDialog(this); }
+
+        /// <summary>
+        /// 套用新設定檔：全域參數變更提醒重啟，機台設定變更執行差分熱套用（未變動機台維持連線）
+        /// </summary>
+        public bool ApplyConfiguration(AppConfig newConfig, ConfigDiffResult diff)
+        {
+            if (newConfig == null || diff == null) return false;
+
+            // 1. 安全原子寫入 config.json
+            bool writeSuccess = SaveConfigAtomically(newConfig);
+            if (!writeSuccess)
+            {
+                return false;
+            }
+
+            // 2. 判斷是否包含全域參數修改
+            if (diff.HasGlobalChanges)
+            {
+                // 全域參數變更：一律跳出視窗提醒人員要重啟程式才能生效
+                _appConfig = newConfig;
+
+                var promptResult = MessageBox.Show(this,
+                    "全域設定已安全儲存至 config.json！\n\n⚠️ 依系統安全規範，全域參數（如通訊埠、MES 環境、資料庫或日誌政策）變更一律需【重新啟動程式】方能完全生效。\n\n請問是否立即執行安全重啟？",
+                    "全域設定變更提醒",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (promptResult == DialogResult.Yes)
+                {
+                    _ = Task.Run(() => ExecuteSafeRestart());
+                }
+                else
+                {
+                    MessageBox.Show(this, "新設定已成功保留，將於下次手動重新啟動應用程式時套用生效。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                return true;
+            }
+
+            // 3. 僅機台設定變動：執行無重啟差分熱套用 (Live Reload)
+            try
+            {
+                _appConfig = newConfig;
+
+                if (diff.EquipmentDiffs != null)
+                {
+                    foreach (var item in diff.EquipmentDiffs)
+                    {
+                        string eqId = item.EquipmentId;
+
+                        switch (item.DiffType)
+                        {
+                            case EquipmentDiffType.Unchanged:
+                                // 【核心保護】未變動機台：完全不呼叫 Stop()，不重建實例，通訊持續運行！
+                                var existingUnchanged = _equipments.FirstOrDefault(e => string.Equals(e.Id, eqId, StringComparison.OrdinalIgnoreCase));
+                                if (existingUnchanged != null && item.NewConfig != null)
+                                {
+                                    // 僅更新非破壞性之運行時屬性
+                                    existingUnchanged.Name = item.NewConfig.Name;
+                                    existingUnchanged.AutoReportStatus = item.NewConfig.AutoReportStatus;
+                                    if (item.NewConfig.EqpStatusReportIntervalSeconds.HasValue)
+                                    {
+                                        existingUnchanged.StatusReportIntervalSeconds = item.NewConfig.EqpStatusReportIntervalSeconds.Value;
+                                    }
+                                    if (item.NewConfig.EnableCassetteBinding.HasValue)
+                                    {
+                                        existingUnchanged.EnableCassetteBinding = item.NewConfig.EnableCassetteBinding.Value;
+                                    }
+
+                                    // 同步更新 UI 卡片顯示
+                                    foreach (Control c in flowLayoutPanel.Controls)
+                                    {
+                                        if (c is EquipmentCard card && string.Equals(card.EquipmentId, eqId, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            card.UpdateUI();
+                                            break;
+                                        }
+                                    }
+                                }
+                                break;
+
+                            case EquipmentDiffType.Removed:
+                                // 停用或刪除：安全中斷通訊並卸載 UI 卡片
+                                var eqToRemove = _equipments.FirstOrDefault(e => string.Equals(e.Id, eqId, StringComparison.OrdinalIgnoreCase));
+                                if (eqToRemove != null)
+                                {
+                                    try { eqToRemove.Stop(); } catch { }
+                                    _equipments.Remove(eqToRemove);
+                                }
+
+                                foreach (Control c in flowLayoutPanel.Controls.Cast<Control>().ToList())
+                                {
+                                    if (c is EquipmentCard card && string.Equals(card.EquipmentId, eqId, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        flowLayoutPanel.Controls.Remove(card);
+                                        card.Dispose();
+                                        break;
+                                    }
+                                }
+                                break;
+
+                            case EquipmentDiffType.Modified:
+                                // 核心通訊參數變更：僅停止並重啟此單一機台，其他機台完全不受影響
+                                var eqToModify = _equipments.FirstOrDefault(e => string.Equals(e.Id, eqId, StringComparison.OrdinalIgnoreCase));
+                                if (eqToModify != null)
+                                {
+                                    try { eqToModify.Stop(); } catch { }
+                                    _equipments.Remove(eqToModify);
+                                }
+
+                                foreach (Control c in flowLayoutPanel.Controls.Cast<Control>().ToList())
+                                {
+                                    if (c is EquipmentCard card && string.Equals(card.EquipmentId, eqId, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        flowLayoutPanel.Controls.Remove(card);
+                                        card.Dispose();
+                                        break;
+                                    }
+                                }
+
+                                if (item.NewConfig != null && item.NewConfig.IsActive)
+                                {
+                                    var newEq = CreateEquipmentInstance(item.NewConfig);
+                                    if (newEq != null)
+                                    {
+                                        newEq.LoadAlarmMappings();
+                                        _equipments.Add(newEq);
+                                        newEq.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(EquipmentBase.State)) SaveStates(); };
+                                        flowLayoutPanel.Controls.Add(new EquipmentCard(newEq));
+                                        newEq.Start(_mainCts.Token, _bus, _appConfig.HeartbeatIntervalSeconds);
+
+                                        _ = Task.Run(async () =>
+                                        {
+                                            try { await newEq.ProcessGetEqpInfoAsync(); } catch { }
+                                        });
+                                    }
+                                }
+                                break;
+
+                            case EquipmentDiffType.Added:
+                                // 全新加入並啟用機台
+                                if (item.NewConfig != null && item.NewConfig.IsActive)
+                                {
+                                    var newEq = CreateEquipmentInstance(item.NewConfig);
+                                    if (newEq != null)
+                                    {
+                                        newEq.LoadAlarmMappings();
+                                        _equipments.Add(newEq);
+                                        newEq.PropertyChanged += (s, e) => { if (e.PropertyName == nameof(EquipmentBase.State)) SaveStates(); };
+                                        flowLayoutPanel.Controls.Add(new EquipmentCard(newEq));
+                                        newEq.Start(_mainCts.Token, _bus, _appConfig.HeartbeatIntervalSeconds);
+
+                                        _ = Task.Run(async () =>
+                                        {
+                                            try { await newEq.ProcessGetEqpInfoAsync(); } catch { }
+                                        });
+                                    }
+                                }
+                                break;
+                        }
+                    }
+                }
+
+                AdjustCardSize();
+
+                MessageBox.Show(this,
+                    "機台設定已成功熱套用！\n未變動之機台保持原連線穩定運作，通訊完全未受影響。",
+                    "熱套用成功",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"機台熱套用過程發生錯誤：{ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private bool SaveConfigAtomically(AppConfig config)
+        {
+            try
+            {
+                string targetPath = Path.Combine(Application.StartupPath, "config.json");
+                string tmpPath = Path.Combine(Application.StartupPath, "config.json.tmp");
+                string bakPath = Path.Combine(Application.StartupPath, "config.json.bak");
+
+                string json = JsonConvert.SerializeObject(config, Formatting.Indented);
+                File.WriteAllText(tmpPath, json);
+
+                if (File.Exists(targetPath))
+                {
+                    File.Copy(targetPath, bakPath, true);
+                }
+
+                File.Copy(tmpPath, targetPath, true);
+                try { File.Delete(tmpPath); } catch { }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"安全寫入 config.json 失敗：{ex.Message}", "儲存錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
 
         private void AdjustCardSize()
         {

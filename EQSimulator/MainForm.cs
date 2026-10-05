@@ -25,6 +25,7 @@ namespace EQSimulator
         private bool _isAutoTesting = false;
         private TaskCompletionSource<bool> _currentEventTcs;
         private System.Threading.CancellationTokenSource _autoCts;
+        private System.Windows.Forms.Timer _autoStatusTimer;
 
         private static readonly JsonSerializerSettings _jsonSettings = new JsonSerializerSettings
         {
@@ -47,9 +48,17 @@ namespace EQSimulator
 
         private void InitializeCustomComponents()
         {
+            InitializeAutoStatusTimer();
             // 自動載入設定
             LoadSettings();
             InitializeScenarioCombo();
+        }
+
+        private void InitializeAutoStatusTimer()
+        {
+            _autoStatusTimer = new System.Windows.Forms.Timer();
+            _autoStatusTimer.Interval = 60000; // 每分鐘 (60 秒)
+            _autoStatusTimer.Tick += (s, e) => ExecuteAutoStatusToggle();
         }
 
         private void InitializeScenarioCombo()
@@ -135,6 +144,7 @@ namespace EQSimulator
         {
             if (_bus != null && _bus.IsConnected)
             {
+                _autoStatusTimer?.Stop();
                 try { await _bus.DisconnectAsync(); _bus.Dispose(); } catch { }
                 _bus = null;
                 _btnConnect.Text = "Connect";
@@ -162,6 +172,15 @@ namespace EQSimulator
                 _btnConnect.Text = "Disconnect";
                 _grpActions.Enabled = true;
                 Log($"Connected as {clientId}!");
+
+                // 若記憶為勾選狀態，連線成功後立刻開始執行
+                if (_chkAutoStatusReport != null && _chkAutoStatusReport.Checked)
+                {
+                    Log("[AutoStatus] 連線已建立且已啟用自動測試，立即執行首次狀態上報並啟動每分鐘定時器...");
+                    ExecuteAutoStatusToggle();
+                    _autoStatusTimer?.Stop();
+                    _autoStatusTimer?.Start();
+                }
             }
             catch (Exception ex) { Log($"[ERR] Connection failed: {ex.Message}"); }
         }
@@ -257,6 +276,59 @@ namespace EQSimulator
 
             SendMessage(new StatusChangeReportMessage { CMD = CommandType.StatusChangeReport, NewStatus = newStatus, OldStatus = oldStatus });
             Log($"[StatusChange] EQ State updated: {oldStatus} -> {newStatus}");
+        }
+
+        private void ChkAutoStatusReport_CheckedChanged(object sender, EventArgs e)
+        {
+            bool isChecked = _chkAutoStatusReport.Checked;
+            SaveAutoStatusSetting(isChecked);
+
+            if (isChecked)
+            {
+                Log("[AutoStatus] 已勾選自動狀態測試 (1↔3/分)，立即執行首次上報並啟動定時器...");
+                ExecuteAutoStatusToggle();
+                _autoStatusTimer?.Stop();
+                _autoStatusTimer?.Start();
+            }
+            else
+            {
+                _autoStatusTimer?.Stop();
+                Log("[AutoStatus] 已停止自動狀態測試。");
+            }
+        }
+
+        private void ExecuteAutoStatusToggle()
+        {
+            if (_bus == null || !_bus.IsConnected)
+            {
+                Log("[AutoStatus] Broker 尚未連線，暫不執行上報。");
+                return;
+            }
+
+            // 1 與 3 之間來回上報：若當前為 1 則切換為 3，否則切換為 1
+            string nextStatus = (_currentStatusCode == "1") ? "3" : "1";
+            string oldStatus = _currentStatusCode;
+            _currentStatusCode = nextStatus;
+
+            if (int.TryParse(nextStatus, out int sVal))
+            {
+                if (_cmbStatus.InvokeRequired)
+                {
+                    _cmbStatus.Invoke((MethodInvoker)(() => _cmbStatus.SelectedValue = sVal));
+                }
+                else
+                {
+                    _cmbStatus.SelectedValue = sVal;
+                }
+            }
+
+            SendMessage(new StatusChangeReportMessage
+            {
+                CMD = CommandType.StatusChangeReport,
+                NewStatus = nextStatus,
+                OldStatus = oldStatus
+            });
+            Log($"[AutoStatus] 自動狀態切換上報 (每分): {oldStatus} -> {nextStatus} (1↔3)");
         }
 
         private void CboNGCode_SelectedIndexChanged(object sender, EventArgs e)
@@ -760,7 +832,8 @@ namespace EQSimulator
                     CassetteId = _txtCassetteId.Text,
                     ToolingId = _txtToolingId.Text,
                     Qty = _txtQty.Text,
-                    PanelList = _txtPanelList?.Text ?? ""
+                    PanelList = _txtPanelList?.Text ?? "",
+                    AutoStatusReport = _chkAutoStatusReport?.Checked ?? false
                 };
                 string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "eq_settings.json");
                 System.IO.File.WriteAllText(path, JsonConvert.SerializeObject(settings, Formatting.Indented));
@@ -769,6 +842,43 @@ namespace EQSimulator
             catch (Exception ex)
             {
                 Log($"[ERR] 儲存設定失敗: {ex.Message}");
+            }
+        }
+
+        private void SaveAutoStatusSetting(bool isChecked)
+        {
+            try
+            {
+                string path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "eq_settings.json");
+                EqSettings settings = null;
+                if (System.IO.File.Exists(path))
+                {
+                    string json = System.IO.File.ReadAllText(path);
+                    settings = JsonConvert.DeserializeObject<EqSettings>(json);
+                }
+                if (settings == null)
+                {
+                    settings = new EqSettings();
+                }
+
+                settings.AutoStatusReport = isChecked;
+                if (_txtBroker != null && !string.IsNullOrEmpty(_txtBroker.Text)) settings.Broker = _txtBroker.Text;
+                if (_txtEqId != null && !string.IsNullOrEmpty(_txtEqId.Text)) settings.EqId = _txtEqId.Text;
+                if (_txtTopic != null && !string.IsNullOrEmpty(_txtTopic.Text)) settings.Topic = _txtTopic.Text;
+                if (_txtUserId != null) settings.UserId = _txtUserId.Text;
+                if (_txtBarcode != null) settings.Barcode = _txtBarcode.Text;
+                if (_txtWorkOrder != null) settings.WorkOrder = _txtWorkOrder.Text;
+                if (_txtMaterialId != null) settings.MaterialId = _txtMaterialId.Text;
+                if (_txtCassetteId != null) settings.CassetteId = _txtCassetteId.Text;
+                if (_txtToolingId != null) settings.ToolingId = _txtToolingId.Text;
+                if (_txtQty != null) settings.Qty = _txtQty.Text;
+                if (_txtPanelList != null) settings.PanelList = _txtPanelList.Text;
+
+                System.IO.File.WriteAllText(path, JsonConvert.SerializeObject(settings, Formatting.Indented));
+            }
+            catch (Exception ex)
+            {
+                Log($"[ERR] 自動記憶設定失敗: {ex.Message}");
             }
         }
 
@@ -794,6 +904,10 @@ namespace EQSimulator
                         _txtToolingId.Text = settings.ToolingId;
                         _txtQty.Text = settings.Qty;
                         if (_txtPanelList != null) _txtPanelList.Text = settings.PanelList;
+                        if (_chkAutoStatusReport != null)
+                        {
+                            _chkAutoStatusReport.Checked = settings.AutoStatusReport;
+                        }
                         Log("成功載入記憶的設定值。");
                     }
                 }
@@ -818,5 +932,6 @@ namespace EQSimulator
         public string ToolingId { get; set; }
         public string Qty { get; set; }
         public string PanelList { get; set; }
+        public bool AutoStatusReport { get; set; }
     }
 }

@@ -1,107 +1,376 @@
 using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
-using System.Text;
+using System.Linq;
 using System.Windows.Forms;
+using EAPDashboard.Models;
+using EAPDashboard.Services;
 using Newtonsoft.Json;
 
 namespace EAPDashboard
 {
     public partial class SettingsForm : Form
     {
-        public SettingsForm()
+        private readonly MainForm _mainForm;
+        private AppConfig _originalConfig;
+
+        public SettingsForm() : this(null, null)
         {
-            InitializeComponent();
-            GenerateReport();
         }
 
-        private void GenerateReport()
+        public SettingsForm(MainForm mainForm, AppConfig currentConfig)
+        {
+            InitializeComponent();
+            _mainForm = mainForm;
+            _originalConfig = currentConfig != null ? CloneConfig(currentConfig) : LoadConfigFromFile();
+
+            // 若外部未傳入，但原設定存在
+            if (_originalConfig == null)
+            {
+                _originalConfig = new AppConfig();
+            }
+
+            LoadConfigToUI(_originalConfig);
+        }
+
+        private AppConfig LoadConfigFromFile()
         {
             try
             {
                 string path = Path.Combine(Application.StartupPath, "config.json");
-                if (!File.Exists(path))
+                if (File.Exists(path))
                 {
-                    txtConfig.Text = "錯誤：找不到 config.json 檔案。";
-                    return;
+                    string json = File.ReadAllText(path);
+                    return JsonConvert.DeserializeObject<AppConfig>(json);
                 }
-
-                string json = File.ReadAllText(path);
-                var config = JsonConvert.DeserializeObject<AppConfig>(json);
-
-                StringBuilder sb = new StringBuilder();
-                string line = new string('-', 60);
-
-                var ver = typeof(MainForm).Assembly.GetName().Version;
-                string versionStr = ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : Application.ProductVersion?.Split('+')[0];
-
-                // 1. 系統基本資訊
-                sb.AppendLine("【 系統基本資訊 (System Info) 】");
-                sb.AppendLine(line);
-                sb.AppendLine($"  ● 程式版本     : v{versionStr}");
-                sb.AppendLine($"  ● EAP ID       : {config?.EapId ?? "N/A"}");
-                sb.AppendLine($"  ● 關閉保護密碼 : {(string.IsNullOrEmpty(config?.ExitPassword) ? "未設定 (預設 admin)" : "已設定")}");
-                sb.AppendLine($"  ● 縮小至系統匣 : {(config?.MinimizeToTray == true ? "啟用 (True)" : "停用 (False)")}");
-                sb.AppendLine();
-                sb.AppendLine();
-
-                // 2. 通訊基礎設定
-                sb.AppendLine("【 通訊基礎設定 (MQTT) 】");
-                sb.AppendLine(line);
-                sb.AppendLine($"  ● 伺服器位址 : {config.MqttBrokerHost ?? "127.0.0.1"}");
-                sb.AppendLine($"  ● 伺服器埠號 : {config.MqttBrokerPort}");
-                sb.AppendLine($"  ● 心跳間隔   : {config.HeartbeatIntervalSeconds} 秒");
-                sb.AppendLine();
-                sb.AppendLine();
-
-                // 3. MES 整合設定
-                sb.AppendLine("【 MES 整合設定 (WebService) 】");
-                sb.AppendLine(line);
-                if (config.MesSettings != null)
-                {
-                    sb.AppendLine($"  ● 目前啟動環境 : {config.MesSettings.ActiveEnvironment ?? "Production"}");
-                    sb.AppendLine($"  ● 正式環境網址 : {config.MesSettings.ProductionUrl ?? "N/A"}");
-                    sb.AppendLine($"  ● 測試環境網址 : {config.MesSettings.TestUrl ?? "N/A"}");
-                }
-                else
-                {
-                    sb.AppendLine("  ( 尚未設定 MES 環境參數 )");
-                }
-                sb.AppendLine();
-                sb.AppendLine();
-
-                // 4. 監控設備清單
-                int eqCount = config.Equipments?.Count ?? 0;
-                sb.AppendLine($"【 監控設備清單 】 (共 {eqCount} 台)");
-                sb.AppendLine(line);
-                if (config.Equipments != null)
-                {
-                    foreach (var eq in config.Equipments)
-                    {
-                        sb.AppendLine($"  ○ 設備編號: {eq.Id}");
-                        sb.AppendLine($"    - 顯示名稱: {eq.Name ?? "N/A"}");
-                        sb.AppendLine($"    - 協定類型: {eq.Protocol ?? "MQTT"}");
-                        if (!string.IsNullOrEmpty(eq.Topic))
-                            sb.AppendLine($"    - 通訊主題: {eq.Topic}");
-                        if (!string.IsNullOrEmpty(eq.Ip))
-                            sb.AppendLine($"    - IP 位址 : {eq.Ip}:{eq.Port}");
-                        sb.AppendLine();
-                    }
-                }
-                else
-                {
-                    sb.AppendLine("  ( 尚未設定任何設備 )");
-                }
-
-                txtConfig.Text = sb.ToString();
-                
-                // 捲動到最上方
-                txtConfig.SelectionStart = 0;
-                txtConfig.SelectionLength = 0;
             }
             catch (Exception ex)
             {
-                txtConfig.Text = $"產生配置報表時發生錯誤：\n{ex.Message}";
+                MessageBox.Show($"讀取 config.json 發生錯誤：{ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            return new AppConfig();
+        }
+
+        private static AppConfig CloneConfig(AppConfig source)
+        {
+            if (source == null) return new AppConfig();
+            string json = JsonConvert.SerializeObject(source);
+            return JsonConvert.DeserializeObject<AppConfig>(json);
+        }
+
+        private void LoadConfigToUI(AppConfig config)
+        {
+            // 1. 系統與通訊
+            txtEapId.Text = config.EapId ?? "";
+            txtExitPassword.Text = config.ExitPassword ?? "admin";
+            chkMinimizeToTray.Checked = config.MinimizeToTray;
+            txtMqttHost.Text = config.MqttBrokerHost ?? "127.0.0.1";
+            numMqttPort.Value = config.MqttBrokerPort > 0 ? config.MqttBrokerPort : 1883;
+            txtControllerTopic.Text = config.ControllerTopic ?? "CYNTEC/EAP/CONTROLLER";
+            numHeartbeat.Value = config.HeartbeatIntervalSeconds > 0 ? config.HeartbeatIntervalSeconds : 30;
+            numEqpStatusInterval.Value = config.EqpStatusReportIntervalSeconds > 0 ? config.EqpStatusReportIntervalSeconds : 60;
+
+            // 2. MES
+            var mes = config.MesSettings ?? new MesSettings();
+            cboMesEnv.SelectedItem = string.Equals(mes.ActiveEnvironment, "Production", StringComparison.OrdinalIgnoreCase)
+                ? "Production"
+                : "Test";
+            txtMesProdUrl.Text = mes.ProductionUrl ?? "";
+            txtMesTestUrl.Text = mes.TestUrl ?? "";
+            chkCassetteBinding.Checked = config.EnableCassetteBinding;
+
+            // 3. ReelCheck
+            var reel = config.ReelCheckSettings ?? new ReelCheckSettings();
+            cboReelEnv.SelectedItem = string.Equals(reel.ActiveEnvironment, "Production", StringComparison.OrdinalIgnoreCase)
+                ? "Production"
+                : "Test";
+            txtReelProdUrl.Text = reel.ProductionUrl ?? "";
+            txtReelTestUrl.Text = reel.TestUrl ?? "";
+            txtReelClientUrl.Text = reel.ClientUrl ?? "";
+            numReelTimeout.Value = reel.TimeoutSeconds > 0 ? reel.TimeoutSeconds : 30;
+
+            // 4. PostgreSQL
+            var pg = config.PostgresDbSettings ?? new PostgresDbSettings();
+            chkPgEnabled.Checked = pg.Enabled;
+            txtPgConnStr.Text = pg.ConnectionString ?? "";
+            numPgRetentionDays.Value = pg.RetentionDays > 0 ? pg.RetentionDays : 14;
+
+            // 5. Log
+            var log = config.LogSettings ?? new LogSettings();
+            chkLogEnabled.Checked = log.Enabled;
+            numLogRetentionDays.Value = log.RetentionDays > 0 ? log.RetentionDays : 30;
+            numLogCompressDays.Value = log.CompressDays > 0 ? log.CompressDays : 3;
+            numLogMaxSize.Value = log.MaxFileSizeMB > 0 ? log.MaxFileSizeMB : 20;
+            chkLogAreYouThere.Checked = config.LogAreYouThere ?? log.LogAreYouThere;
+
+            // 6. 機台清單
+            dgvEquipments.Rows.Clear();
+            if (config.Equipments != null)
+            {
+                foreach (var eq in config.Equipments)
+                {
+                    int rowIdx = dgvEquipments.Rows.Add(
+                        eq.IsActive,
+                        eq.Id ?? "",
+                        eq.Name ?? "",
+                        string.Equals(eq.Protocol, "SECS", StringComparison.OrdinalIgnoreCase) ? "SECS" : "MQTT",
+                        eq.Topic ?? "",
+                        string.Equals(eq.StatusType, "Cyntec", StringComparison.OrdinalIgnoreCase) ? "Cyntec" : "Delta",
+                        eq.Ip ?? "",
+                        eq.Port.ToString(),
+                        eq.DeviceId.ToString(),
+                        eq.DictionaryPath ?? "",
+                        eq.AutoReportStatus
+                    );
+                }
+            }
+        }
+
+        private AppConfig BuildNewConfigFromUI()
+        {
+            var config = CloneConfig(_originalConfig);
+
+            // 1. 系統與通訊
+            config.EapId = txtEapId.Text.Trim();
+            config.ExitPassword = txtExitPassword.Text;
+            config.MinimizeToTray = chkMinimizeToTray.Checked;
+            config.MqttBrokerHost = txtMqttHost.Text.Trim();
+            config.MqttBrokerPort = (int)numMqttPort.Value;
+            config.ControllerTopic = txtControllerTopic.Text.Trim();
+            config.HeartbeatIntervalSeconds = (int)numHeartbeat.Value;
+            config.EqpStatusReportIntervalSeconds = (int)numEqpStatusInterval.Value;
+
+            // 2. MES
+            if (config.MesSettings == null) config.MesSettings = new MesSettings();
+            config.MesSettings.ActiveEnvironment = cboMesEnv.SelectedItem?.ToString() ?? "Test";
+            config.MesSettings.ProductionUrl = txtMesProdUrl.Text.Trim();
+            config.MesSettings.TestUrl = txtMesTestUrl.Text.Trim();
+            config.EnableCassetteBinding = chkCassetteBinding.Checked;
+
+            // 3. ReelCheck
+            if (config.ReelCheckSettings == null) config.ReelCheckSettings = new ReelCheckSettings();
+            config.ReelCheckSettings.ActiveEnvironment = cboReelEnv.SelectedItem?.ToString() ?? "Test";
+            config.ReelCheckSettings.ProductionUrl = txtReelProdUrl.Text.Trim();
+            config.ReelCheckSettings.TestUrl = txtReelTestUrl.Text.Trim();
+            config.ReelCheckSettings.ClientUrl = txtReelClientUrl.Text.Trim();
+            config.ReelCheckSettings.TimeoutSeconds = (int)numReelTimeout.Value;
+
+            // 4. PostgreSQL
+            if (config.PostgresDbSettings == null) config.PostgresDbSettings = new PostgresDbSettings();
+            config.PostgresDbSettings.Enabled = chkPgEnabled.Checked;
+            config.PostgresDbSettings.ConnectionString = txtPgConnStr.Text.Trim();
+            config.PostgresDbSettings.RetentionDays = (int)numPgRetentionDays.Value;
+
+            // 5. Log
+            if (config.LogSettings == null) config.LogSettings = new LogSettings();
+            config.LogSettings.Enabled = chkLogEnabled.Checked;
+            config.LogSettings.RetentionDays = (int)numLogRetentionDays.Value;
+            config.LogSettings.CompressDays = (int)numLogCompressDays.Value;
+            config.LogSettings.MaxFileSizeMB = (int)numLogMaxSize.Value;
+            config.LogSettings.LogAreYouThere = chkLogAreYouThere.Checked;
+            config.LogAreYouThere = chkLogAreYouThere.Checked;
+
+            // 6. 機台清單
+            var newEquipments = new List<EquipmentConfig>();
+            foreach (DataGridViewRow row in dgvEquipments.Rows)
+            {
+                if (row.IsNewRow) continue;
+
+                string id = row.Cells["colEqId"].Value?.ToString()?.Trim();
+                if (string.IsNullOrWhiteSpace(id)) continue;
+
+                bool isActive = row.Cells["colEqActive"].Value is bool b && b;
+                string name = row.Cells["colEqName"].Value?.ToString()?.Trim() ?? id;
+                string protocol = row.Cells["colEqProtocol"].Value?.ToString() ?? "MQTT";
+                string topic = row.Cells["colEqTopic"].Value?.ToString()?.Trim();
+                string statusType = row.Cells["colEqStatusType"].Value?.ToString() ?? "Delta";
+                string ip = row.Cells["colEqIp"].Value?.ToString()?.Trim();
+                int.TryParse(row.Cells["colEqPort"].Value?.ToString(), out int port);
+                ushort.TryParse(row.Cells["colEqDeviceId"].Value?.ToString(), out ushort deviceId);
+                string dictPath = row.Cells["colEqDictPath"].Value?.ToString()?.Trim();
+                bool autoReport = row.Cells["colEqAutoReport"].Value is bool ab && ab;
+
+                // 保留原設定之特定欄位 (若存在)
+                var existingEq = _originalConfig.Equipments?.FirstOrDefault(e => string.Equals(e.Id, id, StringComparison.OrdinalIgnoreCase));
+                var eqCfg = existingEq != null ? JsonConvert.DeserializeObject<EquipmentConfig>(JsonConvert.SerializeObject(existingEq)) : new EquipmentConfig();
+
+                eqCfg.Id = id;
+                eqCfg.Name = name;
+                eqCfg.IsActive = isActive;
+                eqCfg.Protocol = protocol;
+                eqCfg.Topic = topic;
+                eqCfg.StatusType = statusType;
+                eqCfg.Ip = ip;
+                eqCfg.Port = port;
+                eqCfg.DeviceId = deviceId;
+                eqCfg.DictionaryPath = dictPath;
+                eqCfg.AutoReportStatus = autoReport;
+
+                newEquipments.Add(eqCfg);
+            }
+            config.Equipments = newEquipments;
+
+            return config;
+        }
+
+        private void BtnAddEq_Click(object sender, EventArgs e)
+        {
+            int idx = dgvEquipments.Rows.Add(
+                true,
+                "NEW_EQ",
+                "新建設備",
+                "MQTT",
+                "factory/LOCAL/machine/NEW_EQ",
+                "Cyntec",
+                "",
+                "5000",
+                "0",
+                "Dictionaries/NEW_EQ.json",
+                false
+            );
+            dgvEquipments.ClearSelection();
+            dgvEquipments.Rows[idx].Selected = true;
+        }
+
+        private void BtnDeleteEq_Click(object sender, EventArgs e)
+        {
+            if (dgvEquipments.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("請先點選欲刪除之設備資料列。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var result = MessageBox.Show("確定要自清單中刪除所選取的設備嗎？\n(若該機台目前運作中，套用後將會中斷連線並卸載)", "確認刪除", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
+            {
+                foreach (DataGridViewRow row in dgvEquipments.SelectedRows)
+                {
+                    if (!row.IsNewRow)
+                    {
+                        dgvEquipments.Rows.Remove(row);
+                    }
+                }
+            }
+        }
+
+        private void TabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (tabControl.SelectedTab == tabJsonPreview)
+            {
+                try
+                {
+                    var previewConfig = BuildNewConfigFromUI();
+                    txtJsonPreview.Text = JsonConvert.SerializeObject(previewConfig, Formatting.Indented);
+                }
+                catch (Exception ex)
+                {
+                    txtJsonPreview.Text = $"無法產生 JSON 預覽：{ex.Message}";
+                }
+            }
+        }
+
+        private void BtnSave_Click(object sender, EventArgs e)
+        {
+            // 驗證基本輸入
+            if (string.IsNullOrWhiteSpace(txtEapId.Text))
+            {
+                MessageBox.Show("EAP 站別編號 (EapId) 不能為空白！", "驗證錯誤", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                tabControl.SelectedTab = tabSystem;
+                txtEapId.Focus();
+                return;
+            }
+
+            // 驗證機台重複 ID
+            var eqIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (DataGridViewRow row in dgvEquipments.Rows)
+            {
+                if (row.IsNewRow) continue;
+                string id = row.Cells["colEqId"].Value?.ToString()?.Trim();
+                if (!string.IsNullOrEmpty(id))
+                {
+                    if (eqIds.Contains(id))
+                    {
+                        MessageBox.Show($"機台清單中存在重複的設備編號：'{id}'，請修正後再行儲存。", "驗證錯誤", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        tabControl.SelectedTab = tabEquipments;
+                        return;
+                    }
+                    eqIds.Add(id);
+                }
+            }
+
+            // 組裝新設定檔
+            AppConfig newConfig = BuildNewConfigFromUI();
+
+            // 執行深度比對
+            ConfigDiffResult diff = ConfigDiffService.Compare(_originalConfig, newConfig);
+
+            // 若沒有任何變動
+            if (!diff.HasAnyChange)
+            {
+                MessageBox.Show("設定內容未有任何變動，無需套用。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // 彈出二次確認視窗
+            using (var diffForm = new ConfigDiffForm(diff))
+            {
+                if (diffForm.ShowDialog(this) != DialogResult.OK)
+                {
+                    // 使用者取消或放棄返回
+                    return;
+                }
+            }
+
+            // 二次確認通過，進行儲存與熱套用
+            bool success = false;
+            if (_mainForm != null)
+            {
+                success = _mainForm.ApplyConfiguration(newConfig, diff);
+            }
+            else
+            {
+                success = SaveConfigToFileDirectly(newConfig);
+                if (success)
+                {
+                    if (diff.HasGlobalChanges)
+                    {
+                        MessageBox.Show("全域參數已修改並儲存至 config.json！\n請手動重新啟動應用程式以完全生效。", "提醒", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    else
+                    {
+                        MessageBox.Show("機台設定已成功寫入 config.json。", "成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+            }
+
+            if (success)
+            {
+                _originalConfig = CloneConfig(newConfig);
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+        }
+
+        private bool SaveConfigToFileDirectly(AppConfig config)
+        {
+            try
+            {
+                string path = Path.Combine(Application.StartupPath, "config.json");
+                string json = JsonConvert.SerializeObject(config, Formatting.Indented);
+                File.WriteAllText(path, json);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"寫入 config.json 失敗：{ex.Message}", "儲存錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
+        }
+
+        private void BtnClose_Click(object sender, EventArgs e)
+        {
+            this.Close();
         }
     }
 }

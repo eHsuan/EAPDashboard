@@ -72,7 +72,7 @@
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/TP0013",
       "DictionaryPath": "Dictionaries/TP0013.json",
-      "StatusType": "Delta",
+      "StatusType": "Cyntec",
       "IsActive": true
     },
     {
@@ -118,7 +118,7 @@
       "Topic": "TN2/Floor2/Yellow/DR0026",
       "DictionaryPath": "Dictionaries/DR0026.json",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "EQ02",
@@ -151,6 +151,15 @@
       "DeviceId": 0,
       "DictionaryPath": "Dictionaries/DR0009.json",
       "TimeFormat": "16",
+      "IsActive": false
+    },
+    {
+      "Id": "DL0017",
+      "Name": "DL0017",
+      "Protocol": "MQTT",
+      "Topic": "TN2/YELLOW/machine/DL0017",
+      "DictionaryPath": "Dictionaries/DL0017.json",
+      "StatusType": "Cyntec",
       "IsActive": false
     }
   ]

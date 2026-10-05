@@ -9,6 +9,8 @@ namespace EAPDashboard.Controls
     public partial class EquipmentCard : UserControl
     {
         private EquipmentBase _equipment;
+        public EquipmentBase Equipment => _equipment;
+        public string EquipmentId => _equipment?.Id;
 
         public EquipmentCard(EquipmentBase equipment)
         {

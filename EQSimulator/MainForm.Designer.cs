@@ -60,6 +60,7 @@ namespace EQSimulator
             _cmbStatusType = new System.Windows.Forms.ComboBox();
             _cmbStatus = new System.Windows.Forms.ComboBox();
             btnReportStatus = new System.Windows.Forms.Button();
+            _chkAutoStatusReport = new System.Windows.Forms.CheckBox();
             pnlNGGroup = new System.Windows.Forms.Panel();
             lblNGCode = new System.Windows.Forms.Label();
             _cboNGCode = new System.Windows.Forms.ComboBox();
@@ -529,10 +530,11 @@ namespace EQSimulator
             pnlStatusReport.Controls.Add(_cmbStatusType);
             pnlStatusReport.Controls.Add(_cmbStatus);
             pnlStatusReport.Controls.Add(btnReportStatus);
+            pnlStatusReport.Controls.Add(_chkAutoStatusReport);
             pnlStatusReport.Location = new System.Drawing.Point(409, 47);
             pnlStatusReport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             pnlStatusReport.Name = "pnlStatusReport";
-            pnlStatusReport.Size = new System.Drawing.Size(370, 34);
+            pnlStatusReport.Size = new System.Drawing.Size(560, 34);
             pnlStatusReport.TabIndex = 9;
             // 
             // _cmbStatusType
@@ -563,6 +565,18 @@ namespace EQSimulator
             btnReportStatus.Text = "Report Status";
             btnReportStatus.UseVisualStyleBackColor = true;
             btnReportStatus.Click += BtnReportStatus_Click;
+            // 
+            // _chkAutoStatusReport
+            // 
+            _chkAutoStatusReport.AutoSize = true;
+            _chkAutoStatusReport.Location = new System.Drawing.Point(372, 6);
+            _chkAutoStatusReport.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            _chkAutoStatusReport.Name = "_chkAutoStatusReport";
+            _chkAutoStatusReport.Size = new System.Drawing.Size(165, 19);
+            _chkAutoStatusReport.TabIndex = 3;
+            _chkAutoStatusReport.Text = "自動狀態測試 (1↔3/分)";
+            _chkAutoStatusReport.UseVisualStyleBackColor = true;
+            _chkAutoStatusReport.CheckedChanged += ChkAutoStatusReport_CheckedChanged;
             // 
             // pnlNGGroup
             // 
@@ -889,6 +903,7 @@ namespace EQSimulator
         private System.Windows.Forms.ComboBox _cmbStatusType;
         private System.Windows.Forms.ComboBox _cmbStatus;
         private System.Windows.Forms.Button btnReportStatus;
+        private System.Windows.Forms.CheckBox _chkAutoStatusReport;
         private System.Windows.Forms.Panel pnlNGGroup;
         private System.Windows.Forms.Label lblNGCode;
         private System.Windows.Forms.ComboBox _cboNGCode;

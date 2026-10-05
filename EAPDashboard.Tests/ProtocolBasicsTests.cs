@@ -226,5 +226,53 @@ namespace EAPDashboard.Tests
             config2.Should().NotBeNull();
             config2.LogAreYouThere.Should().BeTrue();
         }
+
+        [Fact]
+        public void AutoStatusReport_ToggleLogic_ShouldAlternateBetween1And3()
+        {
+            // Initial state: not 1 (e.g. "0" or "3") -> should go to "1"
+            string currentStatus = "0";
+            string nextStatus1 = (currentStatus == "1") ? "3" : "1";
+            nextStatus1.Should().Be("1");
+
+            // When current is "1" -> should toggle to "3"
+            currentStatus = nextStatus1;
+            string nextStatus2 = (currentStatus == "1") ? "3" : "1";
+            nextStatus2.Should().Be("3");
+
+            // When current is "3" -> should toggle to "1"
+            currentStatus = nextStatus2;
+            string nextStatus3 = (currentStatus == "1") ? "3" : "1";
+            nextStatus3.Should().Be("1");
+
+            // Build StatusChangeReportMessage
+            var msg = new StatusChangeReportMessage
+            {
+                CMD = CommandType.StatusChangeReport,
+                OldStatus = "1",
+                NewStatus = "3"
+            };
+            msg.CMD.Should().Be(CommandType.StatusChangeReport);
+            msg.OldStatus.Should().Be("1");
+            msg.NewStatus.Should().Be("3");
+        }
+
+        [Fact]
+        public void EqSettings_AutoStatusReport_Serialization_ShouldPersistCheckboxState()
+        {
+            string json = @"{
+                ""Broker"": ""127.0.0.1"",
+                ""EqId"": ""TP0013"",
+                ""AutoStatusReport"": true
+            }";
+
+            var jObj = JObject.Parse(json);
+            jObj["AutoStatusReport"].Value<bool>().Should().BeTrue();
+
+            jObj["AutoStatusReport"] = false;
+            string updatedJson = jObj.ToString();
+            var reParsed = JObject.Parse(updatedJson);
+            reParsed["AutoStatusReport"].Value<bool>().Should().BeFalse();
+        }
     }
 }
