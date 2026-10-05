@@ -112,13 +112,13 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
-        public void AppConfig_ExitPassword_ShouldDefaultToAdmin_And_SupportCustomConfig()
+        public void AppConfig_ExitPassword_ShouldDefaultToCIM_And_SupportCustomConfig()
         {
             // Arrange & Act - Default instance
             var config = new AppConfig();
 
             // Assert
-            config.ExitPassword.Should().Be("admin");
+            config.ExitPassword.Should().Be("CIM");
 
             // Custom password
             string json = "{\"ExitPassword\":\"Secret123\"}";

@@ -26,7 +26,7 @@ namespace EAPDashboard
 
     public class AppConfig
     {
-        public string ExitPassword { get; set; } = "admin";
+        public string ExitPassword { get; set; } = "CIM";
         public string EapId { get; set; }
         public string ControllerTopic { get; set; }
         public string MqttBrokerHost { get; set; }
@@ -145,10 +145,10 @@ namespace EAPDashboard
                 string targetPassword = _appConfig?.ExitPassword;
                 if (string.IsNullOrEmpty(targetPassword))
                 {
-                    targetPassword = "admin";
+                    targetPassword = "CIM";
                 }
 
-                using (var dlg = new PasswordPromptForm(targetPassword))
+                using (var dlg = new PasswordPromptForm(targetPassword, "系統關閉授權驗證", "請輸入關閉程式之授權密碼：", "確認關閉"))
                 {
                     dlg.StartPosition = FormStartPosition.CenterScreen;
                     dlg.TopMost = true;
@@ -184,10 +184,22 @@ namespace EAPDashboard
         {
             _equipments = new List<EquipmentBase>();
             var path = Path.Combine(Application.StartupPath, "config.json");
-            if (!File.Exists(path)) return;
+            if (!File.Exists(path))
+            {
+                _appConfig = new AppConfig { ExitPassword = "CIM" };
+                return;
+            }
             try {
                 var json = File.ReadAllText(path);
                 _appConfig = JsonConvert.DeserializeObject<AppConfig>(json);
+                if (_appConfig == null)
+                {
+                    _appConfig = new AppConfig { ExitPassword = "CIM" };
+                }
+                if (string.IsNullOrEmpty(_appConfig.ExitPassword))
+                {
+                    _appConfig.ExitPassword = "CIM";
+                }
 
                 var ver = typeof(MainForm).Assembly.GetName().Version;
                 string versionStr = ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : Application.ProductVersion?.Split('+')[0];
@@ -283,7 +295,10 @@ namespace EAPDashboard
                     }
                 }
                 foreach (var eq in _equipments) eq.LoadAlarmMappings();
-            } catch (Exception ex) { MessageBox.Show("Load Error: " + ex.Message); }
+            } catch (Exception ex) { 
+                if (_appConfig == null) _appConfig = new AppConfig { ExitPassword = "CIM" };
+                MessageBox.Show("Load Error: " + ex.Message); 
+            }
         }
 
         private EquipmentBase CreateEquipmentInstance(EquipmentConfig config)
@@ -639,6 +654,22 @@ namespace EAPDashboard
         }
         private void MenuSettings_Click(object sender, EventArgs e) 
         { 
+            string targetPassword = _appConfig?.ExitPassword;
+            if (string.IsNullOrEmpty(targetPassword))
+            {
+                targetPassword = "CIM";
+            }
+
+            using (var dlg = new PasswordPromptForm(targetPassword, "系統設定授權驗證", "請輸入進入系統設定之授權密碼：", "確認進入"))
+            {
+                dlg.StartPosition = FormStartPosition.CenterScreen;
+                dlg.TopMost = true;
+                if (dlg.ShowDialog(this) != DialogResult.OK)
+                {
+                    return; // 驗證失敗或取消，不開啟設定頁面
+                }
+            }
+
             using (var f = new SettingsForm(this, _appConfig)) 
             {
                 f.ShowDialog(this); 

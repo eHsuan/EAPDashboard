@@ -122,7 +122,7 @@ namespace EAPDashboard
         {
             // 1. 系統與通訊
             txtEapId.Text = config.EapId ?? "";
-            txtExitPassword.Text = config.ExitPassword ?? "admin";
+            txtExitPassword.Text = config.ExitPassword ?? "CIM";
             chkMinimizeToTray.Checked = config.MinimizeToTray;
             txtMqttHost.Text = config.MqttBrokerHost ?? "127.0.0.1";
             numMqttPort.Value = config.MqttBrokerPort > 0 ? config.MqttBrokerPort : 1883;

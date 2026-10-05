@@ -13,10 +13,14 @@ namespace EAPDashboard
         private Button btnOk;
         private Button btnCancel;
 
-        public PasswordPromptForm(string targetPassword)
+        public PasswordPromptForm(string targetPassword, string title = "系統關閉授權驗證", string prompt = "請輸入關閉程式之授權密碼：", string okButtonText = "確認關閉")
         {
-            _targetPassword = targetPassword ?? "admin";
+            _targetPassword = !string.IsNullOrEmpty(targetPassword) ? targetPassword : "CIM";
             InitializeComponent();
+
+            if (!string.IsNullOrEmpty(title)) this.Text = title;
+            if (!string.IsNullOrEmpty(prompt)) this.lblPrompt.Text = prompt;
+            if (!string.IsNullOrEmpty(okButtonText)) this.btnOk.Text = okButtonText;
         }
 
         private void InitializeComponent()
@@ -91,7 +95,8 @@ namespace EAPDashboard
             }
             else
             {
-                MessageBox.Show(this, "密碼錯誤，禁止關閉程式！", "授權失敗", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                string msg = this.Text.Contains("設定") ? "密碼錯誤，禁止開啟設定頁面！" : "密碼錯誤，禁止關閉程式！";
+                MessageBox.Show(this, msg, "授權失敗", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 this.txtPassword.Clear();
                 this.txtPassword.Focus();
             }

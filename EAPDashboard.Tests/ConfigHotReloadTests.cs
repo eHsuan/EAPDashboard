@@ -222,5 +222,12 @@ namespace EAPDashboard.Tests
             result.HasGlobalChanges.Should().BeFalse();
             result.HasAnyChange.Should().BeFalse();
         }
+
+        [Fact]
+        public void AppConfig_DefaultExitPassword_ShouldBeCIM()
+        {
+            var config = new AppConfig();
+            config.ExitPassword.Should().Be("CIM");
+        }
     }
 }
