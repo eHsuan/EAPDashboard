@@ -130,6 +130,7 @@ namespace EAPDashboard
             numHeartbeat.Value = config.HeartbeatIntervalSeconds > 0 ? config.HeartbeatIntervalSeconds : 30;
             numEqpStatusInterval.Value = config.EqpStatusReportIntervalSeconds > 0 ? config.EqpStatusReportIntervalSeconds : 60;
             txtDictionaryDir.Text = config.DictionaryDirectory ?? "Dictionaries";
+            txtMqttTopicPrefix.Text = config.MqttTopicPrefix ?? "TN2/YELLOW/machine";
 
             // 2. MES
             var mes = config.MesSettings ?? new MesSettings();
@@ -175,7 +176,6 @@ namespace EAPDashboard
                         eq.Id ?? "",
                         eq.Name ?? "",
                         string.Equals(eq.Protocol, "SECS", StringComparison.OrdinalIgnoreCase) ? "SECS" : "MQTT",
-                        eq.Topic ?? "",
                         string.Equals(eq.StatusType, "Cyntec", StringComparison.OrdinalIgnoreCase) ? "Cyntec" : "Delta",
                         eq.Ip ?? "",
                         eq.Port.ToString(),
@@ -200,6 +200,7 @@ namespace EAPDashboard
             config.HeartbeatIntervalSeconds = (int)numHeartbeat.Value;
             config.EqpStatusReportIntervalSeconds = (int)numEqpStatusInterval.Value;
             config.DictionaryDirectory = string.IsNullOrWhiteSpace(txtDictionaryDir.Text) ? "Dictionaries" : txtDictionaryDir.Text.Trim();
+            config.MqttTopicPrefix = string.IsNullOrWhiteSpace(txtMqttTopicPrefix.Text) ? "TN2/YELLOW/machine" : txtMqttTopicPrefix.Text.Trim();
 
             // 2. MES
             if (config.MesSettings == null) config.MesSettings = new MesSettings();
@@ -243,7 +244,6 @@ namespace EAPDashboard
                 bool isActive = row.Cells["colEqActive"].Value is bool b && b;
                 string name = row.Cells["colEqName"].Value?.ToString()?.Trim() ?? id;
                 string protocol = row.Cells["colEqProtocol"].Value?.ToString() ?? "MQTT";
-                string topic = row.Cells["colEqTopic"].Value?.ToString()?.Trim();
                 string statusType = row.Cells["colEqStatusType"].Value?.ToString() ?? "Delta";
                 string ip = row.Cells["colEqIp"].Value?.ToString()?.Trim();
                 int.TryParse(row.Cells["colEqPort"].Value?.ToString(), out int port);
@@ -258,7 +258,7 @@ namespace EAPDashboard
                 eqCfg.Name = name;
                 eqCfg.IsActive = isActive;
                 eqCfg.Protocol = protocol;
-                eqCfg.Topic = topic;
+                eqCfg.Topic = null;
                 eqCfg.StatusType = statusType;
                 eqCfg.Ip = ip;
                 eqCfg.Port = port;
@@ -280,7 +280,6 @@ namespace EAPDashboard
                 "NEW_EQ",
                 "新建設備",
                 "MQTT",
-                "factory/LOCAL/machine/NEW_EQ",
                 "Cyntec",
                 "",
                 "5000",

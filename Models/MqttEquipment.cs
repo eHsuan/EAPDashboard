@@ -123,6 +123,12 @@ namespace EAPDashboard.Models
 
             _bus = bus;
             _heartbeatInterval = heartbeatIntervalSeconds;
+
+            if (string.IsNullOrWhiteSpace(Topic) && !string.IsNullOrWhiteSpace(Id))
+            {
+                Topic = $"TN2/YELLOW/machine/{Id}";
+            }
+
             _commandTopic = $"{Topic?.TrimEnd('/')}/Command";
             _reportTopic = $"{Topic?.TrimEnd('/')}/Report";
 

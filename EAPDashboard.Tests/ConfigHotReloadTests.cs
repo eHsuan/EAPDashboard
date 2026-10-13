@@ -254,5 +254,30 @@ namespace EAPDashboard.Tests
             result.HasGlobalChanges.Should().BeTrue();
             result.GlobalChanges.Should().Contain(c => c.PropertyName == "字典檔目錄" && c.NewValue == "CustomDictionaries");
         }
+
+        [Fact]
+        public void AppConfig_DefaultMqttTopicPrefix_ShouldBeTN2YellowMachine()
+        {
+            var config = new AppConfig();
+            config.MqttTopicPrefix.Should().Be("TN2/YELLOW/machine");
+        }
+
+        [Fact]
+        public void Compare_WhenMqttTopicPrefixChanged_ShouldDetectGlobalChange()
+        {
+            var oldCfg = new AppConfig
+            {
+                MqttTopicPrefix = "TN2/YELLOW/machine"
+            };
+
+            var newCfg = new AppConfig
+            {
+                MqttTopicPrefix = "factory/LOCAL/machine"
+            };
+
+            var result = ConfigDiffService.Compare(oldCfg, newCfg);
+            result.HasGlobalChanges.Should().BeTrue();
+            result.GlobalChanges.Should().Contain(c => c.PropertyName == "機台主題前綴" && c.NewValue == "factory/LOCAL/machine");
+        }
     }
 }

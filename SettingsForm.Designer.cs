@@ -35,6 +35,8 @@ namespace EAPDashboard
             this.lblEapId = new System.Windows.Forms.Label();
             this.txtDictionaryDir = new System.Windows.Forms.TextBox();
             this.lblDictionaryDir = new System.Windows.Forms.Label();
+            this.txtMqttTopicPrefix = new System.Windows.Forms.TextBox();
+            this.lblMqttTopicPrefix = new System.Windows.Forms.Label();
             this.tabMes = new System.Windows.Forms.TabPage();
             this.pnlMes = new System.Windows.Forms.Panel();
             this.grpReelCheck = new System.Windows.Forms.GroupBox();
@@ -79,7 +81,6 @@ namespace EAPDashboard
             this.colEqId = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqName = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqProtocol = new System.Windows.Forms.DataGridViewComboBoxColumn();
-            this.colEqTopic = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqStatusType = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.colEqIp = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqPort = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -152,6 +153,8 @@ namespace EAPDashboard
             // pnlSystem
             // 
             this.pnlSystem.AutoScroll = true;
+            this.pnlSystem.Controls.Add(this.txtMqttTopicPrefix);
+            this.pnlSystem.Controls.Add(this.lblMqttTopicPrefix);
             this.pnlSystem.Controls.Add(this.txtDictionaryDir);
             this.pnlSystem.Controls.Add(this.lblDictionaryDir);
             this.pnlSystem.Controls.Add(this.numEqpStatusInterval);
@@ -345,6 +348,26 @@ namespace EAPDashboard
             this.lblDictionaryDir.Size = new System.Drawing.Size(185, 17);
             this.lblDictionaryDir.TabIndex = 16;
             this.lblDictionaryDir.Text = "字典檔根目錄 (Dictionary Dir):";
+            // 
+            // txtMqttTopicPrefix
+            // 
+            this.txtMqttTopicPrefix.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(50)))));
+            this.txtMqttTopicPrefix.ForeColor = System.Drawing.Color.White;
+            this.txtMqttTopicPrefix.Location = new System.Drawing.Point(220, 400);
+            this.txtMqttTopicPrefix.Name = "txtMqttTopicPrefix";
+            this.txtMqttTopicPrefix.Size = new System.Drawing.Size(400, 24);
+            this.txtMqttTopicPrefix.TabIndex = 17;
+            this.txtMqttTopicPrefix.Text = "TN2/YELLOW/machine";
+            // 
+            // lblMqttTopicPrefix
+            // 
+            this.lblMqttTopicPrefix.AutoSize = true;
+            this.lblMqttTopicPrefix.ForeColor = System.Drawing.Color.Gainsboro;
+            this.lblMqttTopicPrefix.Location = new System.Drawing.Point(25, 403);
+            this.lblMqttTopicPrefix.Name = "lblMqttTopicPrefix";
+            this.lblMqttTopicPrefix.Size = new System.Drawing.Size(185, 17);
+            this.lblMqttTopicPrefix.TabIndex = 18;
+            this.lblMqttTopicPrefix.Text = "MQTT 機台主題前綴 (Topic Prefix):";
             // 
             // txtExitPassword
             // 
@@ -923,7 +946,6 @@ namespace EAPDashboard
             this.colEqId,
             this.colEqName,
             this.colEqProtocol,
-            this.colEqTopic,
             this.colEqStatusType,
             this.colEqIp,
             this.colEqPort,
@@ -965,12 +987,6 @@ namespace EAPDashboard
             "MQTT",
             "SECS"});
             this.colEqProtocol.Name = "colEqProtocol";
-            // 
-            // colEqTopic
-            // 
-            this.colEqTopic.FillWeight = 50F;
-            this.colEqTopic.HeaderText = "MQTT 主題 (Topic)";
-            this.colEqTopic.Name = "colEqTopic";
             // 
             // colEqStatusType
             // 
@@ -1198,6 +1214,8 @@ namespace EAPDashboard
         private System.Windows.Forms.Label lblEqpStatusInterval;
         private System.Windows.Forms.TextBox txtDictionaryDir;
         private System.Windows.Forms.Label lblDictionaryDir;
+        private System.Windows.Forms.TextBox txtMqttTopicPrefix;
+        private System.Windows.Forms.Label lblMqttTopicPrefix;
         private System.Windows.Forms.TabPage tabMes;
         private System.Windows.Forms.Panel pnlMes;
         private System.Windows.Forms.GroupBox grpMes;
@@ -1251,7 +1269,6 @@ namespace EAPDashboard
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqId;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqName;
         private System.Windows.Forms.DataGridViewComboBoxColumn colEqProtocol;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colEqTopic;
         private System.Windows.Forms.DataGridViewComboBoxColumn colEqStatusType;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqIp;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqPort;

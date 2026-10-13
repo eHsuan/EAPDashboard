@@ -36,6 +36,7 @@ namespace EAPDashboard
         public bool EnableCassetteBinding { get; set; } = false;
         public bool MinimizeToTray { get; set; } = false;
         public string DictionaryDirectory { get; set; } = "Dictionaries";
+        public string MqttTopicPrefix { get; set; } = "TN2/YELLOW/machine";
         public MesSettings MesSettings { get; set; }
         public YieldSettings YieldSettings { get; set; } = new YieldSettings();
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
@@ -320,11 +321,18 @@ namespace EAPDashboard
 
             if (string.Equals(config.Protocol, "MQTT", StringComparison.OrdinalIgnoreCase))
             {
+                string topicPrefix = !string.IsNullOrWhiteSpace(_appConfig?.MqttTopicPrefix)
+                    ? _appConfig.MqttTopicPrefix.Trim()
+                    : "TN2/YELLOW/machine";
+                string topic = topicPrefix.Contains("{Id}", StringComparison.OrdinalIgnoreCase)
+                    ? topicPrefix.Replace("{Id}", config.Id, StringComparison.OrdinalIgnoreCase)
+                    : $"{topicPrefix.TrimEnd('/')}/{config.Id}";
+
                 eq = new MqttEquipment
                 {
                     Id = config.Id,
                     Name = config.Name,
-                    Topic = config.Topic,
+                    Topic = topic,
                     StatusType = config.StatusType ?? "Delta",
                     DictionaryPath = dictPath,
                     DbConfig = _appConfig?.DbSettings,

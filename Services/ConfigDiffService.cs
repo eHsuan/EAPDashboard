@@ -77,6 +77,7 @@ namespace EAPDashboard.Services
             CheckChange(changes, "MQTT 通訊", "Controller Topic", oldCfg.ControllerTopic, newCfg.ControllerTopic);
             CheckChange(changes, "MQTT 通訊", "Broker 位址", oldCfg.MqttBrokerHost, newCfg.MqttBrokerHost);
             CheckChange(changes, "MQTT 通訊", "Broker 埠號", oldCfg.MqttBrokerPort.ToString(), newCfg.MqttBrokerPort.ToString());
+            CheckChange(changes, "MQTT 通訊", "機台主題前綴", oldCfg.MqttTopicPrefix, newCfg.MqttTopicPrefix);
             CheckChange(changes, "通訊參數", "心跳間隔 (秒)", oldCfg.HeartbeatIntervalSeconds.ToString(), newCfg.HeartbeatIntervalSeconds.ToString());
             CheckChange(changes, "通訊參數", "狀態上報間隔 (秒)", oldCfg.EqpStatusReportIntervalSeconds.ToString(), newCfg.EqpStatusReportIntervalSeconds.ToString());
             CheckChange(changes, "通訊參數", "全域卡匣綁定開關", oldCfg.EnableCassetteBinding.ToString(), newCfg.EnableCassetteBinding.ToString());
@@ -325,11 +326,6 @@ namespace EAPDashboard.Services
                     }
                     else // MQTT
                     {
-                        if (!StringEqual(oldEq.Topic, newEq.Topic))
-                        {
-                            coreChanged = true;
-                            details.Add($"Topic 主題: {oldEq.Topic} ➔ {newEq.Topic}");
-                        }
                         if (!StringEqual(oldEq.StatusType, newEq.StatusType))
                         {
                             coreChanged = true;

@@ -9,6 +9,7 @@
   "EnableCassetteBinding": false,
   "MinimizeToTray": true,
   "DictionaryDirectory": "Dictionaries",
+  "MqttTopicPrefix": "TN2/YELLOW/machine",
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
@@ -52,7 +53,6 @@
       "Id": "ET0026",
       "Name": "宇泰和-天車-鎳鉻蝕刻",
       "Protocol": "MQTT",
-      "Topic": "TN2/YELLOW/machine/ET0026",
       "StatusType": "Cyntec",
       "IsActive": false,
       "autoreportstatus": false
@@ -61,7 +61,6 @@
       "Id": "ET0023",
       "Name": "營錡-水平式-微蝕刻",
       "Protocol": "MQTT",
-      "Topic": "TN2/YELLOW/machine/ET0023",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -69,7 +68,6 @@
       "Id": "TP0013",
       "Name": "TP0013",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/TP0013",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -77,7 +75,6 @@
       "Id": "AC3811",
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/AC3811",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -85,7 +82,6 @@
       "Id": "MK0158",
       "Name": "MK0158",
       "Protocol": "MQTT",
-      "Topic": "TN2/Floor2/Yellow/MK0158",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -93,7 +89,6 @@
       "Id": "ZZ0304",
       "Name": "ZZ0304",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/ZZ0304",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -101,7 +96,6 @@
       "Id": "OV0097",
       "Name": "OV0097",
       "Protocol": "MQTT",
-      "Topic": "factory/LOCAL/machine/OV0097",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -109,7 +103,6 @@
       "Id": "DR0026",
       "Name": "DR0026",
       "Protocol": "MQTT",
-      "Topic": "TN2/Floor2/Yellow/DR0026",
       "StatusType": "Delta",
       "IsActive": true
     },
@@ -147,7 +140,6 @@
       "Id": "DL0017",
       "Name": "DL0017",
       "Protocol": "MQTT",
-      "Topic": "TN2/YELLOW/machine/DL0017",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -155,7 +147,6 @@
       "Id": "DE0025",
       "Name": "DE0025",
       "Protocol": "MQTT",
-      "Topic": "TN2/YELLOW/machine/DE0025",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -163,7 +154,6 @@
       "Id": "DE0005",
       "Name": "DE0005",
       "Protocol": "MQTT",
-      "Topic": "TN2/YELLOW/machine/DE0005",
       "StatusType": "Cyntec",
       "IsActive": false
     }
