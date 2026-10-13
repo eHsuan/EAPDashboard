@@ -350,6 +350,14 @@ namespace EAPDashboard.Services
                     {
                         details.Add($"卡匣綁定設定: {oldEq.EnableCassetteBinding} ➔ {newEq.EnableCassetteBinding}");
                     }
+                    if (oldEq.EnableReelCheck != newEq.EnableReelCheck)
+                    {
+                        details.Add($"料捲防混料: {oldEq.EnableReelCheck} ➔ {newEq.EnableReelCheck}");
+                    }
+                    if (oldEq.EnableTrackOutValidation != newEq.EnableTrackOutValidation)
+                    {
+                        details.Add($"出站結算與NG/良率檢核: {oldEq.EnableTrackOutValidation} ➔ {newEq.EnableTrackOutValidation}");
+                    }
 
                     if (coreChanged)
                     {

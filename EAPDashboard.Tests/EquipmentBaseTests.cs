@@ -359,8 +359,8 @@ namespace EAPDashboard.Tests
         [Fact]
         public async Task ProcessTrackOutAsync_WhenUnreportedNGCodesExist_TpEquipment_ShouldRejectWithCommaSeparatedList()
         {
-            // Arrange: TP 開頭設備應檢查並阻擋未回報之 NG 碼
-            var eq = new TestableEquipment("TP0013");
+            // Arrange: 啟用出站檢核設備應檢查並阻擋未回報之 NG 碼
+            var eq = new TestableEquipment("TP0013") { EnableTrackOutValidation = true };
             eq.SetWorkOrderNGCodesForTest("WO100", new List<NGCodeItem>
             {
                 new NGCodeItem { NGCode = "UPNG501", NGName = "卡片", NGQty = "1", NGUnit = "PCS" },
@@ -763,7 +763,7 @@ namespace EAPDashboard.Tests
 
             try
             {
-                var eq1 = new TestableEquipment("TP_PERSIST_02");
+                var eq1 = new TestableEquipment("TP_PERSIST_02") { EnableTrackOutValidation = true };
                 var ngItems = new List<NGCodeItem>
                 {
                     new NGCodeItem { NGCode = "NG001", NGName = "Defect A" },
@@ -774,7 +774,7 @@ namespace EAPDashboard.Tests
                 eq1.RecordNGCodeReport("WO_RESTART_002", "NG001", "Defect A", "5", "PCS");
 
                 // Act - Simulate EAP restart by creating a new instance and calling LoadNgCodeCache
-                var eq2 = new TestableEquipment("TP_PERSIST_02");
+                var eq2 = new TestableEquipment("TP_PERSIST_02") { EnableTrackOutValidation = true };
                 eq2.LoadNgCodeCache();
 
                 // Assert
@@ -1184,7 +1184,7 @@ namespace EAPDashboard.Tests
 
             try
             {
-                var eq = new TestableEquipment("TP0013"); // TP 設備
+                var eq = new TestableEquipment("TP0013") { EnableTrackOutValidation = true }; // 啟用出站檢核設備
                 eq.MesCallHandler = (req) =>
                 {
                     if (req is WOQRYRequest)
@@ -1679,6 +1679,56 @@ namespace EAPDashboard.Tests
             await eq.InvokeStartPeriodicStatusReportLoop(cts.Token);
 
             eq.LogHistory.Should().Contain(x => x.Contains("[MES PERIODIC] Periodic EQPSTATUS report loop disabled for EQ_AUTOREPORT_FALSE"));
+        }
+
+        [Fact]
+        public void Capabilities_DefaultValues_ShouldBeFalse()
+        {
+            var eq = new TestableEquipment("TP0013");
+            eq.EnableReelCheck.Should().BeFalse();
+            eq.EnableTrackOutValidation.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_WhenNonTpEquipmentHasEnableTrackOutValidation_ShouldRejectUnreportedNGCodes()
+        {
+            // 非 TP 名稱之設備只要 EnableTrackOutValidation = true，亦應啟用出站 NG 檢核
+            var eq = new TestableEquipment("SMT_LINE_01") { EnableTrackOutValidation = true };
+            eq.SetWorkOrderNGCodesForTest("WO200", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "DEFECT01", NGName = "缺陷A", NGQty = null }
+            });
+
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO200" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            result.Should().StartWith("FAIL|NG_CHECK_FAIL|Unreported NGCode(s): ");
+            result.Should().Contain("DEFECT01");
+        }
+
+        [Fact]
+        public async Task ProcessTrackOutAsync_WhenTpEquipmentHasEnableTrackOutValidationFalse_ShouldNotCheckNGCodes()
+        {
+            // TP 名稱之設備若未啟用 EnableTrackOutValidation，則不應被 NG 檢核阻擋
+            var eq = new TestableEquipment("TP0013") { EnableTrackOutValidation = false };
+            eq.SetWorkOrderNGCodesForTest("WO200", new List<NGCodeItem>
+            {
+                new NGCodeItem { NGCode = "DEFECT01", NGName = "缺陷A", NGQty = null }
+            });
+
+            // 未設定 MES Mock，若跳過 NG 檢核會走到 MES TrackOut
+            string result = await eq.ProcessTrackOutAsync(
+                workOrders: new List<string> { "WO200" },
+                qty: "10",
+                userId: "U001",
+                cassetteIds: new List<string> { "C001" },
+                panels: new List<string>());
+
+            result.Should().NotStartWith("FAIL|NG_CHECK_FAIL");
         }
     }
 }

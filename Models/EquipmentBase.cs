@@ -217,7 +217,7 @@ namespace EAPDashboard.Models
 
         public void LoadNgCodeCache()
         {
-            if (string.IsNullOrEmpty(this.Id) || !IsTpEquipment) return;
+            if (string.IsNullOrEmpty(this.Id) || !EnableTrackOutValidation) return;
             try
             {
                 lock (_ngCodeFileLock)
@@ -251,7 +251,7 @@ namespace EAPDashboard.Models
 
         public void SaveNgCodeCacheToDisk()
         {
-            if (string.IsNullOrEmpty(this.Id) || !IsTpEquipment) return;
+            if (string.IsNullOrEmpty(this.Id) || !EnableTrackOutValidation) return;
             try
             {
                 lock (_ngCodeFileLock)
@@ -786,7 +786,8 @@ namespace EAPDashboard.Models
         protected System.Timers.Timer _hourlyAvailabilityTimer;
 
         public string Id { get; set; }
-        public bool IsTpEquipment => !string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase);
+        public bool EnableReelCheck { get; set; } = false;
+        public bool EnableTrackOutValidation { get; set; } = false;
         public string Name { get; set; }
         public string Protocol { get; set; }
         public bool IsActive { get; set; } = true;
@@ -1148,8 +1149,6 @@ namespace EAPDashboard.Models
                 string lastMessage = "";
                 string lastInputParamListDT = "";
 
-                bool isTp = (!string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id)?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true;
-
                 // 分次逐筆向 MES 查詢工單 (WOQRY)
                 foreach (var wo in validWos)
                 {
@@ -1215,8 +1214,8 @@ namespace EAPDashboard.Models
                         }
                     }
 
-                    // 檢查並收集工單的 NG 碼清單 (NGCodeListDT) - 僅限 TP 設備
-                    if (isTp)
+                    // 檢查並收集工單的 NG 碼清單 (NGCodeListDT) (若啟用出站檢核)
+                    if (EnableTrackOutValidation)
                     {
                         string ngCodeListDtStr = null;
                         try
@@ -1922,9 +1921,8 @@ namespace EAPDashboard.Models
 
                 OnLogReceived(LogLevel.Info, $"[WOCHECKOUT] {eid} - WOs: {combinedWo}, Qty: {safeQty}, CIDs: {string.Join(",", cids)}");
 
-                // 僅 TP 開頭設備檢核所有工單的 NGCode 是否皆已全數上報
-                bool isTp = (!string.IsNullOrEmpty(reportEqpId) ? reportEqpId : this.Id)?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true;
-                if (isTp)
+                // 檢核所有工單的 NGCode 是否皆已全數上報 (若啟用出站檢核)
+                if (EnableTrackOutValidation)
                 {
                     foreach (var wo in validWos)
                     {

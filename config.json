@@ -69,7 +69,9 @@
       "Name": "TP0013",
       "Protocol": "MQTT",
       "StatusType": "Cyntec",
-      "IsActive": false
+      "IsActive": false,
+      "EnableReelCheck": true,
+      "EnableTrackOutValidation": true
     },
     {
       "Id": "AC3811",

@@ -180,7 +180,9 @@ namespace EAPDashboard
                         eq.Ip ?? "",
                         eq.Port.ToString(),
                         eq.DeviceId.ToString(),
-                        eq.AutoReportStatus
+                        eq.AutoReportStatus,
+                        eq.EnableReelCheck,
+                        eq.EnableTrackOutValidation
                     );
                 }
             }
@@ -249,6 +251,8 @@ namespace EAPDashboard
                 int.TryParse(row.Cells["colEqPort"].Value?.ToString(), out int port);
                 ushort.TryParse(row.Cells["colEqDeviceId"].Value?.ToString(), out ushort deviceId);
                 bool autoReport = row.Cells["colEqAutoReport"].Value is bool ab && ab;
+                bool enableReelCheck = row.Cells["colEqReelCheck"].Value is bool rcb && rcb;
+                bool enableTrackOutVal = row.Cells["colEqTrackOutValidation"].Value is bool tov && tov;
 
                 // 保留原設定之特定欄位 (若存在)
                 var existingEq = _originalConfig.Equipments?.FirstOrDefault(e => string.Equals(e.Id, id, StringComparison.OrdinalIgnoreCase));
@@ -265,6 +269,8 @@ namespace EAPDashboard
                 eqCfg.DeviceId = deviceId;
                 eqCfg.DictionaryPath = null;
                 eqCfg.AutoReportStatus = autoReport;
+                eqCfg.EnableReelCheck = enableReelCheck;
+                eqCfg.EnableTrackOutValidation = enableTrackOutVal;
 
                 newEquipments.Add(eqCfg);
             }
@@ -284,6 +290,8 @@ namespace EAPDashboard
                 "",
                 "5000",
                 "0",
+                false,
+                false,
                 false
             );
             dgvEquipments.ClearSelection();

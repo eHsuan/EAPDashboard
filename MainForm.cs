@@ -99,6 +99,8 @@ namespace EAPDashboard
         public bool? EnableCassetteBinding { get; set; }
         public int? EqpStatusReportIntervalSeconds { get; set; }
         public bool AutoReportStatus { get; set; } = false;
+        public bool EnableReelCheck { get; set; } = false;
+        public bool EnableTrackOutValidation { get; set; } = false;
     }
 
     public partial class MainForm : Form
@@ -363,6 +365,8 @@ namespace EAPDashboard
                 eq.EnableCassetteBinding = config.EnableCassetteBinding ?? (_appConfig?.EnableCassetteBinding ?? false);
                 eq.StatusReportIntervalSeconds = config.EqpStatusReportIntervalSeconds ?? (_appConfig?.EqpStatusReportIntervalSeconds ?? 60);
                 eq.AutoReportStatus = config.AutoReportStatus;
+                eq.EnableReelCheck = config.EnableReelCheck;
+                eq.EnableTrackOutValidation = config.EnableTrackOutValidation;
                 eq.PostgresConnectionString = _appConfig?.PostgresDbSettings?.ConnectionString;
                 eq.MinYieldRate = _appConfig?.YieldSettings?.MinYieldRate ?? 0.95;
                 eq.MaxYieldRate = _appConfig?.YieldSettings?.MaxYieldRate ?? 1.00;

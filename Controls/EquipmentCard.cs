@@ -111,12 +111,9 @@ namespace EAPDashboard.Controls
             lblStatus.Text = _equipment.State.ToString();
             panelStatus.BackColor = EquipmentBase.GetColorForState(_equipment.State);
 
-            // 若設備名稱或編號為 TP 開頭，則顯示 Reel 專案按鈕
-            bool isTp = (_equipment.Name?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true) ||
-                        (_equipment.Id?.StartsWith("TP", StringComparison.OrdinalIgnoreCase) == true);
             if (btnReel != null)
             {
-                btnReel.Visible = isTp;
+                btnReel.Visible = _equipment.EnableReelCheck;
             }
         }
 

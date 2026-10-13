@@ -86,6 +86,8 @@ namespace EAPDashboard
             this.colEqPort = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqDeviceId = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqAutoReport = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.colEqReelCheck = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.colEqTrackOutValidation = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.pnlEqToolbar = new System.Windows.Forms.Panel();
             this.btnDeleteEq = new System.Windows.Forms.Button();
             this.btnAddEq = new System.Windows.Forms.Button();
@@ -950,7 +952,9 @@ namespace EAPDashboard
             this.colEqIp,
             this.colEqPort,
             this.colEqDeviceId,
-            this.colEqAutoReport});
+            this.colEqAutoReport,
+            this.colEqReelCheck,
+            this.colEqTrackOutValidation});
             this.dgvEquipments.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgvEquipments.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9F);
             this.dgvEquipments.Location = new System.Drawing.Point(10, 52);
@@ -1020,6 +1024,18 @@ namespace EAPDashboard
             this.colEqAutoReport.FillWeight = 22F;
             this.colEqAutoReport.HeaderText = "自動上報";
             this.colEqAutoReport.Name = "colEqAutoReport";
+            // 
+            // colEqReelCheck
+            // 
+            this.colEqReelCheck.FillWeight = 24F;
+            this.colEqReelCheck.HeaderText = "料捲防混料";
+            this.colEqReelCheck.Name = "colEqReelCheck";
+            // 
+            // colEqTrackOutValidation
+            // 
+            this.colEqTrackOutValidation.FillWeight = 30F;
+            this.colEqTrackOutValidation.HeaderText = "出站結算/NG檢核";
+            this.colEqTrackOutValidation.Name = "colEqTrackOutValidation";
             // 
             // pnlEqToolbar
             // 
@@ -1274,5 +1290,7 @@ namespace EAPDashboard
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqPort;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqDeviceId;
         private System.Windows.Forms.DataGridViewCheckBoxColumn colEqAutoReport;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn colEqReelCheck;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn colEqTrackOutValidation;
     }
 }

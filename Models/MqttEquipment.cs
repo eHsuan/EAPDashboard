@@ -393,7 +393,7 @@ namespace EAPDashboard.Models
 
                         // 工單出站時，OUTPUT這欄若為空字串則填0
                         string torQty = string.IsNullOrWhiteSpace(to.Qty?.ToString()) ? "0" : to.Qty.ToString().Trim();
-                        if (!string.IsNullOrEmpty(Id) && Id.StartsWith("TP", StringComparison.OrdinalIgnoreCase))
+                        if (EnableTrackOutValidation)
                         {
                             double tpPassQtyTotal = 0;
                             foreach (var wo in toWos)
