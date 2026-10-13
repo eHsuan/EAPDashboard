@@ -8,6 +8,7 @@
   "EqpStatusReportIntervalSeconds": 60,
   "EnableCassetteBinding": false,
   "MinimizeToTray": true,
+  "DictionaryDirectory": "Dictionaries",
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
@@ -52,7 +53,6 @@
       "Name": "宇泰和-天車-鎳鉻蝕刻",
       "Protocol": "MQTT",
       "Topic": "TN2/YELLOW/machine/ET0026",
-      "DictionaryPath": "Dictionaries/ET0026.json",
       "StatusType": "Cyntec",
       "IsActive": false,
       "autoreportstatus": false
@@ -62,7 +62,6 @@
       "Name": "營錡-水平式-微蝕刻",
       "Protocol": "MQTT",
       "Topic": "TN2/YELLOW/machine/ET0023",
-      "DictionaryPath": "Dictionaries/ET0023.json",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -71,16 +70,14 @@
       "Name": "TP0013",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/TP0013",
-      "DictionaryPath": "Dictionaries/TP0013.json",
       "StatusType": "Cyntec",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "AC3811",
       "Name": "微蝕刻水平線",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/AC3811",
-      "DictionaryPath": "Dictionaries/AC3811.json",
       "StatusType": "Cyntec",
       "IsActive": false
     },
@@ -89,7 +86,6 @@
       "Name": "MK0158",
       "Protocol": "MQTT",
       "Topic": "TN2/Floor2/Yellow/MK0158",
-      "DictionaryPath": "Dictionaries/MK0158.json",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -98,7 +94,6 @@
       "Name": "ZZ0304",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/ZZ0304",
-      "DictionaryPath": "Dictionaries/ZZ0304.json",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -107,7 +102,6 @@
       "Name": "OV0097",
       "Protocol": "MQTT",
       "Topic": "factory/LOCAL/machine/OV0097",
-      "DictionaryPath": "Dictionaries/OV0097.json",
       "StatusType": "Delta",
       "IsActive": false
     },
@@ -116,9 +110,8 @@
       "Name": "DR0026",
       "Protocol": "MQTT",
       "Topic": "TN2/Floor2/Yellow/DR0026",
-      "DictionaryPath": "Dictionaries/DR0026.json",
       "StatusType": "Delta",
-      "IsActive": false
+      "IsActive": true
     },
     {
       "Id": "EQ02",
@@ -127,7 +120,6 @@
       "Ip": "127.0.0.1",
       "Port": 5000,
       "DeviceId": 1,
-      "DictionaryPath": "Dictionaries/TOWA_YPM.json",
       "TimeFormat": "16",
       "IsActive": false
     },
@@ -138,7 +130,6 @@
       "Ip": "127.0.0.1",
       "Port": 5000,
       "DeviceId": 0,
-      "DictionaryPath": "Dictionaries/PL0084.json",
       "TimeFormat": "16",
       "IsActive": false
     },
@@ -149,7 +140,6 @@
       "Ip": "192.168.10.79",
       "Port": 5000,
       "DeviceId": 0,
-      "DictionaryPath": "Dictionaries/DR0009.json",
       "TimeFormat": "16",
       "IsActive": false
     },
@@ -158,7 +148,22 @@
       "Name": "DL0017",
       "Protocol": "MQTT",
       "Topic": "TN2/YELLOW/machine/DL0017",
-      "DictionaryPath": "Dictionaries/DL0017.json",
+      "StatusType": "Cyntec",
+      "IsActive": false
+    },
+    {
+      "Id": "DE0025",
+      "Name": "DE0025",
+      "Protocol": "MQTT",
+      "Topic": "TN2/YELLOW/machine/DE0025",
+      "StatusType": "Cyntec",
+      "IsActive": false
+    },
+    {
+      "Id": "DE0005",
+      "Name": "DE0005",
+      "Protocol": "MQTT",
+      "Topic": "TN2/YELLOW/machine/DE0005",
       "StatusType": "Cyntec",
       "IsActive": false
     }

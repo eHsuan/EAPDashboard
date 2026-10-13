@@ -57,7 +57,6 @@ namespace EAPDashboard.Models
         public string Ip { get; set; } = string.Empty;
         public int Port { get; set; }
         public ushort DeviceId { get; set; } = 0;
-        public string DictionaryPath { get; set; } = string.Empty;
         public string TimeFormat { get; set; } = "16";
         public bool IsActive { get; set; } = true;
 
@@ -74,7 +73,8 @@ namespace EAPDashboard.Models
                 OnLogReceived(LogLevel.Info, $"[START] SECS module adapter initialized for {Id}.");
                 _linkedCts = CancellationTokenSource.CreateLinkedTokenSource(externalCancellationToken);
 
-                string fullDictPath = Path.IsPathRooted(DictionaryPath) ? DictionaryPath : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, DictionaryPath);
+                string dictTarget = !string.IsNullOrEmpty(DictionaryPath) ? DictionaryPath : Path.Combine("Dictionaries", $"{Id}.json");
+                string fullDictPath = Path.IsPathRooted(dictTarget) ? dictTarget : Path.Combine(AppDomain.CurrentDomain.BaseDirectory, dictTarget);
                 if (File.Exists(fullDictPath)) _dictionary = SecsDictionary.Load(fullDictPath);
 
                 LoadAlarmMappings();

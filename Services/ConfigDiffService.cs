@@ -71,6 +71,7 @@ namespace EAPDashboard.Services
             CheckChange(changes, "系統設定", "關閉保護密碼", oldCfg.ExitPassword, newCfg.ExitPassword);
             CheckChange(changes, "系統設定", "EAP ID", oldCfg.EapId, newCfg.EapId);
             CheckChange(changes, "系統設定", "縮小至系統匣", oldCfg.MinimizeToTray.ToString(), newCfg.MinimizeToTray.ToString());
+            CheckChange(changes, "系統設定", "字典檔目錄", oldCfg.DictionaryDirectory, newCfg.DictionaryDirectory);
 
             // 通訊設定
             CheckChange(changes, "MQTT 通訊", "Controller Topic", oldCfg.ControllerTopic, newCfg.ControllerTopic);
@@ -298,11 +299,6 @@ namespace EAPDashboard.Services
                         details.Add($"通訊協定: {oldEq.Protocol} ➔ {newEq.Protocol}");
                     }
 
-                    if (!StringEqual(oldEq.DictionaryPath, newEq.DictionaryPath))
-                    {
-                        coreChanged = true;
-                        details.Add($"字典檔路徑: {oldEq.DictionaryPath} ➔ {newEq.DictionaryPath}");
-                    }
 
                     if (string.Equals(newEq.Protocol, "SECS", StringComparison.OrdinalIgnoreCase))
                     {

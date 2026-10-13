@@ -1,0 +1,25 @@
+{
+  "Model": "SM0001",
+  "Events": {
+    "101": "PanelInReport",
+	"102": "PanelOutReport",
+	"100": "USER_VERIFY"
+  },
+  "Variables": {
+	"1000": "PanelID",
+	"1001": "User_Barcode"
+  },
+  "StatusMapping": {
+    "0": "Down",
+    "1": "Ready",
+    "2": "Idle",
+    "3": "Running",
+    "4": "Paused",
+    "5": "Mainte",
+    "6": "ReadyOff"
+  },
+  "AlarmMapping": {
+  },
+  "ManagementItems":{
+  }
+}

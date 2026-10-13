@@ -229,5 +229,30 @@ namespace EAPDashboard.Tests
             var config = new AppConfig();
             config.ExitPassword.Should().Be("CIM");
         }
+
+        [Fact]
+        public void AppConfig_DefaultDictionaryDirectory_ShouldBeDictionaries()
+        {
+            var config = new AppConfig();
+            config.DictionaryDirectory.Should().Be("Dictionaries");
+        }
+
+        [Fact]
+        public void Compare_WhenDictionaryDirectoryChanged_ShouldDetectGlobalChange()
+        {
+            var oldCfg = new AppConfig
+            {
+                DictionaryDirectory = "Dictionaries"
+            };
+
+            var newCfg = new AppConfig
+            {
+                DictionaryDirectory = "CustomDictionaries"
+            };
+
+            var result = ConfigDiffService.Compare(oldCfg, newCfg);
+            result.HasGlobalChanges.Should().BeTrue();
+            result.GlobalChanges.Should().Contain(c => c.PropertyName == "字典檔目錄" && c.NewValue == "CustomDictionaries");
+        }
     }
 }

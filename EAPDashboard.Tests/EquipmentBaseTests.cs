@@ -289,6 +289,23 @@ namespace EAPDashboard.Tests
         }
 
         [Fact]
+        public void LoadAlarmMappings_WhenDictionaryPathIsEmpty_ShouldAutoLoadFromEquipmentIdJson()
+        {
+            // Arrange
+            var eq = new TestableEquipment("TS0003")
+            {
+                DictionaryPath = ""
+            };
+
+            // Act
+            eq.LoadAlarmMappings();
+            string val = eq.GetManagementItemValue("TE004");
+
+            // Assert
+            val.Should().Be("Y");
+        }
+
+        [Fact]
         public void GetManagementItemValue_NonExistentCode_ShouldReturnNull()
         {
             // Arrange

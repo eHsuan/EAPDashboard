@@ -33,6 +33,8 @@ namespace EAPDashboard
             this.lblExitPassword = new System.Windows.Forms.Label();
             this.txtEapId = new System.Windows.Forms.TextBox();
             this.lblEapId = new System.Windows.Forms.Label();
+            this.txtDictionaryDir = new System.Windows.Forms.TextBox();
+            this.lblDictionaryDir = new System.Windows.Forms.Label();
             this.tabMes = new System.Windows.Forms.TabPage();
             this.pnlMes = new System.Windows.Forms.Panel();
             this.grpReelCheck = new System.Windows.Forms.GroupBox();
@@ -82,7 +84,6 @@ namespace EAPDashboard
             this.colEqIp = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqPort = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqDeviceId = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.colEqDictPath = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.colEqAutoReport = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.pnlEqToolbar = new System.Windows.Forms.Panel();
             this.btnDeleteEq = new System.Windows.Forms.Button();
@@ -151,6 +152,8 @@ namespace EAPDashboard
             // pnlSystem
             // 
             this.pnlSystem.AutoScroll = true;
+            this.pnlSystem.Controls.Add(this.txtDictionaryDir);
+            this.pnlSystem.Controls.Add(this.lblDictionaryDir);
             this.pnlSystem.Controls.Add(this.numEqpStatusInterval);
             this.pnlSystem.Controls.Add(this.lblEqpStatusInterval);
             this.pnlSystem.Controls.Add(this.numHeartbeat);
@@ -322,6 +325,26 @@ namespace EAPDashboard
             this.chkMinimizeToTray.TabIndex = 4;
             this.chkMinimizeToTray.Text = "最小化時縮小至系統工作列";
             this.chkMinimizeToTray.UseVisualStyleBackColor = true;
+            // 
+            // txtDictionaryDir
+            // 
+            this.txtDictionaryDir.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(50)))));
+            this.txtDictionaryDir.ForeColor = System.Drawing.Color.White;
+            this.txtDictionaryDir.Location = new System.Drawing.Point(220, 360);
+            this.txtDictionaryDir.Name = "txtDictionaryDir";
+            this.txtDictionaryDir.Size = new System.Drawing.Size(260, 24);
+            this.txtDictionaryDir.TabIndex = 15;
+            this.txtDictionaryDir.Text = "Dictionaries";
+            // 
+            // lblDictionaryDir
+            // 
+            this.lblDictionaryDir.AutoSize = true;
+            this.lblDictionaryDir.ForeColor = System.Drawing.Color.Gainsboro;
+            this.lblDictionaryDir.Location = new System.Drawing.Point(25, 363);
+            this.lblDictionaryDir.Name = "lblDictionaryDir";
+            this.lblDictionaryDir.Size = new System.Drawing.Size(185, 17);
+            this.lblDictionaryDir.TabIndex = 16;
+            this.lblDictionaryDir.Text = "字典檔根目錄 (Dictionary Dir):";
             // 
             // txtExitPassword
             // 
@@ -905,7 +928,6 @@ namespace EAPDashboard
             this.colEqIp,
             this.colEqPort,
             this.colEqDeviceId,
-            this.colEqDictPath,
             this.colEqAutoReport});
             this.dgvEquipments.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dgvEquipments.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9F);
@@ -976,12 +998,6 @@ namespace EAPDashboard
             this.colEqDeviceId.FillWeight = 20F;
             this.colEqDeviceId.HeaderText = "Device ID";
             this.colEqDeviceId.Name = "colEqDeviceId";
-            // 
-            // colEqDictPath
-            // 
-            this.colEqDictPath.FillWeight = 40F;
-            this.colEqDictPath.HeaderText = "字典檔路徑";
-            this.colEqDictPath.Name = "colEqDictPath";
             // 
             // colEqAutoReport
             // 
@@ -1180,6 +1196,8 @@ namespace EAPDashboard
         private System.Windows.Forms.Label lblHeartbeat;
         private System.Windows.Forms.NumericUpDown numEqpStatusInterval;
         private System.Windows.Forms.Label lblEqpStatusInterval;
+        private System.Windows.Forms.TextBox txtDictionaryDir;
+        private System.Windows.Forms.Label lblDictionaryDir;
         private System.Windows.Forms.TabPage tabMes;
         private System.Windows.Forms.Panel pnlMes;
         private System.Windows.Forms.GroupBox grpMes;
@@ -1238,7 +1256,6 @@ namespace EAPDashboard
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqIp;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqPort;
         private System.Windows.Forms.DataGridViewTextBoxColumn colEqDeviceId;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colEqDictPath;
         private System.Windows.Forms.DataGridViewCheckBoxColumn colEqAutoReport;
     }
 }

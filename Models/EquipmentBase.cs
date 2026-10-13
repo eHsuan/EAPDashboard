@@ -1045,6 +1045,10 @@ namespace EAPDashboard.Models
                 _managementItems.Clear();
 
                 string dictPath = !string.IsNullOrEmpty(path) ? path : this.DictionaryPath;
+                if (string.IsNullOrEmpty(dictPath) && !string.IsNullOrEmpty(this.Id))
+                {
+                    dictPath = Path.Combine("Dictionaries", $"{this.Id}.json");
+                }
                 if (string.IsNullOrEmpty(dictPath)) return;
 
                 string fullPath = Path.IsPathRooted(dictPath) 

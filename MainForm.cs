@@ -35,6 +35,7 @@ namespace EAPDashboard
         public int EqpStatusReportIntervalSeconds { get; set; } = 60;
         public bool EnableCassetteBinding { get; set; } = false;
         public bool MinimizeToTray { get; set; } = false;
+        public string DictionaryDirectory { get; set; } = "Dictionaries";
         public MesSettings MesSettings { get; set; }
         public YieldSettings YieldSettings { get; set; } = new YieldSettings();
         public EAPDashboard.Models.DbSettings DbSettings { get; set; }
@@ -307,9 +308,13 @@ namespace EAPDashboard
 
             EquipmentBase eq = null;
 
-            string dictPath = !string.IsNullOrEmpty(config.DictionaryPath)
-                ? (Path.IsPathRooted(config.DictionaryPath) ? config.DictionaryPath : Path.Combine(Application.StartupPath, config.DictionaryPath))
-                : null;
+            string dictDir = !string.IsNullOrWhiteSpace(_appConfig?.DictionaryDirectory)
+                ? _appConfig.DictionaryDirectory
+                : "Dictionaries";
+            string dictFileName = $"{config.Id}.json";
+            string dictPath = Path.IsPathRooted(dictDir)
+                ? Path.Combine(dictDir, dictFileName)
+                : Path.Combine(Application.StartupPath, dictDir, dictFileName);
 
             bool isSim = !(_appConfig?.MesSettings?.ActiveEnvironment ?? "Production").Equals("Production", StringComparison.OrdinalIgnoreCase);
 

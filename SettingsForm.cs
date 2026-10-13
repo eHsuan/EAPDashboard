@@ -129,6 +129,7 @@ namespace EAPDashboard
             txtControllerTopic.Text = config.ControllerTopic ?? "CYNTEC/EAP/CONTROLLER";
             numHeartbeat.Value = config.HeartbeatIntervalSeconds > 0 ? config.HeartbeatIntervalSeconds : 30;
             numEqpStatusInterval.Value = config.EqpStatusReportIntervalSeconds > 0 ? config.EqpStatusReportIntervalSeconds : 60;
+            txtDictionaryDir.Text = config.DictionaryDirectory ?? "Dictionaries";
 
             // 2. MES
             var mes = config.MesSettings ?? new MesSettings();
@@ -179,7 +180,6 @@ namespace EAPDashboard
                         eq.Ip ?? "",
                         eq.Port.ToString(),
                         eq.DeviceId.ToString(),
-                        eq.DictionaryPath ?? "",
                         eq.AutoReportStatus
                     );
                 }
@@ -199,6 +199,7 @@ namespace EAPDashboard
             config.ControllerTopic = txtControllerTopic.Text.Trim();
             config.HeartbeatIntervalSeconds = (int)numHeartbeat.Value;
             config.EqpStatusReportIntervalSeconds = (int)numEqpStatusInterval.Value;
+            config.DictionaryDirectory = string.IsNullOrWhiteSpace(txtDictionaryDir.Text) ? "Dictionaries" : txtDictionaryDir.Text.Trim();
 
             // 2. MES
             if (config.MesSettings == null) config.MesSettings = new MesSettings();
@@ -247,7 +248,6 @@ namespace EAPDashboard
                 string ip = row.Cells["colEqIp"].Value?.ToString()?.Trim();
                 int.TryParse(row.Cells["colEqPort"].Value?.ToString(), out int port);
                 ushort.TryParse(row.Cells["colEqDeviceId"].Value?.ToString(), out ushort deviceId);
-                string dictPath = row.Cells["colEqDictPath"].Value?.ToString()?.Trim();
                 bool autoReport = row.Cells["colEqAutoReport"].Value is bool ab && ab;
 
                 // 保留原設定之特定欄位 (若存在)
@@ -263,7 +263,7 @@ namespace EAPDashboard
                 eqCfg.Ip = ip;
                 eqCfg.Port = port;
                 eqCfg.DeviceId = deviceId;
-                eqCfg.DictionaryPath = dictPath;
+                eqCfg.DictionaryPath = null;
                 eqCfg.AutoReportStatus = autoReport;
 
                 newEquipments.Add(eqCfg);
@@ -285,7 +285,6 @@ namespace EAPDashboard
                 "",
                 "5000",
                 "0",
-                "Dictionaries/NEW_EQ.json",
                 false
             );
             dgvEquipments.ClearSelection();
