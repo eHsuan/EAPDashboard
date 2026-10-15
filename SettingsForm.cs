@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using EAPDashboard.Models;
+using EAPDashboard.Models.Smt;
 using EAPDashboard.Services;
 using Newtonsoft.Json;
 
@@ -80,6 +81,20 @@ namespace EAPDashboard
 
             // 進入編輯模式時，確保輸入框或下拉選單也是深底白字
             dgvEquipments.EditingControlShowing += DgvEquipments_EditingControlShowing;
+
+            // 線別表格樣式
+            if (dgvLines != null)
+            {
+                dgvLines.EnableHeadersVisualStyles = false;
+                dgvLines.GridColor = Color.FromArgb(55, 55, 62);
+                dgvLines.BackgroundColor = Color.FromArgb(28, 28, 32);
+                dgvLines.ColumnHeadersDefaultCellStyle = headerStyle;
+                dgvLines.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+                dgvLines.ColumnHeadersHeight = 32;
+                dgvLines.DefaultCellStyle = defaultStyle;
+                dgvLines.AlternatingRowsDefaultCellStyle = altStyle;
+                dgvLines.EditingControlShowing += DgvEquipments_EditingControlShowing;
+            }
         }
 
         private void DgvEquipments_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
@@ -189,6 +204,33 @@ namespace EAPDashboard
                     );
                 }
             }
+
+            // 7. 線別清單與 SMT Web 設定
+            if (dgvLines != null)
+            {
+                dgvLines.Rows.Clear();
+                if (config.Lines != null)
+                {
+                    foreach (var line in config.Lines)
+                    {
+                        string st1Eqs = line.Station1?.EquipmentIds != null ? string.Join(", ", line.Station1.EquipmentIds) : "";
+                        string st2Eqs = line.Station2?.EquipmentIds != null ? string.Join(", ", line.Station2.EquipmentIds) : "";
+
+                        dgvLines.Rows.Add(
+                            line.IsActive,
+                            line.LineId ?? "",
+                            line.LineName ?? "",
+                            string.Equals(line.LineType, LineTypes.SMT, StringComparison.OrdinalIgnoreCase) ? "SMT" : "Normal",
+                            line.BatchCapacity > 0 ? line.BatchCapacity.ToString() : "10",
+                            st1Eqs,
+                            st2Eqs
+                        );
+                    }
+                }
+            }
+
+            if (chkEnableSmtWeb != null) chkEnableSmtWeb.Checked = config.EnableSmtWebServer;
+            if (numSmtWebPort != null) numSmtWebPort.Value = config.SmtWebPort > 0 ? config.SmtWebPort : 8088;
         }
 
         private AppConfig BuildNewConfigFromUI()
@@ -279,7 +321,97 @@ namespace EAPDashboard
             }
             config.Equipments = newEquipments;
 
+            // 7. 線別清單與 Web 設定
+            var newLines = new List<LineConfig>();
+            if (dgvLines != null)
+            {
+                foreach (DataGridViewRow row in dgvLines.Rows)
+                {
+                    if (row.IsNewRow) continue;
+
+                    string lineId = row.Cells["colLineId"].Value?.ToString()?.Trim();
+                    if (string.IsNullOrWhiteSpace(lineId)) continue;
+
+                    bool isActive = row.Cells["colLineActive"].Value is bool b && b;
+                    string lineName = row.Cells["colLineName"].Value?.ToString()?.Trim() ?? lineId;
+                    string lineType = row.Cells["colLineType"].Value?.ToString() ?? "SMT";
+                    int.TryParse(row.Cells["colBatchCapacity"].Value?.ToString(), out int capacity);
+                    if (capacity <= 0) capacity = 10;
+
+                    string st1EqStr = row.Cells["colStation1Eqs"].Value?.ToString() ?? "";
+                    string st2EqStr = row.Cells["colStation2Eqs"].Value?.ToString() ?? "";
+
+                    var st1Eqs = st1EqStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                         .Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+                    var st2Eqs = st2EqStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                         .Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+
+                    newLines.Add(new LineConfig
+                    {
+                        LineId = lineId,
+                        LineName = lineName,
+                        LineType = lineType,
+                        IsActive = isActive,
+                        BatchCapacity = capacity,
+                        Station1 = new SmtStationConfig
+                        {
+                            StationCode = "Station1",
+                            StationName = "SMT 第一站",
+                            EquipmentIds = st1Eqs
+                        },
+                        Station2 = new SmtStationConfig
+                        {
+                            StationCode = "Post_AOI",
+                            StationName = "SMT 第二站 (Post AOI)",
+                            EquipmentIds = st2Eqs
+                        }
+                    });
+                }
+            }
+            config.Lines = newLines;
+
+            if (chkEnableSmtWeb != null) config.EnableSmtWebServer = chkEnableSmtWeb.Checked;
+            if (numSmtWebPort != null) config.SmtWebPort = (int)numSmtWebPort.Value;
+
             return config;
+        }
+
+        private void BtnAddLine_Click(object sender, EventArgs e)
+        {
+            if (dgvLines == null) return;
+            int nextNum = dgvLines.Rows.Count + 1;
+            int idx = dgvLines.Rows.Add(
+                true,
+                $"SMT{nextNum}",
+                $"SMT 第{nextNum}產線",
+                "SMT",
+                "10",
+                "",
+                ""
+            );
+            dgvLines.ClearSelection();
+            dgvLines.Rows[idx].Selected = true;
+        }
+
+        private void BtnDeleteLine_Click(object sender, EventArgs e)
+        {
+            if (dgvLines == null || dgvLines.SelectedRows.Count == 0)
+            {
+                MessageBox.Show("請先點選欲刪除之線別資料列。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var result = MessageBox.Show("確定要自清單中刪除所選取的產線嗎？", "確認刪除", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            if (result == DialogResult.Yes)
+            {
+                foreach (DataGridViewRow row in dgvLines.SelectedRows)
+                {
+                    if (!row.IsNewRow)
+                    {
+                        dgvLines.Rows.Remove(row);
+                    }
+                }
+            }
         }
 
         private void BtnAddEq_Click(object sender, EventArgs e)

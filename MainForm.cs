@@ -45,6 +45,9 @@ namespace EAPDashboard
         public bool? LogAreYouThere { get; set; }
         public ReelCheckSettings ReelCheckSettings { get; set; } = new ReelCheckSettings();
         public List<EquipmentConfig> Equipments { get; set; }
+        public List<EAPDashboard.Models.Smt.LineConfig> Lines { get; set; } = new List<EAPDashboard.Models.Smt.LineConfig>();
+        public int SmtWebPort { get; set; } = 8088;
+        public bool EnableSmtWebServer { get; set; } = true;
     }
 
     public class YieldSettings
@@ -116,6 +119,8 @@ namespace EAPDashboard
         private ContextMenuStrip _trayContextMenu;
         private FormWindowState _previousWindowState = FormWindowState.Maximized;
         private bool _isHandlingResize = false;
+        private SmtLineManager _smtLineManager;
+        private SmtWebServer _smtWebServer;
 
         public MainForm()
         {
@@ -137,6 +142,9 @@ namespace EAPDashboard
 
             // 立即啟動設備通訊 (不等待 MQTT 連線)
             StartEquipments();
+
+            // 啟動 SMT 線別服務與 Web 伺服器
+            InitSmtModule();
         }
 
         private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
@@ -180,8 +188,33 @@ namespace EAPDashboard
 
             _mainCts?.Cancel();
             _mainCts?.Dispose();
+            _smtWebServer?.Stop();
+            _smtWebServer?.Dispose();
             foreach (var eq in _equipments) eq.Stop();
             if (_bus != null) _bus.Dispose();
+        }
+
+        private void InitSmtModule()
+        {
+            try
+            {
+                if (_appConfig?.Lines != null && _appConfig.Lines.Any(l => l.IsActive && string.Equals(l.LineType, EAPDashboard.Models.Smt.LineTypes.SMT, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _smtLineManager = new SmtLineManager();
+                    _smtLineManager.InitializeLines(_appConfig.Lines, _bus);
+
+                    if (_appConfig.EnableSmtWebServer)
+                    {
+                        int port = _appConfig.SmtWebPort > 0 ? _appConfig.SmtWebPort : 8088;
+                        _smtWebServer = new SmtWebServer(_smtLineManager, port);
+                        _smtWebServer.Start();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[SMT Init Error] {ex.Message}");
+            }
         }
 
         private void LoadConfig()
@@ -416,6 +449,7 @@ namespace EAPDashboard
                 _bus.Connected += async () => {
                     UpdateBrokerStatus(true);
                     await SubscribeToControllerCommands();
+                    _smtLineManager?.AttachMqttBus(_bus);
                 };
                 _bus.Disconnected += () => UpdateBrokerStatus(false);
                 await _bus.ConnectAsync();

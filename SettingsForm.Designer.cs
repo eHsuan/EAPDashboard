@@ -91,6 +91,21 @@ namespace EAPDashboard
             this.pnlEqToolbar = new System.Windows.Forms.Panel();
             this.btnDeleteEq = new System.Windows.Forms.Button();
             this.btnAddEq = new System.Windows.Forms.Button();
+            this.tabLines = new System.Windows.Forms.TabPage();
+            this.dgvLines = new System.Windows.Forms.DataGridView();
+            this.colLineActive = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.colLineId = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colLineName = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colLineType = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.colBatchCapacity = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colStation1Eqs = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colStation2Eqs = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.pnlLinesToolbar = new System.Windows.Forms.Panel();
+            this.lblSmtWebPort = new System.Windows.Forms.Label();
+            this.numSmtWebPort = new System.Windows.Forms.NumericUpDown();
+            this.chkEnableSmtWeb = new System.Windows.Forms.CheckBox();
+            this.btnDeleteLine = new System.Windows.Forms.Button();
+            this.btnAddLine = new System.Windows.Forms.Button();
             this.tabJsonPreview = new System.Windows.Forms.TabPage();
             this.txtJsonPreview = new System.Windows.Forms.TextBox();
             this.pnlBottom = new System.Windows.Forms.Panel();
@@ -119,6 +134,10 @@ namespace EAPDashboard
             this.tabEquipments.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dgvEquipments)).BeginInit();
             this.pnlEqToolbar.SuspendLayout();
+            this.tabLines.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dgvLines)).BeginInit();
+            this.pnlLinesToolbar.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.numSmtWebPort)).BeginInit();
             this.tabJsonPreview.SuspendLayout();
             this.pnlBottom.SuspendLayout();
             this.SuspendLayout();
@@ -129,6 +148,7 @@ namespace EAPDashboard
             this.tabControl.Controls.Add(this.tabMes);
             this.tabControl.Controls.Add(this.tabDatabase);
             this.tabControl.Controls.Add(this.tabEquipments);
+            this.tabControl.Controls.Add(this.tabLines);
             this.tabControl.Controls.Add(this.tabJsonPreview);
             this.tabControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControl.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9.5F);
@@ -1087,6 +1107,160 @@ namespace EAPDashboard
             this.btnAddEq.UseVisualStyleBackColor = false;
             this.btnAddEq.Click += new System.EventHandler(this.BtnAddEq_Click);
             // 
+            // tabLines
+            // 
+            this.tabLines.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(28)))), ((int)(((byte)(32)))));
+            this.tabLines.Controls.Add(this.dgvLines);
+            this.tabLines.Controls.Add(this.pnlLinesToolbar);
+            this.tabLines.Location = new System.Drawing.Point(4, 34);
+            this.tabLines.Name = "tabLines";
+            this.tabLines.Padding = new System.Windows.Forms.Padding(10);
+            this.tabLines.Size = new System.Drawing.Size(952, 532);
+            this.tabLines.TabIndex = 4;
+            this.tabLines.Text = " 🏭 產線設定 (Line) ";
+            // 
+            // dgvLines
+            // 
+            this.dgvLines.AllowUserToAddRows = false;
+            this.dgvLines.AllowUserToDeleteRows = false;
+            this.dgvLines.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dgvLines.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvLines.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.colLineActive,
+            this.colLineId,
+            this.colLineName,
+            this.colLineType,
+            this.colBatchCapacity,
+            this.colStation1Eqs,
+            this.colStation2Eqs});
+            this.dgvLines.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dgvLines.Location = new System.Drawing.Point(10, 52);
+            this.dgvLines.Name = "dgvLines";
+            this.dgvLines.RowHeadersVisible = false;
+            this.dgvLines.RowTemplate.Height = 28;
+            this.dgvLines.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dgvLines.Size = new System.Drawing.Size(932, 470);
+            this.dgvLines.TabIndex = 1;
+            // 
+            // colLineActive
+            // 
+            this.colLineActive.FillWeight = 50F;
+            this.colLineActive.HeaderText = "啟用";
+            this.colLineActive.Name = "colLineActive";
+            // 
+            // colLineId
+            // 
+            this.colLineId.FillWeight = 80F;
+            this.colLineId.HeaderText = "線別代號";
+            this.colLineId.Name = "colLineId";
+            // 
+            // colLineName
+            // 
+            this.colLineName.FillWeight = 110F;
+            this.colLineName.HeaderText = "線別名稱";
+            this.colLineName.Name = "colLineName";
+            // 
+            // colLineType
+            // 
+            this.colLineType.FillWeight = 70F;
+            this.colLineType.HeaderText = "線別類型";
+            this.colLineType.Items.AddRange(new object[] { "SMT", "Normal" });
+            this.colLineType.Name = "colLineType";
+            // 
+            // colBatchCapacity
+            // 
+            this.colBatchCapacity.FillWeight = 70F;
+            this.colBatchCapacity.HeaderText = "滿批上限";
+            this.colBatchCapacity.Name = "colBatchCapacity";
+            // 
+            // colStation1Eqs
+            // 
+            this.colStation1Eqs.FillWeight = 130F;
+            this.colStation1Eqs.HeaderText = "第一站設備清單(逗號分隔)";
+            this.colStation1Eqs.Name = "colStation1Eqs";
+            // 
+            // colStation2Eqs
+            // 
+            this.colStation2Eqs.FillWeight = 130F;
+            this.colStation2Eqs.HeaderText = "第二站設備清單(逗號分隔)";
+            this.colStation2Eqs.Name = "colStation2Eqs";
+            // 
+            // pnlLinesToolbar
+            // 
+            this.pnlLinesToolbar.Controls.Add(this.lblSmtWebPort);
+            this.pnlLinesToolbar.Controls.Add(this.numSmtWebPort);
+            this.pnlLinesToolbar.Controls.Add(this.chkEnableSmtWeb);
+            this.pnlLinesToolbar.Controls.Add(this.btnDeleteLine);
+            this.pnlLinesToolbar.Controls.Add(this.btnAddLine);
+            this.pnlLinesToolbar.Dock = System.Windows.Forms.DockStyle.Top;
+            this.pnlLinesToolbar.Location = new System.Drawing.Point(10, 10);
+            this.pnlLinesToolbar.Name = "pnlLinesToolbar";
+            this.pnlLinesToolbar.Size = new System.Drawing.Size(932, 42);
+            this.pnlLinesToolbar.TabIndex = 0;
+            // 
+            // btnAddLine
+            // 
+            this.btnAddLine.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(38)))), ((int)(((byte)(100)))), ((int)(((byte)(65)))));
+            this.btnAddLine.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnAddLine.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9F);
+            this.btnAddLine.ForeColor = System.Drawing.Color.White;
+            this.btnAddLine.Location = new System.Drawing.Point(5, 5);
+            this.btnAddLine.Name = "btnAddLine";
+            this.btnAddLine.Size = new System.Drawing.Size(120, 30);
+            this.btnAddLine.TabIndex = 0;
+            this.btnAddLine.Text = "➕ 新增 SMT 線別";
+            this.btnAddLine.UseVisualStyleBackColor = false;
+            this.btnAddLine.Click += new System.EventHandler(this.BtnAddLine_Click);
+            // 
+            // btnDeleteLine
+            // 
+            this.btnDeleteLine.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(120)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
+            this.btnDeleteLine.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnDeleteLine.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9F);
+            this.btnDeleteLine.ForeColor = System.Drawing.Color.White;
+            this.btnDeleteLine.Location = new System.Drawing.Point(135, 5);
+            this.btnDeleteLine.Name = "btnDeleteLine";
+            this.btnDeleteLine.Size = new System.Drawing.Size(120, 30);
+            this.btnDeleteLine.TabIndex = 1;
+            this.btnDeleteLine.Text = "➖ 刪除選取線別";
+            this.btnDeleteLine.UseVisualStyleBackColor = false;
+            this.btnDeleteLine.Click += new System.EventHandler(this.BtnDeleteLine_Click);
+            // 
+            // chkEnableSmtWeb
+            // 
+            this.chkEnableSmtWeb.AutoSize = true;
+            this.chkEnableSmtWeb.Checked = true;
+            this.chkEnableSmtWeb.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkEnableSmtWeb.ForeColor = System.Drawing.Color.White;
+            this.chkEnableSmtWeb.Location = new System.Drawing.Point(280, 10);
+            this.chkEnableSmtWeb.Name = "chkEnableSmtWeb";
+            this.chkEnableSmtWeb.Size = new System.Drawing.Size(164, 21);
+            this.chkEnableSmtWeb.TabIndex = 2;
+            this.chkEnableSmtWeb.Text = "啟用 SMT Web 監控中心";
+            this.chkEnableSmtWeb.UseVisualStyleBackColor = true;
+            // 
+            // lblSmtWebPort
+            // 
+            this.lblSmtWebPort.AutoSize = true;
+            this.lblSmtWebPort.ForeColor = System.Drawing.Color.White;
+            this.lblSmtWebPort.Location = new System.Drawing.Point(460, 11);
+            this.lblSmtWebPort.Name = "lblSmtWebPort";
+            this.lblSmtWebPort.Size = new System.Drawing.Size(117, 17);
+            this.lblSmtWebPort.TabIndex = 3;
+            this.lblSmtWebPort.Text = "Web 伺服器通訊埠:";
+            // 
+            // numSmtWebPort
+            // 
+            this.numSmtWebPort.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(52)))));
+            this.numSmtWebPort.ForeColor = System.Drawing.Color.White;
+            this.numSmtWebPort.Location = new System.Drawing.Point(585, 9);
+            this.numSmtWebPort.Maximum = new decimal(new int[] { 65535, 0, 0, 0 });
+            this.numSmtWebPort.Minimum = new decimal(new int[] { 1024, 0, 0, 0 });
+            this.numSmtWebPort.Name = "numSmtWebPort";
+            this.numSmtWebPort.Size = new System.Drawing.Size(80, 24);
+            this.numSmtWebPort.TabIndex = 4;
+            this.numSmtWebPort.Value = new decimal(new int[] { 8088, 0, 0, 0 });
+            // 
             // tabJsonPreview
             // 
             this.tabJsonPreview.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(28)))), ((int)(((byte)(28)))), ((int)(((byte)(32)))));
@@ -1305,5 +1479,20 @@ namespace EAPDashboard
         private System.Windows.Forms.DataGridViewCheckBoxColumn colEqAutoReport;
         private System.Windows.Forms.DataGridViewCheckBoxColumn colEqReelCheck;
         private System.Windows.Forms.DataGridViewCheckBoxColumn colEqTrackOutValidation;
+        private System.Windows.Forms.TabPage tabLines;
+        private System.Windows.Forms.DataGridView dgvLines;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn colLineActive;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colLineId;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colLineName;
+        private System.Windows.Forms.DataGridViewComboBoxColumn colLineType;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colBatchCapacity;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colStation1Eqs;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colStation2Eqs;
+        private System.Windows.Forms.Panel pnlLinesToolbar;
+        private System.Windows.Forms.Button btnAddLine;
+        private System.Windows.Forms.Button btnDeleteLine;
+        private System.Windows.Forms.Label lblSmtWebPort;
+        private System.Windows.Forms.NumericUpDown numSmtWebPort;
+        private System.Windows.Forms.CheckBox chkEnableSmtWeb;
     }
 }
