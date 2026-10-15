@@ -136,7 +136,7 @@ namespace EAPDashboard
             this.tabControl.Location = new System.Drawing.Point(0, 0);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(960, 570);
+            this.tabControl.Size = new System.Drawing.Size(1220, 660);
             this.tabControl.SizeMode = System.Windows.Forms.TabSizeMode.Fixed;
             this.tabControl.TabIndex = 0;
             this.tabControl.SelectedIndexChanged += new System.EventHandler(this.TabControl_SelectedIndexChanged);
@@ -942,7 +942,8 @@ namespace EAPDashboard
             this.dgvEquipments.AllowUserToDeleteRows = false;
             this.dgvEquipments.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvEquipments.BackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
-            this.dgvEquipments.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dgvEquipments.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            this.dgvEquipments.ColumnHeadersHeight = 32;
             this.dgvEquipments.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.colEqActive,
             this.colEqId,
@@ -962,79 +963,90 @@ namespace EAPDashboard
             this.dgvEquipments.RowHeadersVisible = false;
             this.dgvEquipments.RowTemplate.Height = 26;
             this.dgvEquipments.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvEquipments.Size = new System.Drawing.Size(932, 470);
+            this.dgvEquipments.Size = new System.Drawing.Size(1192, 560);
             this.dgvEquipments.TabIndex = 1;
             // 
             // colEqActive
             // 
-            this.colEqActive.FillWeight = 20F;
+            this.colEqActive.FillWeight = 16F;
             this.colEqActive.HeaderText = "啟用";
+            this.colEqActive.MinimumWidth = 55;
             this.colEqActive.Name = "colEqActive";
             // 
             // colEqId
             // 
-            this.colEqId.FillWeight = 30F;
+            this.colEqId.FillWeight = 32F;
             this.colEqId.HeaderText = "設備編號 (ID)";
+            this.colEqId.MinimumWidth = 125;
             this.colEqId.Name = "colEqId";
             // 
             // colEqName
             // 
-            this.colEqName.FillWeight = 40F;
+            this.colEqName.FillWeight = 36F;
             this.colEqName.HeaderText = "設備名稱";
+            this.colEqName.MinimumWidth = 135;
             this.colEqName.Name = "colEqName";
             // 
             // colEqProtocol
             // 
-            this.colEqProtocol.FillWeight = 25F;
+            this.colEqProtocol.FillWeight = 24F;
             this.colEqProtocol.HeaderText = "通訊協定";
             this.colEqProtocol.Items.AddRange(new object[] {
             "MQTT",
             "SECS"});
+            this.colEqProtocol.MinimumWidth = 95;
             this.colEqProtocol.Name = "colEqProtocol";
             // 
             // colEqStatusType
             // 
-            this.colEqStatusType.FillWeight = 25F;
+            this.colEqStatusType.FillWeight = 24F;
             this.colEqStatusType.HeaderText = "狀態格式";
             this.colEqStatusType.Items.AddRange(new object[] {
             "Cyntec",
             "Delta"});
+            this.colEqStatusType.MinimumWidth = 95;
             this.colEqStatusType.Name = "colEqStatusType";
             // 
             // colEqIp
             // 
-            this.colEqIp.FillWeight = 35F;
+            this.colEqIp.FillWeight = 32F;
             this.colEqIp.HeaderText = "SECS IP";
+            this.colEqIp.MinimumWidth = 125;
             this.colEqIp.Name = "colEqIp";
             // 
             // colEqPort
             // 
-            this.colEqPort.FillWeight = 20F;
+            this.colEqPort.FillWeight = 22F;
             this.colEqPort.HeaderText = "SECS 埠號";
+            this.colEqPort.MinimumWidth = 90;
             this.colEqPort.Name = "colEqPort";
             // 
             // colEqDeviceId
             // 
-            this.colEqDeviceId.FillWeight = 20F;
+            this.colEqDeviceId.FillWeight = 22F;
             this.colEqDeviceId.HeaderText = "Device ID";
+            this.colEqDeviceId.MinimumWidth = 90;
             this.colEqDeviceId.Name = "colEqDeviceId";
             // 
             // colEqAutoReport
             // 
             this.colEqAutoReport.FillWeight = 22F;
             this.colEqAutoReport.HeaderText = "自動上報";
+            this.colEqAutoReport.MinimumWidth = 90;
             this.colEqAutoReport.Name = "colEqAutoReport";
             // 
             // colEqReelCheck
             // 
-            this.colEqReelCheck.FillWeight = 24F;
+            this.colEqReelCheck.FillWeight = 26F;
             this.colEqReelCheck.HeaderText = "料捲防混料";
+            this.colEqReelCheck.MinimumWidth = 105;
             this.colEqReelCheck.Name = "colEqReelCheck";
             // 
             // colEqTrackOutValidation
             // 
-            this.colEqTrackOutValidation.FillWeight = 30F;
+            this.colEqTrackOutValidation.FillWeight = 38F;
             this.colEqTrackOutValidation.HeaderText = "出站結算/NG檢核";
+            this.colEqTrackOutValidation.MinimumWidth = 145;
             this.colEqTrackOutValidation.Name = "colEqTrackOutValidation";
             // 
             // pnlEqToolbar
@@ -1108,9 +1120,9 @@ namespace EAPDashboard
             this.pnlBottom.Controls.Add(this.btnSave);
             this.pnlBottom.Controls.Add(this.btnClose);
             this.pnlBottom.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.pnlBottom.Location = new System.Drawing.Point(0, 570);
+            this.pnlBottom.Location = new System.Drawing.Point(0, 660);
             this.pnlBottom.Name = "pnlBottom";
-            this.pnlBottom.Size = new System.Drawing.Size(960, 60);
+            this.pnlBottom.Size = new System.Drawing.Size(1220, 60);
             this.pnlBottom.TabIndex = 1;
             // 
             // lblFootnote
@@ -1121,7 +1133,7 @@ namespace EAPDashboard
             this.lblFootnote.ForeColor = System.Drawing.Color.DarkGray;
             this.lblFootnote.Location = new System.Drawing.Point(15, 12);
             this.lblFootnote.Name = "lblFootnote";
-            this.lblFootnote.Size = new System.Drawing.Size(680, 36);
+            this.lblFootnote.Size = new System.Drawing.Size(940, 36);
             this.lblFootnote.TabIndex = 2;
             this.lblFootnote.Text = "💡 提示：全域參數修改完一律需重啟生效；僅修改機台設定可無須重啟熱套用，未變動機台維持連線。";
             this.lblFootnote.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -1133,7 +1145,7 @@ namespace EAPDashboard
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSave.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9.5F, System.Drawing.FontStyle.Bold);
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(705, 12);
+            this.btnSave.Location = new System.Drawing.Point(965, 12);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(130, 36);
             this.btnSave.TabIndex = 1;
@@ -1149,7 +1161,7 @@ namespace EAPDashboard
             this.btnClose.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnClose.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9.5F);
             this.btnClose.ForeColor = System.Drawing.Color.White;
-            this.btnClose.Location = new System.Drawing.Point(850, 12);
+            this.btnClose.Location = new System.Drawing.Point(1110, 12);
             this.btnClose.Name = "btnClose";
             this.btnClose.Size = new System.Drawing.Size(95, 36);
             this.btnClose.TabIndex = 0;
@@ -1163,14 +1175,15 @@ namespace EAPDashboard
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(24)))));
             this.CancelButton = this.btnClose;
-            this.ClientSize = new System.Drawing.Size(960, 630);
+            this.ClientSize = new System.Drawing.Size(1220, 720);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.pnlBottom);
             this.Font = new System.Drawing.Font("Microsoft JhengHei UI", 9F);
             this.ForeColor = System.Drawing.Color.White;
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
-            this.MaximizeBox = false;
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable;
+            this.MaximizeBox = true;
             this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(1100, 650);
             this.Name = "SettingsForm";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;

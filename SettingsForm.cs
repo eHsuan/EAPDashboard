@@ -41,7 +41,7 @@ namespace EAPDashboard
             dgvEquipments.GridColor = Color.FromArgb(55, 55, 62);
             dgvEquipments.BackgroundColor = Color.FromArgb(28, 28, 32);
 
-            // 標題列樣式 (深灰底白字)
+            // 標題列樣式 (深灰底白字，禁止換行縮排)
             var headerStyle = new DataGridViewCellStyle
             {
                 BackColor = Color.FromArgb(45, 48, 58),
@@ -49,9 +49,12 @@ namespace EAPDashboard
                 Font = new Font("Microsoft JhengHei UI", 9.5F, FontStyle.Bold),
                 Alignment = DataGridViewContentAlignment.MiddleLeft,
                 SelectionBackColor = Color.FromArgb(45, 48, 58),
-                SelectionForeColor = Color.White
+                SelectionForeColor = Color.White,
+                WrapMode = DataGridViewTriState.False
             };
             dgvEquipments.ColumnHeadersDefaultCellStyle = headerStyle;
+            dgvEquipments.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            dgvEquipments.ColumnHeadersHeight = 32;
 
             // 儲存格預設樣式 (深底白字，解決白底白字看不到內容之問題)
             var defaultStyle = new DataGridViewCellStyle
