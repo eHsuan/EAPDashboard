@@ -1,4 +1,4 @@
-namespace MESSimulator
+﻿namespace MESSimulator
 {
     partial class MainForm
     {
@@ -406,7 +406,7 @@ namespace MESSimulator
             btnClearMesLog.TabIndex = 24;
             btnClearMesLog.Text = "清除 MES 日誌";
             btnClearMesLog.UseVisualStyleBackColor = true;
-            btnClearMesLog.Click += (s, e) => { txtLog.Clear(); txtRequest.Clear(); };
+            btnClearMesLog.Click += BtnClearMesLog_Click;
             // 
             // btnStop
             // 
@@ -594,7 +594,7 @@ namespace MESSimulator
             btnClearBrokerLog.Size = new System.Drawing.Size(110, 32);
             btnClearBrokerLog.Text = "清除日誌";
             btnClearBrokerLog.UseVisualStyleBackColor = true;
-            btnClearBrokerLog.Click += (s, e) => txtBrokerLog.Clear();
+            btnClearBrokerLog.Click += BtnClearBrokerLog_Click;
 
             // splitBroker
             splitBroker.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -752,7 +752,7 @@ namespace MESSimulator
             btnClearEapLog.Size = new System.Drawing.Size(110, 30);
             btnClearEapLog.Text = "清除 EAP 日誌";
             btnClearEapLog.UseVisualStyleBackColor = true;
-            btnClearEapLog.Click += (s, e) => txtEapLog.Clear();
+            btnClearEapLog.Click += BtnClearEapLog_Click;
 
             // Row 2: Target Cmd Topic (Default: TEST01) + Basic Probes + InitTraceData
             lblTargetTopic.AutoSize = true;

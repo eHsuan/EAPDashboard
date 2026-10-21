@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -466,6 +466,22 @@ namespace MESSimulator
             }
 
             ExportLogWithDialog(sb.ToString(), "MES_Simulator_Log", "儲存 MES 模擬器日誌");
+        }
+
+                private void BtnClearMesLog_Click(object sender, EventArgs e)
+        {
+            txtLog.Clear();
+            txtRequest.Clear();
+        }
+
+        private void BtnClearBrokerLog_Click(object sender, EventArgs e)
+        {
+            txtBrokerLog.Clear();
+        }
+
+        private void BtnClearEapLog_Click(object sender, EventArgs e)
+        {
+            txtEapLog.Clear();
         }
 
         private void ExportLogWithDialog(string logContent, string defaultFileNamePrefix, string dialogTitle)
