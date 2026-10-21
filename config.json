@@ -69,7 +69,7 @@
       "Name": "TP0013",
       "Protocol": "MQTT",
       "StatusType": "Cyntec",
-      "IsActive": true,
+      "IsActive": false,
       "EnableReelCheck": true,
       "EnableTrackOutValidation": true
     },
@@ -106,7 +106,7 @@
       "Name": "DR0026",
       "Protocol": "MQTT",
       "StatusType": "Delta",
-      "IsActive": true
+      "IsActive": false
     },
     {
       "Id": "EQ02",
@@ -158,6 +158,13 @@
       "Protocol": "MQTT",
       "StatusType": "Cyntec",
       "IsActive": false
+    },
+    {
+      "Id": "TEST01",
+      "Name": "TEST01",
+      "Protocol": "MQTT",
+      "StatusType": "Delta",
+      "IsActive": true
     }
   ]
 }

@@ -95,8 +95,6 @@
             lblRemoteRecipe = new System.Windows.Forms.Label();
             txtRemoteRecipe = new System.Windows.Forms.TextBox();
             btnSendRemoteCmd = new System.Windows.Forms.Button();
-            lblTerminalMsg = new System.Windows.Forms.Label();
-            txtTerminalMsg = new System.Windows.Forms.TextBox();
             btnSendTerminalMsg = new System.Windows.Forms.Button();
             splitEap = new System.Windows.Forms.SplitContainer();
             grpEapRules = new System.Windows.Forms.GroupBox();
@@ -686,8 +684,6 @@
             panelEapTop.Controls.Add(lblRemoteRecipe);
             panelEapTop.Controls.Add(txtRemoteRecipe);
             panelEapTop.Controls.Add(btnSendRemoteCmd);
-            panelEapTop.Controls.Add(lblTerminalMsg);
-            panelEapTop.Controls.Add(txtTerminalMsg);
             panelEapTop.Controls.Add(btnSendTerminalMsg);
             panelEapTop.Dock = System.Windows.Forms.DockStyle.Top;
             panelEapTop.Location = new System.Drawing.Point(3, 3);
@@ -855,22 +851,10 @@
             btnSendRemoteCmd.UseVisualStyleBackColor = true;
             btnSendRemoteCmd.Click += BtnSendRemoteCmd_Click;
 
-            lblTerminalMsg.AutoSize = true;
-            lblTerminalMsg.Location = new System.Drawing.Point(690, 91);
-            lblTerminalMsg.Name = "lblTerminalMsg";
-            lblTerminalMsg.Size = new System.Drawing.Size(185, 17);
-            lblTerminalMsg.Text = "機台螢幕訊息 (TerminalDisplay):";
-
-            txtTerminalMsg.Location = new System.Drawing.Point(882, 87);
-            txtTerminalMsg.Name = "txtTerminalMsg";
-            txtTerminalMsg.PlaceholderText = "請輸入要顯示於機台螢幕的文字";
-            txtTerminalMsg.Size = new System.Drawing.Size(295, 24);
-            txtTerminalMsg.Text = "EAP TEST MESSAGE";
-
-            btnSendTerminalMsg.Location = new System.Drawing.Point(1185, 84);
+            btnSendTerminalMsg.Location = new System.Drawing.Point(690, 84);
             btnSendTerminalMsg.Name = "btnSendTerminalMsg";
-            btnSendTerminalMsg.Size = new System.Drawing.Size(145, 30);
-            btnSendTerminalMsg.Text = "發送 TerminalDisplay";
+            btnSendTerminalMsg.Size = new System.Drawing.Size(185, 30);
+            btnSendTerminalMsg.Text = "💬 發送 TerminalDisplay...";
             btnSendTerminalMsg.UseVisualStyleBackColor = true;
             btnSendTerminalMsg.Click += BtnSendTerminalMsg_Click;
 
@@ -1059,8 +1043,6 @@
         private System.Windows.Forms.Label lblRemoteRecipe;
         private System.Windows.Forms.TextBox txtRemoteRecipe;
         private System.Windows.Forms.Button btnSendRemoteCmd;
-        private System.Windows.Forms.Label lblTerminalMsg;
-        private System.Windows.Forms.TextBox txtTerminalMsg;
         private System.Windows.Forms.Button btnSendTerminalMsg;
         private System.Windows.Forms.SplitContainer splitEap;
         private System.Windows.Forms.GroupBox grpEapRules;

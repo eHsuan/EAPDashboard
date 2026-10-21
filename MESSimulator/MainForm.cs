@@ -436,13 +436,17 @@ namespace MESSimulator
         private async void BtnSendTerminalMsg_Click(object sender, EventArgs e)
         {
             string topic = GetTargetCommandTopicAndMachine(out string eqpId);
-            string text = txtTerminalMsg.Text;
-            if (string.IsNullOrWhiteSpace(text))
+            using (var form = new MESSimulator.Forms.TerminalDisplayForm(eqpId, topic))
             {
-                MessageBox.Show("請輸入要顯示於機台螢幕的文字訊息。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                if (form.ShowDialog(this) == DialogResult.OK)
+                {
+                    string text = form.TerminalMessage;
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        await _eapSimulatorService.SendTerminalDisplayAsync(eqpId, topic, text);
+                    }
+                }
             }
-            await _eapSimulatorService.SendTerminalDisplayAsync(eqpId, topic, text);
         }
 
         private void BtnExportEapLog_Click(object sender, EventArgs e)
