@@ -859,7 +859,7 @@ namespace MESSimulator
             grpEapRules.Padding = new System.Windows.Forms.Padding(5);
             grpEapRules.Size = new System.Drawing.Size(1346, 420);
             grpEapRules.TabStop = false;
-            grpEapRules.Text = "EAP 一般邏輯清單 — 可勾選「自動回復 (AutoReply)」與「強制失敗 (Force FAIL)」(已排除防混料、NGCODE上報、線別功能)";
+            grpEapRules.Text = "EAP 一般邏輯清單 — 可勾選「自動回復 (AutoReply)」與「強制失敗 (Force FAIL)」(已排除防混料、NGCODE上報、自動結帳、線別功能)";
 
             dgvEapRules.AllowUserToAddRows = false;
             dgvEapRules.AllowUserToDeleteRows = false;
