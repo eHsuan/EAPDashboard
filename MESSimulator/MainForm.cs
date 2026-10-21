@@ -47,7 +47,11 @@ namespace MESSimulator
             // 2. 初始化 EAP 模擬器服務 (直接串接內部 GenerateMockReply 並同步記錄至 MES Log)
             _eapSimulatorService = new EapSimulatorService(ExecuteInternalMesTransaction);
             _eapSimulatorService.LogMessage += msg => AppendEapLog(msg);
-            _eapSimulatorService.KnownEquipmentsChanged += () => RefreshTargetEqpComboBox();
+
+            if (cboRemoteCmdType.Items.Count > 0 && cboRemoteCmdType.SelectedIndex < 0)
+            {
+                cboRemoteCmdType.SelectedIndex = 0;
+            }
 
             SetupEapRulesGrid();
         }
@@ -213,32 +217,6 @@ namespace MESSimulator
             dgvClients.DataSource = snapshot;
         }
 
-        private void RefreshTargetEqpComboBox()
-        {
-            if (this.IsDisposed) return;
-            if (this.InvokeRequired)
-            {
-                try { this.BeginInvoke(new Action(RefreshTargetEqpComboBox)); } catch { }
-                return;
-            }
-
-            var eqpList = _eapSimulatorService.GetKnownEquipments();
-            string currentText = cboTargetEqp.Text;
-            cboTargetEqp.Items.Clear();
-            foreach (var eqp in eqpList)
-            {
-                cboTargetEqp.Items.Add(eqp);
-            }
-            if (!string.IsNullOrEmpty(currentText))
-            {
-                cboTargetEqp.Text = currentText;
-            }
-            else if (cboTargetEqp.Items.Count > 0)
-            {
-                cboTargetEqp.SelectedIndex = 0;
-            }
-        }
-
         #endregion
 
         #region Tab 2: MQTT Broker 事件處理
@@ -400,66 +378,56 @@ namespace MESSimulator
             AppendEapLog("[設定] 已全部重置「強制失敗 (Force Fail)」為正常模式。");
         }
 
-        private void CboTargetEqp_SelectedIndexChanged(object sender, EventArgs e)
+        private string GetTargetCommandTopicAndMachine(out string eqpId)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            if (!string.IsNullOrEmpty(eqpId))
+            string topic = txtTargetCmdTopic.Text.Trim();
+            if (string.IsNullOrEmpty(topic))
             {
-                string cmdTopic = _eapSimulatorService.ResolveCommandTopic(eqpId, "");
-                txtTargetCmdTopic.Text = cmdTopic;
+                topic = $"TN2/YELLOW/machine/{EapSimulatorService.DefaultEquipmentId}/Command";
+                txtTargetCmdTopic.Text = topic;
             }
+            eqpId = EapSimulatorService.ExtractMachineIdFromCommandTopic(topic);
+            return topic;
         }
 
         private async void BtnSendAreYouThere_Click(object sender, EventArgs e)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            string topic = txtTargetCmdTopic.Text.Trim();
-            if (string.IsNullOrEmpty(eqpId))
-            {
-                MessageBox.Show("請輸入或選擇目標 EqpID。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
             await _eapSimulatorService.SendAreYouThereAsync(eqpId, topic);
         }
 
         private async void BtnSendStatusReq_Click(object sender, EventArgs e)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            string topic = txtTargetCmdTopic.Text.Trim();
-            if (string.IsNullOrEmpty(eqpId))
-            {
-                MessageBox.Show("請輸入或選擇目標 EqpID。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
             await _eapSimulatorService.SendStatusReqAsync(eqpId, topic);
         }
 
         private async void BtnSendTimeCalibrate_Click(object sender, EventArgs e)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            string topic = txtTargetCmdTopic.Text.Trim();
-            if (string.IsNullOrEmpty(eqpId))
-            {
-                MessageBox.Show("請輸入或選擇目標 EqpID。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
             await _eapSimulatorService.SendTimeCalibrateAsync(eqpId, topic);
+        }
+
+        private async void BtnSendInitTraceData_Click(object sender, EventArgs e)
+        {
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
+            string timerSec = txtTraceInterval.Text.Trim();
+            if (string.IsNullOrEmpty(timerSec)) timerSec = "5";
+
+            string rawEnable = txtTraceParams.Text.Trim();
+            bool enable = !(rawEnable.Equals("false", StringComparison.OrdinalIgnoreCase) || rawEnable == "0");
+
+            await _eapSimulatorService.SendInitTraceDataAsync(eqpId, topic, timerSec, enable);
         }
 
         private async void BtnSendRemoteCmd_Click(object sender, EventArgs e)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            string topic = txtTargetCmdTopic.Text.Trim();
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
             string rcmd = cboRemoteCmdType.Text.Trim();
             string recipe = txtRemoteRecipe.Text.Trim();
-            if (string.IsNullOrEmpty(eqpId))
-            {
-                MessageBox.Show("請輸入或選擇目標 EqpID。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
             if (string.IsNullOrEmpty(rcmd))
             {
-                MessageBox.Show("請選擇或輸入 RemoteCMD 指令。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("請選擇 RemoteCMD 指令。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
             await _eapSimulatorService.SendRemoteCmdAsync(eqpId, topic, rcmd, recipe);
@@ -467,12 +435,11 @@ namespace MESSimulator
 
         private async void BtnSendTerminalMsg_Click(object sender, EventArgs e)
         {
-            string eqpId = cboTargetEqp.Text.Trim();
-            string topic = txtTargetCmdTopic.Text.Trim();
+            string topic = GetTargetCommandTopicAndMachine(out string eqpId);
             string text = txtTerminalMsg.Text;
-            if (string.IsNullOrEmpty(eqpId))
+            if (string.IsNullOrWhiteSpace(text))
             {
-                MessageBox.Show("請輸入或選擇目標 EqpID。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("請輸入要顯示於機台螢幕的文字訊息。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
             await _eapSimulatorService.SendTerminalDisplayAsync(eqpId, topic, text);
@@ -1221,8 +1188,6 @@ namespace MESSimulator
             {
                 await StartEapInternalAsync();
             }
-
-            RefreshTargetEqpComboBox();
         }
 
         private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)

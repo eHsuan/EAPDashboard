@@ -60,6 +60,7 @@ namespace MESSimulator.Services
 
         private CancellationTokenSource _cts;
 
+        public const string DefaultEquipmentId = "TEST01";
         public bool IsConnected => _bus != null && _bus.IsConnected;
         public bool IsRunning => IsConnected;
         public string DefaultTopicPrefix { get; set; } = "TN2/YELLOW/machine";
@@ -263,12 +264,27 @@ namespace MESSimulator.Services
 
         public List<string> GetKnownEquipments()
         {
-            var list = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "EQP_SIM_01" };
+            var list = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { DefaultEquipmentId };
             foreach (var k in _lastCommandTopicMap.Keys)
             {
                 if (!string.IsNullOrWhiteSpace(k)) list.Add(k);
             }
             return list.OrderBy(x => x).ToList();
+        }
+
+        public static string ExtractMachineIdFromCommandTopic(string cmdTopic)
+        {
+            if (string.IsNullOrWhiteSpace(cmdTopic)) return DefaultEquipmentId;
+            var parts = cmdTopic.Trim().Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length >= 2 && parts[parts.Length - 1].Equals("Command", StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[parts.Length - 2];
+            }
+            if (parts.Length >= 1 && !parts[parts.Length - 1].Equals("Command", StringComparison.OrdinalIgnoreCase))
+            {
+                return parts[parts.Length - 1];
+            }
+            return DefaultEquipmentId;
         }
 
         public bool IsRuleAutoReply(string ruleKey)
@@ -660,11 +676,15 @@ namespace MESSimulator.Services
                         await HandleEventReportAsync(eqpId, cmdTopic, evm);
                         break;
 
+                    case CommandType.ReplyInitTraceData:
+                        var ritd = (ReplyInitTraceDataMessage)msg;
+                        Log($"[InitTraceData Reply] 收到機台 {eqpId} 針對 InitTraceData 的回應: Result={ritd.RtnResult}, Msg={ritd.RtnMsg}");
+                        break;
+
                     case CommandType.ReplyTimeCalibrate:
                     case CommandType.ReplyTerminalDisplay:
                     case CommandType.ReplySelectParameter:
                     case CommandType.ReplyEditParameter:
-                    case CommandType.ReplyInitTraceData:
                         Log($"[ACK] 收到機台 {eqpId} 針對 {msg.CMD} 的回應。");
                         break;
                 }
@@ -1575,34 +1595,51 @@ namespace MESSimulator.Services
 
         public async Task SendAreYouThereAsync(string eqpId, string customCmdTopic = null)
         {
-            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, eqpId);
-            await SendCommandToTopicAsync(topic, new AreYouThereMessage { CMD = CommandType.AreYouThere, Machine = eqpId });
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
+            await SendCommandToTopicAsync(topic, new AreYouThereMessage { CMD = CommandType.AreYouThere, Machine = resolvedEqp });
         }
 
         public async Task SendStatusReqAsync(string eqpId, string customCmdTopic = null)
         {
-            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, eqpId);
-            await SendCommandToTopicAsync(topic, new StatusReqMessage { CMD = CommandType.StatusReq, Machine = eqpId });
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
+            await SendCommandToTopicAsync(topic, new StatusReqMessage { CMD = CommandType.StatusReq, Machine = resolvedEqp });
         }
 
         public async Task SendTimeCalibrateAsync(string eqpId, string customCmdTopic = null)
         {
-            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, eqpId);
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
             await SendCommandToTopicAsync(topic, new TimeCalibrateMessage
             {
                 CMD = CommandType.TimeCalibrate,
-                Machine = eqpId,
+                Machine = resolvedEqp,
                 Date = DateTime.Now.ToString("yyyyMMddHHmmss")
+            });
+        }
+
+        public async Task SendInitTraceDataAsync(string eqpId, string customCmdTopic, string timerSeconds, bool enable = true)
+        {
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
+            await SendCommandToTopicAsync(topic, new InitTraceDataMessage
+            {
+                CMD = CommandType.InitTraceData,
+                Machine = resolvedEqp,
+                Enable = enable,
+                Timer = string.IsNullOrWhiteSpace(timerSeconds) ? "5" : timerSeconds.Trim()
             });
         }
 
         public async Task SendRemoteCmdAsync(string eqpId, RemoteCommandType cmdType, string recipeId = null, string customCmdTopic = null)
         {
-            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, eqpId);
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
             await SendCommandToTopicAsync(topic, new RemoteCMDMessage
             {
                 CMD = CommandType.RemoteCMD,
-                Machine = eqpId,
+                Machine = resolvedEqp,
                 RemoteCMDType = cmdType,
                 RecipeID = recipeId ?? ""
             });
@@ -1621,11 +1658,12 @@ namespace MESSimulator.Services
         {
             string safeMsg = SanitizeTerminalMessage(text);
             if (string.IsNullOrEmpty(safeMsg)) return;
-            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, eqpId);
+            string resolvedEqp = !string.IsNullOrWhiteSpace(eqpId) ? eqpId : ExtractMachineIdFromCommandTopic(customCmdTopic);
+            string topic = !string.IsNullOrWhiteSpace(customCmdTopic) ? customCmdTopic : ResolveCommandTopic(null, resolvedEqp);
             await SendCommandToTopicAsync(topic, new TerminalDisplayMessage
             {
                 CMD = CommandType.TerminalDisplay,
-                Machine = eqpId,
+                Machine = resolvedEqp,
                 Message = safeMsg
             });
         }

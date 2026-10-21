@@ -77,17 +77,22 @@ namespace MESSimulator
             btnUnselectAllAutoReply = new System.Windows.Forms.Button();
             btnResetForceFail = new System.Windows.Forms.Button();
             btnClearEapLog = new System.Windows.Forms.Button();
-            lblTargetEqp = new System.Windows.Forms.Label();
-            cboTargetEqp = new System.Windows.Forms.ComboBox();
             lblTargetTopic = new System.Windows.Forms.Label();
             txtTargetCmdTopic = new System.Windows.Forms.TextBox();
             btnSendAreYouThere = new System.Windows.Forms.Button();
             btnSendStatusReq = new System.Windows.Forms.Button();
             btnSendTimeCalibrate = new System.Windows.Forms.Button();
+            lblTraceInterval = new System.Windows.Forms.Label();
+            txtTraceInterval = new System.Windows.Forms.TextBox();
+            lblTraceParams = new System.Windows.Forms.Label();
+            txtTraceParams = new System.Windows.Forms.TextBox();
+            btnSendInitTraceData = new System.Windows.Forms.Button();
             lblRemoteCmd = new System.Windows.Forms.Label();
             cboRemoteCmdType = new System.Windows.Forms.ComboBox();
+            lblRemoteRecipe = new System.Windows.Forms.Label();
             txtRemoteRecipe = new System.Windows.Forms.TextBox();
             btnSendRemoteCmd = new System.Windows.Forms.Button();
+            lblTerminalMsg = new System.Windows.Forms.Label();
             txtTerminalMsg = new System.Windows.Forms.TextBox();
             btnSendTerminalMsg = new System.Windows.Forms.Button();
             splitEap = new System.Windows.Forms.SplitContainer();
@@ -640,23 +645,28 @@ namespace MESSimulator
             panelEapTop.Controls.Add(btnUnselectAllAutoReply);
             panelEapTop.Controls.Add(btnResetForceFail);
             panelEapTop.Controls.Add(btnClearEapLog);
-            panelEapTop.Controls.Add(lblTargetEqp);
-            panelEapTop.Controls.Add(cboTargetEqp);
             panelEapTop.Controls.Add(lblTargetTopic);
             panelEapTop.Controls.Add(txtTargetCmdTopic);
             panelEapTop.Controls.Add(btnSendAreYouThere);
             panelEapTop.Controls.Add(btnSendStatusReq);
             panelEapTop.Controls.Add(btnSendTimeCalibrate);
+            panelEapTop.Controls.Add(lblTraceInterval);
+            panelEapTop.Controls.Add(txtTraceInterval);
+            panelEapTop.Controls.Add(lblTraceParams);
+            panelEapTop.Controls.Add(txtTraceParams);
+            panelEapTop.Controls.Add(btnSendInitTraceData);
             panelEapTop.Controls.Add(lblRemoteCmd);
             panelEapTop.Controls.Add(cboRemoteCmdType);
+            panelEapTop.Controls.Add(lblRemoteRecipe);
             panelEapTop.Controls.Add(txtRemoteRecipe);
             panelEapTop.Controls.Add(btnSendRemoteCmd);
+            panelEapTop.Controls.Add(lblTerminalMsg);
             panelEapTop.Controls.Add(txtTerminalMsg);
             panelEapTop.Controls.Add(btnSendTerminalMsg);
             panelEapTop.Dock = System.Windows.Forms.DockStyle.Top;
             panelEapTop.Location = new System.Drawing.Point(3, 3);
             panelEapTop.Name = "panelEapTop";
-            panelEapTop.Size = new System.Drawing.Size(1346, 92);
+            panelEapTop.Size = new System.Drawing.Size(1346, 126);
             panelEapTop.TabIndex = 0;
 
             // Row 1: EAP Simulator Control & Batch Rule Toggle
@@ -711,98 +721,135 @@ namespace MESSimulator
             btnClearEapLog.UseVisualStyleBackColor = true;
             btnClearEapLog.Click += (s, e) => txtEapLog.Clear();
 
-            // Row 2: Active EAP Command Sender for Equipment Vendor Testing
-            lblTargetEqp.AutoSize = true;
-            lblTargetEqp.Location = new System.Drawing.Point(12, 53);
-            lblTargetEqp.Name = "lblTargetEqp";
-            lblTargetEqp.Size = new System.Drawing.Size(65, 17);
-            lblTargetEqp.Text = "目標機台:";
-
-            cboTargetEqp.Location = new System.Drawing.Point(80, 49);
-            cboTargetEqp.Name = "cboTargetEqp";
-            cboTargetEqp.Size = new System.Drawing.Size(95, 25);
-            cboTargetEqp.Text = "TS0003";
-            cboTargetEqp.SelectedIndexChanged += CboTargetEqp_SelectedIndexChanged;
-            cboTargetEqp.TextChanged += CboTargetEqp_SelectedIndexChanged;
-
+            // Row 2: Target Cmd Topic (Default: TEST01) + Basic Probes + InitTraceData
             lblTargetTopic.AutoSize = true;
-            lblTargetTopic.Location = new System.Drawing.Point(182, 53);
+            lblTargetTopic.Location = new System.Drawing.Point(12, 51);
             lblTargetTopic.Name = "lblTargetTopic";
-            lblTargetTopic.Size = new System.Drawing.Size(80, 17);
-            lblTargetTopic.Text = "Cmd Topic:";
+            lblTargetTopic.Size = new System.Drawing.Size(165, 17);
+            lblTargetTopic.Text = "目標 Cmd Topic (TEST01):";
 
-            txtTargetCmdTopic.Location = new System.Drawing.Point(262, 49);
+            txtTargetCmdTopic.Location = new System.Drawing.Point(180, 47);
             txtTargetCmdTopic.Name = "txtTargetCmdTopic";
-            txtTargetCmdTopic.Size = new System.Drawing.Size(210, 24);
-            txtTargetCmdTopic.Text = "TN2/YELLOW/machine/TS0003/Command";
+            txtTargetCmdTopic.Size = new System.Drawing.Size(340, 24);
+            txtTargetCmdTopic.Text = "TN2/YELLOW/machine/TEST01/Command";
 
-            btnSendAreYouThere.Location = new System.Drawing.Point(480, 46);
+            btnSendAreYouThere.Location = new System.Drawing.Point(528, 44);
             btnSendAreYouThere.Name = "btnSendAreYouThere";
-            btnSendAreYouThere.Size = new System.Drawing.Size(98, 30);
-            btnSendAreYouThere.Text = "AreYouThere";
+            btnSendAreYouThere.Size = new System.Drawing.Size(128, 30);
+            btnSendAreYouThere.Text = "發送 AreYouThere";
             btnSendAreYouThere.UseVisualStyleBackColor = true;
             btnSendAreYouThere.Click += BtnSendAreYouThere_Click;
 
-            btnSendStatusReq.Location = new System.Drawing.Point(582, 46);
+            btnSendStatusReq.Location = new System.Drawing.Point(662, 44);
             btnSendStatusReq.Name = "btnSendStatusReq";
-            btnSendStatusReq.Size = new System.Drawing.Size(86, 30);
-            btnSendStatusReq.Text = "StatusReq";
+            btnSendStatusReq.Size = new System.Drawing.Size(116, 30);
+            btnSendStatusReq.Text = "發送 StatusReq";
             btnSendStatusReq.UseVisualStyleBackColor = true;
             btnSendStatusReq.Click += BtnSendStatusReq_Click;
 
-            btnSendTimeCalibrate.Location = new System.Drawing.Point(672, 46);
+            btnSendTimeCalibrate.Location = new System.Drawing.Point(784, 44);
             btnSendTimeCalibrate.Name = "btnSendTimeCalibrate";
-            btnSendTimeCalibrate.Size = new System.Drawing.Size(102, 30);
-            btnSendTimeCalibrate.Text = "TimeCalibrate";
+            btnSendTimeCalibrate.Size = new System.Drawing.Size(132, 30);
+            btnSendTimeCalibrate.Text = "發送 TimeCalibrate";
             btnSendTimeCalibrate.UseVisualStyleBackColor = true;
             btnSendTimeCalibrate.Click += BtnSendTimeCalibrate_Click;
 
+            lblTraceInterval.AutoSize = true;
+            lblTraceInterval.Location = new System.Drawing.Point(926, 51);
+            lblTraceInterval.Name = "lblTraceInterval";
+            lblTraceInterval.Size = new System.Drawing.Size(95, 17);
+            lblTraceInterval.Text = "Trace週期(Timer):";
+
+            txtTraceInterval.Location = new System.Drawing.Point(1025, 47);
+            txtTraceInterval.Name = "txtTraceInterval";
+            txtTraceInterval.Size = new System.Drawing.Size(50, 24);
+            txtTraceInterval.Text = "5";
+
+            lblTraceParams.AutoSize = true;
+            lblTraceParams.Location = new System.Drawing.Point(1082, 51);
+            lblTraceParams.Name = "lblTraceParams";
+            lblTraceParams.Size = new System.Drawing.Size(55, 17);
+            lblTraceParams.Text = "Enable:";
+
+            txtTraceParams.Location = new System.Drawing.Point(1138, 47);
+            txtTraceParams.Name = "txtTraceParams";
+            txtTraceParams.Size = new System.Drawing.Size(55, 24);
+            txtTraceParams.Text = "true";
+
+            btnSendInitTraceData.Location = new System.Drawing.Point(1200, 44);
+            btnSendInitTraceData.Name = "btnSendInitTraceData";
+            btnSendInitTraceData.Size = new System.Drawing.Size(130, 30);
+            btnSendInitTraceData.Text = "發送 InitTraceData";
+            btnSendInitTraceData.UseVisualStyleBackColor = true;
+            btnSendInitTraceData.Click += BtnSendInitTraceData_Click;
+
+            // Row 3: RemoteCMD (with clear dropdown & RecipeID label) + TerminalDisplay (with clear label)
             lblRemoteCmd.AutoSize = true;
-            lblRemoteCmd.Location = new System.Drawing.Point(782, 53);
+            lblRemoteCmd.Location = new System.Drawing.Point(12, 91);
             lblRemoteCmd.Name = "lblRemoteCmd";
-            lblRemoteCmd.Size = new System.Drawing.Size(45, 17);
-            lblRemoteCmd.Text = "遠端:";
+            lblRemoteCmd.Size = new System.Drawing.Size(145, 17);
+            lblRemoteCmd.Text = "遠端控制 (RemoteCMD):";
 
             cboRemoteCmdType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            cboRemoteCmdType.Location = new System.Drawing.Point(825, 49);
+            cboRemoteCmdType.Items.AddRange(new object[] {
+                "PP_SELECT",
+                "START",
+                "STOP",
+                "PAUSE",
+                "RESUME",
+                "ABORT"
+            });
+            cboRemoteCmdType.Location = new System.Drawing.Point(162, 87);
             cboRemoteCmdType.Name = "cboRemoteCmdType";
-            cboRemoteCmdType.Size = new System.Drawing.Size(95, 25);
+            cboRemoteCmdType.Size = new System.Drawing.Size(115, 25);
 
-            txtRemoteRecipe.Location = new System.Drawing.Point(924, 49);
+            lblRemoteRecipe.AutoSize = true;
+            lblRemoteRecipe.Location = new System.Drawing.Point(290, 91);
+            lblRemoteRecipe.Name = "lblRemoteRecipe";
+            lblRemoteRecipe.Size = new System.Drawing.Size(135, 17);
+            lblRemoteRecipe.Text = "PP_SELECT RecipeID:";
+
+            txtRemoteRecipe.Location = new System.Drawing.Point(428, 87);
             txtRemoteRecipe.Name = "txtRemoteRecipe";
             txtRemoteRecipe.PlaceholderText = "RecipeID";
-            txtRemoteRecipe.Size = new System.Drawing.Size(65, 24);
+            txtRemoteRecipe.Size = new System.Drawing.Size(100, 24);
             txtRemoteRecipe.Text = "11";
 
-            btnSendRemoteCmd.Location = new System.Drawing.Point(993, 46);
+            btnSendRemoteCmd.Location = new System.Drawing.Point(536, 84);
             btnSendRemoteCmd.Name = "btnSendRemoteCmd";
-            btnSendRemoteCmd.Size = new System.Drawing.Size(78, 30);
-            btnSendRemoteCmd.Text = "發送RCMD";
+            btnSendRemoteCmd.Size = new System.Drawing.Size(130, 30);
+            btnSendRemoteCmd.Text = "發送 RemoteCMD";
             btnSendRemoteCmd.UseVisualStyleBackColor = true;
             btnSendRemoteCmd.Click += BtnSendRemoteCmd_Click;
 
-            txtTerminalMsg.Location = new System.Drawing.Point(1078, 49);
+            lblTerminalMsg.AutoSize = true;
+            lblTerminalMsg.Location = new System.Drawing.Point(690, 91);
+            lblTerminalMsg.Name = "lblTerminalMsg";
+            lblTerminalMsg.Size = new System.Drawing.Size(185, 17);
+            lblTerminalMsg.Text = "機台螢幕訊息 (TerminalDisplay):";
+
+            txtTerminalMsg.Location = new System.Drawing.Point(882, 87);
             txtTerminalMsg.Name = "txtTerminalMsg";
-            txtTerminalMsg.PlaceholderText = "Terminal 訊息";
-            txtTerminalMsg.Size = new System.Drawing.Size(145, 24);
+            txtTerminalMsg.PlaceholderText = "請輸入要顯示於機台螢幕的文字";
+            txtTerminalMsg.Size = new System.Drawing.Size(295, 24);
             txtTerminalMsg.Text = "EAP TEST MESSAGE";
 
-            btnSendTerminalMsg.Location = new System.Drawing.Point(1227, 46);
+            btnSendTerminalMsg.Location = new System.Drawing.Point(1185, 84);
             btnSendTerminalMsg.Name = "btnSendTerminalMsg";
-            btnSendTerminalMsg.Size = new System.Drawing.Size(105, 30);
-            btnSendTerminalMsg.Text = "發送螢幕顯示";
+            btnSendTerminalMsg.Size = new System.Drawing.Size(145, 30);
+            btnSendTerminalMsg.Text = "發送 TerminalDisplay";
             btnSendTerminalMsg.UseVisualStyleBackColor = true;
             btnSendTerminalMsg.Click += BtnSendTerminalMsg_Click;
 
             // splitEap
             splitEap.Dock = System.Windows.Forms.DockStyle.Fill;
-            splitEap.Location = new System.Drawing.Point(3, 95);
+            splitEap.Location = new System.Drawing.Point(3, 129);
             splitEap.Name = "splitEap";
             splitEap.Orientation = System.Windows.Forms.Orientation.Horizontal;
             splitEap.Panel1.Controls.Add(grpEapRules);
             splitEap.Panel2.Controls.Add(grpEapLog);
-            splitEap.Size = new System.Drawing.Size(1346, 780);
-            splitEap.SplitterDistance = 420;
+            splitEap.Size = new System.Drawing.Size(1346, 746);
+            splitEap.SplitterDistance = 400;
             splitEap.SplitterWidth = 5;
 
             grpEapRules.Controls.Add(dgvEapRules);
@@ -961,17 +1008,22 @@ namespace MESSimulator
         private System.Windows.Forms.Button btnUnselectAllAutoReply;
         private System.Windows.Forms.Button btnResetForceFail;
         private System.Windows.Forms.Button btnClearEapLog;
-        private System.Windows.Forms.Label lblTargetEqp;
-        private System.Windows.Forms.ComboBox cboTargetEqp;
         private System.Windows.Forms.Label lblTargetTopic;
         private System.Windows.Forms.TextBox txtTargetCmdTopic;
         private System.Windows.Forms.Button btnSendAreYouThere;
         private System.Windows.Forms.Button btnSendStatusReq;
         private System.Windows.Forms.Button btnSendTimeCalibrate;
+        private System.Windows.Forms.Label lblTraceInterval;
+        private System.Windows.Forms.TextBox txtTraceInterval;
+        private System.Windows.Forms.Label lblTraceParams;
+        private System.Windows.Forms.TextBox txtTraceParams;
+        private System.Windows.Forms.Button btnSendInitTraceData;
         private System.Windows.Forms.Label lblRemoteCmd;
         private System.Windows.Forms.ComboBox cboRemoteCmdType;
+        private System.Windows.Forms.Label lblRemoteRecipe;
         private System.Windows.Forms.TextBox txtRemoteRecipe;
         private System.Windows.Forms.Button btnSendRemoteCmd;
+        private System.Windows.Forms.Label lblTerminalMsg;
         private System.Windows.Forms.TextBox txtTerminalMsg;
         private System.Windows.Forms.Button btnSendTerminalMsg;
         private System.Windows.Forms.SplitContainer splitEap;
