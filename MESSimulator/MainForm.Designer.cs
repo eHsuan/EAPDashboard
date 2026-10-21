@@ -44,6 +44,8 @@ namespace MESSimulator
             txtRecipeId = new System.Windows.Forms.TextBox();
             btnStop = new System.Windows.Forms.Button();
             btnStart = new System.Windows.Forms.Button();
+            btnExportMesLog = new System.Windows.Forms.Button();
+            btnClearMesLog = new System.Windows.Forms.Button();
             txtPort = new System.Windows.Forms.TextBox();
             lblPort = new System.Windows.Forms.Label();
             lblStatus = new System.Windows.Forms.Label();
@@ -76,6 +78,7 @@ namespace MESSimulator
             btnSelectAllAutoReply = new System.Windows.Forms.Button();
             btnUnselectAllAutoReply = new System.Windows.Forms.Button();
             btnResetForceFail = new System.Windows.Forms.Button();
+            btnExportEapLog = new System.Windows.Forms.Button();
             btnClearEapLog = new System.Windows.Forms.Button();
             lblTargetTopic = new System.Windows.Forms.Label();
             txtTargetCmdTopic = new System.Windows.Forms.TextBox();
@@ -177,6 +180,8 @@ namespace MESSimulator
             panelTop.Controls.Add(txtOutRequireInputCode);
             panelTop.Controls.Add(lblRecipeId);
             panelTop.Controls.Add(txtRecipeId);
+            panelTop.Controls.Add(btnExportMesLog);
+            panelTop.Controls.Add(btnClearMesLog);
             panelTop.Controls.Add(btnStop);
             panelTop.Controls.Add(btnStart);
             panelTop.Controls.Add(txtPort);
@@ -382,6 +387,26 @@ namespace MESSimulator
             txtRecipeId.Size = new System.Drawing.Size(116, 23);
             txtRecipeId.TabIndex = 10;
             txtRecipeId.Text = "11";
+            // 
+            // btnExportMesLog
+            // 
+            btnExportMesLog.Location = new System.Drawing.Point(1182, 12);
+            btnExportMesLog.Name = "btnExportMesLog";
+            btnExportMesLog.Size = new System.Drawing.Size(155, 30);
+            btnExportMesLog.TabIndex = 23;
+            btnExportMesLog.Text = "💾 輸出 MES Log";
+            btnExportMesLog.UseVisualStyleBackColor = true;
+            btnExportMesLog.Click += BtnExportMesLog_Click;
+            // 
+            // btnClearMesLog
+            // 
+            btnClearMesLog.Location = new System.Drawing.Point(1182, 74);
+            btnClearMesLog.Name = "btnClearMesLog";
+            btnClearMesLog.Size = new System.Drawing.Size(155, 28);
+            btnClearMesLog.TabIndex = 24;
+            btnClearMesLog.Text = "清除 MES 日誌";
+            btnClearMesLog.UseVisualStyleBackColor = true;
+            btnClearMesLog.Click += (s, e) => { txtLog.Clear(); txtRequest.Clear(); };
             // 
             // btnStop
             // 
@@ -644,6 +669,7 @@ namespace MESSimulator
             panelEapTop.Controls.Add(btnSelectAllAutoReply);
             panelEapTop.Controls.Add(btnUnselectAllAutoReply);
             panelEapTop.Controls.Add(btnResetForceFail);
+            panelEapTop.Controls.Add(btnExportEapLog);
             panelEapTop.Controls.Add(btnClearEapLog);
             panelEapTop.Controls.Add(lblTargetTopic);
             panelEapTop.Controls.Add(txtTargetCmdTopic);
@@ -713,6 +739,13 @@ namespace MESSimulator
             btnResetForceFail.Text = "重設全部為 PASS";
             btnResetForceFail.UseVisualStyleBackColor = true;
             btnResetForceFail.Click += BtnResetForceFail_Click;
+
+            btnExportEapLog.Location = new System.Drawing.Point(1078, 7);
+            btnExportEapLog.Name = "btnExportEapLog";
+            btnExportEapLog.Size = new System.Drawing.Size(136, 30);
+            btnExportEapLog.Text = "💾 輸出 EAP Log";
+            btnExportEapLog.UseVisualStyleBackColor = true;
+            btnExportEapLog.Click += BtnExportEapLog_Click;
 
             btnClearEapLog.Location = new System.Drawing.Point(1220, 7);
             btnClearEapLog.Name = "btnClearEapLog";
@@ -964,6 +997,8 @@ namespace MESSimulator
         private System.Windows.Forms.TextBox txtRecipeId;
         private System.Windows.Forms.Button btnStart;
         private System.Windows.Forms.Button btnStop;
+        private System.Windows.Forms.Button btnExportMesLog;
+        private System.Windows.Forms.Button btnClearMesLog;
         private System.Windows.Forms.SplitContainer splitContainer;
         private System.Windows.Forms.GroupBox grpRequest;
         private System.Windows.Forms.TextBox txtRequest;
@@ -1007,6 +1042,7 @@ namespace MESSimulator
         private System.Windows.Forms.Button btnSelectAllAutoReply;
         private System.Windows.Forms.Button btnUnselectAllAutoReply;
         private System.Windows.Forms.Button btnResetForceFail;
+        private System.Windows.Forms.Button btnExportEapLog;
         private System.Windows.Forms.Button btnClearEapLog;
         private System.Windows.Forms.Label lblTargetTopic;
         private System.Windows.Forms.TextBox txtTargetCmdTopic;

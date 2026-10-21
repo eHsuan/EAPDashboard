@@ -445,6 +445,59 @@ namespace MESSimulator
             await _eapSimulatorService.SendTerminalDisplayAsync(eqpId, topic, text);
         }
 
+        private void BtnExportEapLog_Click(object sender, EventArgs e)
+        {
+            ExportLogWithDialog(txtEapLog?.Text, "EAP_Simulator_Log", "儲存 EAP 模擬器日誌");
+        }
+
+        private void BtnExportMesLog_Click(object sender, EventArgs e)
+        {
+            var sb = new StringBuilder();
+            if (!string.IsNullOrWhiteSpace(txtLog?.Text))
+            {
+                sb.AppendLine("==================== [MES Transaction Log] ====================");
+                sb.AppendLine(txtLog.Text);
+            }
+            if (!string.IsNullOrWhiteSpace(txtRequest?.Text))
+            {
+                if (sb.Length > 0) sb.AppendLine();
+                sb.AppendLine("==================== [SOAP Request History] ====================");
+                sb.AppendLine(txtRequest.Text);
+            }
+
+            ExportLogWithDialog(sb.ToString(), "MES_Simulator_Log", "儲存 MES 模擬器日誌");
+        }
+
+        private void ExportLogWithDialog(string logContent, string defaultFileNamePrefix, string dialogTitle)
+        {
+            if (string.IsNullOrWhiteSpace(logContent))
+            {
+                MessageBox.Show("目前沒有可輸出的日誌內容。", "提示", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var sfd = new SaveFileDialog())
+            {
+                sfd.Title = dialogTitle;
+                sfd.Filter = "Log 檔案 (*.log)|*.log|文字檔案 (*.txt)|*.txt|所有檔案 (*.*)|*.*";
+                sfd.DefaultExt = "log";
+                sfd.FileName = $"{defaultFileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmmss}.log";
+
+                if (sfd.ShowDialog(this) == DialogResult.OK)
+                {
+                    try
+                    {
+                        File.WriteAllText(sfd.FileName, logContent, Encoding.UTF8);
+                        MessageBox.Show($"日誌已成功儲存至：\n{sfd.FileName}", "輸出成功", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"儲存日誌失敗：{ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
         private void AppendEapLog(string message)
         {
             if (this.IsDisposed || txtEapLog == null || txtEapLog.IsDisposed) return;
@@ -1183,11 +1236,8 @@ namespace MESSimulator
             // 2. 啟動內建 MQTT Broker (預設 Port 1883)
             await StartBrokerInternalAsync();
 
-            // 3. 啟動內建 EAP 模擬器並連線至本地 MQTT Broker
-            if (_brokerService.IsRunning)
-            {
-                await StartEapInternalAsync();
-            }
+            // 3. EAP 模擬器預設維持停止狀態，由使用者手動點擊「啟動 EAP」
+            UpdateEapUI(false);
         }
 
         private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
