@@ -9,7 +9,7 @@
   "EnableCassetteBinding": false,
   "MinimizeToTray": true,
   "DictionaryDirectory": "Dictionaries",
-  "MqttTopicPrefix": "TN2/YELLOW/machine",
+  "MqttTopicPrefix": "TN2/Floor2/YELLOW",
   "MesSettings": {
     "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
     "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
@@ -69,7 +69,7 @@
       "Name": "TP0013",
       "Protocol": "MQTT",
       "StatusType": "Cyntec",
-      "IsActive": false,
+      "IsActive": true,
       "EnableReelCheck": true,
       "EnableTrackOutValidation": true
     },
