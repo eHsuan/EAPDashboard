@@ -1310,6 +1310,24 @@ namespace MESSimulator
                         reply["Message"] = "Simulation EqpWONGAdd Success";
                         break;
 
+                    case "CONNECTION":
+                        string connEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        Log($"[CONNECTION] Received EqpNo: {connEqpNo}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "0000";
+                        reply["Message"] = "Simulation Connection Success";
+                        break;
+
+                    case "EDCDATAADD":
+                    case "EDC_DATA_ADD":
+                        string edcWono = req["WONO"]?.ToString() ?? req["WONo"]?.ToString() ?? "";
+                        string edcEqpNo = req["EqpNo"]?.ToString() ?? "";
+                        Log($"[EDCDATAADD] Received WONO: {edcWono}, EqpNo: {edcEqpNo}");
+                        reply["Result"] = "success";
+                        reply["ResultCode"] = "0000";
+                        reply["Message"] = "Simulation EDCDATAADD Success";
+                        break;
+
                     default:
                         reply["Result"] = "FAIL";
                         reply["Message"] = $"Unsupported Transaction: {txn}";
