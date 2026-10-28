@@ -53,7 +53,43 @@ namespace MESSimulator
                 cboRemoteCmdType.SelectedIndex = 0;
             }
 
+            InitializeNetworkIpControls();
             SetupEapRulesGrid();
+        }
+
+        private void InitializeNetworkIpControls()
+        {
+            var localIps = MqttBrokerService.GetLocalIpAddresses();
+
+            // 1. Tab 1: MES WebService 監聽 IP
+            cboMesIp.Items.Clear();
+            cboMesIp.Items.Add("* (全部網卡)");
+            cboMesIp.Items.Add("localhost");
+            cboMesIp.Items.Add("127.0.0.1");
+            foreach (var ip in localIps)
+            {
+                cboMesIp.Items.Add(ip);
+            }
+            cboMesIp.SelectedIndex = 0;
+
+            // 2. Tab 2: 內建 MQTT Broker 監聽 IP
+            cboBrokerIp.Items.Clear();
+            cboBrokerIp.Items.Add("0.0.0.0 (全部網卡)");
+            cboBrokerIp.Items.Add("127.0.0.1");
+            foreach (var ip in localIps)
+            {
+                cboBrokerIp.Items.Add(ip);
+            }
+            cboBrokerIp.SelectedIndex = 0;
+
+            // 3. Tab 3: EAP 模擬器連線目標 Broker IP
+            cboEapBrokerIp.Items.Clear();
+            cboEapBrokerIp.Items.Add("127.0.0.1");
+            foreach (var ip in localIps)
+            {
+                cboEapBrokerIp.Items.Add(ip);
+            }
+            cboEapBrokerIp.SelectedIndex = 0;
         }
 
         private string ExecuteInternalMesTransaction(string jsonReq)
@@ -238,7 +274,8 @@ namespace MESSimulator
 
             try
             {
-                await _brokerService.StartAsync(port);
+                string bindIp = cboBrokerIp?.Text?.Trim() ?? "0.0.0.0";
+                await _brokerService.StartAsync(port, bindIp);
                 UpdateBrokerUI(true);
             }
             catch (Exception ex)
@@ -277,8 +314,9 @@ namespace MESSimulator
 
             btnBrokerStart.Enabled = !running;
             btnBrokerStop.Enabled = running;
+            if (cboBrokerIp != null) cboBrokerIp.Enabled = !running;
             txtBrokerPort.Enabled = !running;
-            lblBrokerStatus.Text = running ? $"● Broker Running (Port: {_brokerService.Port})" : "● Broker Stopped";
+            lblBrokerStatus.Text = running ? $"● Running ({_brokerService.BoundIp}:{_brokerService.Port})" : "● Broker Stopped";
             lblBrokerStatus.ForeColor = running ? Color.Lime : Color.Red;
         }
 
@@ -306,19 +344,27 @@ namespace MESSimulator
         {
             if (_eapSimulatorService.IsRunning) return;
 
-            if (!int.TryParse(txtBrokerPort.Text.Trim(), out int port) || port <= 0 || port > 65535)
+            string brokerIp = MqttBrokerService.ExtractCleanIp(cboEapBrokerIp?.Text);
+            if (string.IsNullOrWhiteSpace(brokerIp) || brokerIp == "0.0.0.0" || brokerIp == "*")
             {
-                port = 1883;
+                brokerIp = "127.0.0.1";
+            }
+
+            string portText = txtEapBrokerPort != null ? txtEapBrokerPort.Text.Trim() : txtBrokerPort.Text.Trim();
+            if (!int.TryParse(portText, out int port) || port <= 0 || port > 65535)
+            {
+                MessageBox.Show("請輸入有效的目標 Broker Port (1 ~ 65535)。", "輸入錯誤", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
             }
 
             try
             {
-                await _eapSimulatorService.StartAsync("127.0.0.1", port);
+                await _eapSimulatorService.StartAsync(brokerIp, port);
                 UpdateEapUI(_eapSimulatorService.IsRunning);
             }
             catch (Exception ex)
             {
-                AppendEapLog($"[錯誤] 啟動 EAP 模擬器失敗: {ex.Message}");
+                AppendEapLog($"[錯誤] 啟動 EAP 模擬器失敗 ({brokerIp}:{port}): {ex.Message}");
                 UpdateEapUI(false);
             }
         }
@@ -344,7 +390,12 @@ namespace MESSimulator
 
             btnEapStart.Enabled = !running;
             btnEapStop.Enabled = running;
-            lblEapStatus.Text = running ? "● EAP Simulator Running" : "● EAP Simulator Stopped";
+            if (cboEapBrokerIp != null) cboEapBrokerIp.Enabled = !running;
+            if (txtEapBrokerPort != null) txtEapBrokerPort.Enabled = !running;
+            string ip = MqttBrokerService.ExtractCleanIp(cboEapBrokerIp?.Text);
+            if (string.IsNullOrWhiteSpace(ip)) ip = "127.0.0.1";
+            string port = txtEapBrokerPort?.Text?.Trim() ?? "1883";
+            lblEapStatus.Text = running ? $"● EAP Running ({ip}:{port})" : "● EAP Sim Stopped";
             lblEapStatus.ForeColor = running ? Color.Lime : Color.Red;
         }
 
@@ -535,29 +586,92 @@ namespace MESSimulator
 
         private void BtnStart_Click(object sender, EventArgs e)
         {
-            Start();
+            Start(isManualClick: true);
         }
 
-        private void Start()
+        private void Start(bool isManualClick = false)
         {
             if (_isRunning) return;
 
-            string port = txtPort.Text;
-            _listener = new HttpListener();
-            _listener.Prefixes.Add($"http://localhost:{port}/");
+            string port = txtPort.Text.Trim();
+            string selectedIp = MqttBrokerService.ExtractCleanIp(cboMesIp?.Text);
+            if (string.IsNullOrWhiteSpace(selectedIp))
+            {
+                selectedIp = "localhost";
+            }
 
             try
             {
+                _listener = new HttpListener();
+                if (selectedIp == "*" || selectedIp == "+" || selectedIp == "0.0.0.0")
+                {
+                    _listener.Prefixes.Add($"http://+:{port}/");
+                }
+                else if (selectedIp.Equals("localhost", StringComparison.OrdinalIgnoreCase) || selectedIp == "127.0.0.1")
+                {
+                    _listener.Prefixes.Add($"http://localhost:{port}/");
+                    _listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+                }
+                else
+                {
+                    _listener.Prefixes.Add($"http://{selectedIp}:{port}/");
+                    _listener.Prefixes.Add($"http://localhost:{port}/");
+                }
+
                 _listener.Start();
                 _isRunning = true;
                 UpdateUI(true);
-                Log($"Server started on port {port}...");
+                var localIps = MqttBrokerService.GetLocalIpAddresses();
+                string ipHint = (selectedIp == "*" || selectedIp == "+" || selectedIp == "0.0.0.0") && localIps.Count > 0
+                    ? $" (本機可連線 IP: {string.Join(", ", localIps)}, localhost)"
+                    : "";
+                Log($"MES WebService 已啟動於 http://{selectedIp}:{port}/{ipHint}");
 
                 Task.Run(() => ListenLoop());
             }
+            catch (HttpListenerException httpEx) when (httpEx.ErrorCode == 5)
+            {
+                // ErrorCode 5 = Access Denied (未以系統管理員身分執行時綁定非 localhost IP)
+                try { _listener?.Close(); } catch { }
+                if (!isManualClick)
+                {
+                    // 程式啟動自動綁定時，自動降級為 localhost 確保能直接啟動
+                    try
+                    {
+                        if (cboMesIp != null) cboMesIp.Text = "localhost";
+                        _listener = new HttpListener();
+                        _listener.Prefixes.Add($"http://localhost:{port}/");
+                        _listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+                        _listener.Start();
+                        _isRunning = true;
+                        UpdateUI(true);
+                        var localIps = MqttBrokerService.GetLocalIpAddresses();
+                        string lanIpTip = localIps.Count > 0 ? string.Join(", ", localIps) : "區網 IP";
+                        Log($"MES WebService 已啟動於 http://localhost:{port}/ (僅限本機連線)。");
+                        Log($"[提示] 若需讓外部電腦連入 MES WebService ({lanIpTip}:{port})，請『以系統管理員身分執行』本程式，並將監聽 IP 選為 * (全部網卡) 或指定區網 IP。");
+                        Task.Run(() => ListenLoop());
+                        return;
+                    }
+                    catch (Exception fallbackEx)
+                    {
+                        Log($"[ERR] MES WebService 啟動失敗: {fallbackEx.Message}");
+                    }
+                }
+                else
+                {
+                    MessageBox.Show(
+                        $"綁定外部網卡 IP ({selectedIp}:{port}) 被 Windows 拒絕存取 (Error 5)。\n\n" +
+                        "解決方式：\n" +
+                        "1. 請關閉程式，對 MESSimulator.exe 按右鍵選擇『以系統管理員身分執行』即可綁定區網 IP。\n" +
+                        "2. 若僅在本機測試，請將監聽 IP 改選為 localhost 或 127.0.0.1。",
+                        "需要系統管理員權限",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
             catch (Exception ex)
             {
-                MessageBox.Show($"Failed to start server: {ex.Message}");
+                MessageBox.Show($"啟動 MES WebService 失敗: {ex.Message}", "錯誤", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -1228,8 +1342,11 @@ namespace MESSimulator
             
             btnStart.Enabled = !running;
             btnStop.Enabled = running;
+            if (cboMesIp != null) cboMesIp.Enabled = !running;
             txtPort.Enabled = !running;
-            lblStatus.Text = running ? "● Server Running" : "● Server Stopped";
+            string ip = MqttBrokerService.ExtractCleanIp(cboMesIp?.Text);
+            if (string.IsNullOrWhiteSpace(ip)) ip = "localhost";
+            lblStatus.Text = running ? $"● Server Running ({ip}:{txtPort.Text.Trim()})" : "● Server Stopped";
             lblStatus.ForeColor = running ? Color.Lime : Color.Red;
         }
 

@@ -1,0 +1,61 @@
+{
+  "ExitPassword": "CIM",
+  "EapId": "EAP99",
+  "ControllerTopic": "CYNTEC/EAP/CONTROLLER",
+  "MqttBrokerHost": "127.0.0.1",
+  "MqttBrokerPort": 1883,
+  "HeartbeatIntervalSeconds": 30,
+  "EqpStatusReportIntervalSeconds": 60,
+  "EnableCassetteBinding": false,
+  "MinimizeToTray": true,
+  "DictionaryDirectory": "Dictionaries",
+  "MqttTopicPrefix": "HC/Floor2/YELLOW",
+  "MesSettings": {
+    "ProductionUrl": "http://twcynmes01.delta.corp/CyntecDataCenter/service/Eqp/Eqp_Portal.asmx",
+    "TestUrl": "http://localhost:8070/Eqp_Portal.asmx",
+    "ActiveEnvironment": "Test",
+    "FilterNullApis": [
+      "WOCHECKIN_MULTI",
+      "WOCHECKOUT_MULTI"
+    ]
+  },
+  "ReelCheckSettings": {
+    "ProductionUrl": "http://twcynmesweb01/WcfEntrance/WCF/Wcf.svc",
+    "TestUrl": "http://twcynmeswebqa01/WcfEntranceTest/WCF/Wcf.svc",
+    "ActiveEnvironment": "Test",
+    "ClientUrl": "http://127.0.0.1:8080/EAP_ReelCheck",
+    "TimeoutSeconds": 30
+  },
+  "YieldSettings": {
+    "MinYieldRate": 0.95,
+    "MaxYieldRate": 1.00
+  },
+  "DbSettings": {
+    "ConnectionString": "Server=twtpesqlqa2;Database=DIAEAP;User Id=DIAEAP;Password=D@08!aEAp;",
+    "BindingTable": "EAP_CassetteBind",
+    "CassetteColumn": "CassetteID",
+    "WoColumn": "WorkOrder"
+  },
+  "PostgresDbSettings": {
+    "ConnectionString": "Host=localhost;Port=5432;Database=Protocol_localdata;Username=postgres;Password=PostgreSQL18;",
+    "Enabled": true,
+    "RetentionDays": 14
+  },
+  "LogSettings": {
+    "Enabled": true,
+    "CompressDays": 3,
+    "RetentionDays": 30,
+    "MaxFileSizeMB": 20,
+    "LogAreYouThere": false
+  },
+  "Equipments": [
+    {
+      "Id": "LF0007",
+      "Name": "真空壓模機",
+      "Protocol": "MQTT",
+      "StatusType": "Cyntec",
+      "IsActive": true,
+      "autoreportstatus": false
+    }
+  ]
+}

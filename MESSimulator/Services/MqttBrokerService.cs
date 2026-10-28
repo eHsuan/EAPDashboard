@@ -2,6 +2,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using MQTTnet;
@@ -64,22 +66,36 @@ namespace MESSimulator.Services
 
         public bool IsRunning { get; private set; }
         public int Port { get; private set; } = 1883;
+        public string BoundIp { get; private set; } = "0.0.0.0";
 
         public event Action<string> LogMessage;
         public event Action ClientsChanged;
 
-        public async Task StartAsync(int port = 1883)
+        public async Task StartAsync(int port = 1883, string bindIp = null)
         {
             if (IsRunning) return;
 
             Port = port;
+            string cleanIp = ExtractCleanIp(bindIp);
             var factory = new MqttFactory();
             _mqttServer = factory.CreateMqttServer();
 
             // 1. 驗證連線與記錄 Endpoint
-            var options = new MqttServerOptionsBuilder()
+            var optionsBuilder = new MqttServerOptionsBuilder()
                 .WithDefaultEndpoint()
-                .WithDefaultEndpointPort(port)
+                .WithDefaultEndpointPort(port);
+
+            if (!string.IsNullOrWhiteSpace(cleanIp) && cleanIp != "0.0.0.0" && cleanIp != "*" && IPAddress.TryParse(cleanIp, out IPAddress parsedIp))
+            {
+                optionsBuilder.WithDefaultEndpointBoundIPAddress(parsedIp);
+                BoundIp = cleanIp;
+            }
+            else
+            {
+                BoundIp = "0.0.0.0";
+            }
+
+            var options = optionsBuilder
                 .WithConnectionValidator(context =>
                 {
                     context.ReasonCode = MQTTnet.Protocol.MqttConnectReasonCode.Success;
@@ -155,8 +171,51 @@ namespace MESSimulator.Services
 
             await _mqttServer.StartAsync(options);
             IsRunning = true;
-            Log($"MQTT Broker 已啟動於 Port {port}。");
+            if (BoundIp == "0.0.0.0")
+            {
+                var localIps = GetLocalIpAddresses();
+                string ipListText = localIps.Count > 0 ? string.Join(", ", localIps) : "127.0.0.1";
+                Log($"MQTT Broker 已啟動於 0.0.0.0:{port} (監聽所有網卡，本機可連線 IP: {ipListText})。");
+            }
+            else
+            {
+                Log($"MQTT Broker 已啟動於 {BoundIp}:{port}。");
+            }
             ClientsChanged?.Invoke();
+        }
+
+        public static string ExtractCleanIp(string rawInput)
+        {
+            if (string.IsNullOrWhiteSpace(rawInput)) return string.Empty;
+            string trimmed = rawInput.Trim();
+            int spaceIdx = trimmed.IndexOf(' ');
+            if (spaceIdx > 0)
+            {
+                trimmed = trimmed.Substring(0, spaceIdx).Trim();
+            }
+            return trimmed;
+        }
+
+        public static List<string> GetLocalIpAddresses()
+        {
+            var list = new List<string>();
+            try
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(ip))
+                    {
+                        string ipStr = ip.ToString();
+                        if (!list.Contains(ipStr))
+                        {
+                            list.Add(ipStr);
+                        }
+                    }
+                }
+            }
+            catch { }
+            return list;
         }
 
         public async Task StopAsync()

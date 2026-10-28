@@ -46,6 +46,8 @@
             btnStart = new System.Windows.Forms.Button();
             btnExportMesLog = new System.Windows.Forms.Button();
             btnClearMesLog = new System.Windows.Forms.Button();
+            lblMesIp = new System.Windows.Forms.Label();
+            cboMesIp = new System.Windows.Forms.ComboBox();
             txtPort = new System.Windows.Forms.TextBox();
             lblPort = new System.Windows.Forms.Label();
             lblStatus = new System.Windows.Forms.Label();
@@ -58,6 +60,8 @@
             // --- Tab 2: MQTT Broker 監控 ---
             panelBrokerTop = new System.Windows.Forms.Panel();
             lblBrokerStatus = new System.Windows.Forms.Label();
+            lblBrokerIp = new System.Windows.Forms.Label();
+            cboBrokerIp = new System.Windows.Forms.ComboBox();
             lblBrokerPort = new System.Windows.Forms.Label();
             txtBrokerPort = new System.Windows.Forms.TextBox();
             btnBrokerStart = new System.Windows.Forms.Button();
@@ -73,6 +77,10 @@
             // --- Tab 3: EAP 模擬器 (設備商測試) ---
             panelEapTop = new System.Windows.Forms.Panel();
             lblEapStatus = new System.Windows.Forms.Label();
+            lblEapBrokerIp = new System.Windows.Forms.Label();
+            cboEapBrokerIp = new System.Windows.Forms.ComboBox();
+            lblEapBrokerPort = new System.Windows.Forms.Label();
+            txtEapBrokerPort = new System.Windows.Forms.TextBox();
             btnEapStart = new System.Windows.Forms.Button();
             btnEapStop = new System.Windows.Forms.Button();
             btnSelectAllAutoReply = new System.Windows.Forms.Button();
@@ -182,6 +190,8 @@
             panelTop.Controls.Add(btnClearMesLog);
             panelTop.Controls.Add(btnStop);
             panelTop.Controls.Add(btnStart);
+            panelTop.Controls.Add(lblMesIp);
+            panelTop.Controls.Add(cboMesIp);
             panelTop.Controls.Add(txtPort);
             panelTop.Controls.Add(lblSimWoQryResultCode);
             panelTop.Controls.Add(txtSimWoQryResultCode);
@@ -340,7 +350,7 @@
             // lblInRequireInputCode
             // 
             lblInRequireInputCode.AutoSize = true;
-            lblInRequireInputCode.Location = new System.Drawing.Point(408, 22);
+            lblInRequireInputCode.Location = new System.Drawing.Point(450, 22);
             lblInRequireInputCode.Name = "lblInRequireInputCode";
             lblInRequireInputCode.Size = new System.Drawing.Size(113, 15);
             lblInRequireInputCode.TabIndex = 5;
@@ -348,15 +358,15 @@
             // 
             // txtInRequireInputCode
             // 
-            txtInRequireInputCode.Location = new System.Drawing.Point(537, 18);
+            txtInRequireInputCode.Location = new System.Drawing.Point(568, 18);
             txtInRequireInputCode.Name = "txtInRequireInputCode";
-            txtInRequireInputCode.Size = new System.Drawing.Size(116, 23);
+            txtInRequireInputCode.Size = new System.Drawing.Size(100, 23);
             txtInRequireInputCode.TabIndex = 6;
             // 
             // lblOutRequireInputCode
             // 
             lblOutRequireInputCode.AutoSize = true;
-            lblOutRequireInputCode.Location = new System.Drawing.Point(671, 22);
+            lblOutRequireInputCode.Location = new System.Drawing.Point(678, 22);
             lblOutRequireInputCode.Name = "lblOutRequireInputCode";
             lblOutRequireInputCode.Size = new System.Drawing.Size(113, 15);
             lblOutRequireInputCode.TabIndex = 7;
@@ -364,15 +374,15 @@
             // 
             // txtOutRequireInputCode
             // 
-            txtOutRequireInputCode.Location = new System.Drawing.Point(799, 18);
+            txtOutRequireInputCode.Location = new System.Drawing.Point(796, 18);
             txtOutRequireInputCode.Name = "txtOutRequireInputCode";
-            txtOutRequireInputCode.Size = new System.Drawing.Size(116, 23);
+            txtOutRequireInputCode.Size = new System.Drawing.Size(100, 23);
             txtOutRequireInputCode.TabIndex = 8;
             // 
             // lblRecipeId
             // 
             lblRecipeId.AutoSize = true;
-            lblRecipeId.Location = new System.Drawing.Point(930, 22);
+            lblRecipeId.Location = new System.Drawing.Point(906, 22);
             lblRecipeId.Name = "lblRecipeId";
             lblRecipeId.Size = new System.Drawing.Size(113, 15);
             lblRecipeId.TabIndex = 9;
@@ -380,9 +390,9 @@
             // 
             // txtRecipeId
             // 
-            txtRecipeId.Location = new System.Drawing.Point(1055, 18);
+            txtRecipeId.Location = new System.Drawing.Point(1025, 18);
             txtRecipeId.Name = "txtRecipeId";
-            txtRecipeId.Size = new System.Drawing.Size(116, 23);
+            txtRecipeId.Size = new System.Drawing.Size(145, 23);
             txtRecipeId.TabIndex = 10;
             txtRecipeId.Text = "11";
             // 
@@ -409,9 +419,9 @@
             // btnStop
             // 
             btnStop.Enabled = false;
-            btnStop.Location = new System.Drawing.Point(303, 9);
+            btnStop.Location = new System.Drawing.Point(378, 12);
             btnStop.Name = "btnStop";
-            btnStop.Size = new System.Drawing.Size(88, 34);
+            btnStop.Size = new System.Drawing.Size(65, 30);
             btnStop.TabIndex = 4;
             btnStop.Text = "Stop";
             btnStop.UseVisualStyleBackColor = true;
@@ -419,30 +429,47 @@
             // 
             // btnStart
             // 
-            btnStart.Location = new System.Drawing.Point(208, 9);
+            btnStart.Location = new System.Drawing.Point(308, 12);
             btnStart.Name = "btnStart";
-            btnStart.Size = new System.Drawing.Size(88, 34);
+            btnStart.Size = new System.Drawing.Size(65, 30);
             btnStart.TabIndex = 3;
             btnStart.Text = "Start";
             btnStart.UseVisualStyleBackColor = true;
             btnStart.Click += BtnStart_Click;
             // 
-            // txtPort
+            // lblMesIp
             // 
-            txtPort.Location = new System.Drawing.Point(110, 15);
-            txtPort.Name = "txtPort";
-            txtPort.Size = new System.Drawing.Size(85, 23);
-            txtPort.TabIndex = 2;
-            txtPort.Text = "8070";
+            lblMesIp.AutoSize = true;
+            lblMesIp.Location = new System.Drawing.Point(15, 22);
+            lblMesIp.Name = "lblMesIp";
+            lblMesIp.Size = new System.Drawing.Size(52, 15);
+            lblMesIp.TabIndex = 1;
+            lblMesIp.Text = "監聽 IP:";
+            // 
+            // cboMesIp
+            // 
+            cboMesIp.Location = new System.Drawing.Point(70, 18);
+            cboMesIp.Name = "cboMesIp";
+            cboMesIp.Size = new System.Drawing.Size(130, 23);
+            cboMesIp.TabIndex = 1;
+            cboMesIp.Text = "localhost";
             // 
             // lblPort
             // 
             lblPort.AutoSize = true;
-            lblPort.Location = new System.Drawing.Point(15, 22);
+            lblPort.Location = new System.Drawing.Point(206, 22);
             lblPort.Name = "lblPort";
-            lblPort.Size = new System.Drawing.Size(85, 15);
+            lblPort.Size = new System.Drawing.Size(35, 15);
             lblPort.TabIndex = 1;
-            lblPort.Text = "SOAP Port:";
+            lblPort.Text = "Port:";
+            // 
+            // txtPort
+            // 
+            txtPort.Location = new System.Drawing.Point(244, 18);
+            txtPort.Name = "txtPort";
+            txtPort.Size = new System.Drawing.Size(58, 23);
+            txtPort.TabIndex = 2;
+            txtPort.Text = "8070";
             // 
             // lblStatus
             // 
@@ -533,6 +560,8 @@
 
             // panelBrokerTop
             panelBrokerTop.Controls.Add(lblBrokerStatus);
+            panelBrokerTop.Controls.Add(lblBrokerIp);
+            panelBrokerTop.Controls.Add(cboBrokerIp);
             panelBrokerTop.Controls.Add(lblBrokerPort);
             panelBrokerTop.Controls.Add(txtBrokerPort);
             panelBrokerTop.Controls.Add(btnBrokerStart);
@@ -553,18 +582,29 @@
             lblBrokerStatus.Size = new System.Drawing.Size(150, 18);
             lblBrokerStatus.Text = "● Broker Stopped";
 
-            lblBrokerPort.AutoSize = true;
-            lblBrokerPort.Location = new System.Drawing.Point(185, 17);
-            lblBrokerPort.Name = "lblBrokerPort";
-            lblBrokerPort.Size = new System.Drawing.Size(80, 17);
-            lblBrokerPort.Text = "Broker Port:";
+            lblBrokerIp.AutoSize = true;
+            lblBrokerIp.Location = new System.Drawing.Point(245, 17);
+            lblBrokerIp.Name = "lblBrokerIp";
+            lblBrokerIp.Size = new System.Drawing.Size(60, 17);
+            lblBrokerIp.Text = "監聽 IP:";
 
-            txtBrokerPort.Location = new System.Drawing.Point(272, 13);
+            cboBrokerIp.Location = new System.Drawing.Point(308, 13);
+            cboBrokerIp.Name = "cboBrokerIp";
+            cboBrokerIp.Size = new System.Drawing.Size(150, 24);
+            cboBrokerIp.Text = "0.0.0.0 (全部網卡)";
+
+            lblBrokerPort.AutoSize = true;
+            lblBrokerPort.Location = new System.Drawing.Point(468, 17);
+            lblBrokerPort.Name = "lblBrokerPort";
+            lblBrokerPort.Size = new System.Drawing.Size(42, 17);
+            lblBrokerPort.Text = "Port:";
+
+            txtBrokerPort.Location = new System.Drawing.Point(512, 13);
             txtBrokerPort.Name = "txtBrokerPort";
-            txtBrokerPort.Size = new System.Drawing.Size(75, 24);
+            txtBrokerPort.Size = new System.Drawing.Size(65, 24);
             txtBrokerPort.Text = "1883";
 
-            btnBrokerStart.Location = new System.Drawing.Point(360, 10);
+            btnBrokerStart.Location = new System.Drawing.Point(590, 10);
             btnBrokerStart.Name = "btnBrokerStart";
             btnBrokerStart.Size = new System.Drawing.Size(100, 32);
             btnBrokerStart.Text = "啟動 Broker";
@@ -572,7 +612,7 @@
             btnBrokerStart.Click += BtnBrokerStart_Click;
 
             btnBrokerStop.Enabled = false;
-            btnBrokerStop.Location = new System.Drawing.Point(468, 10);
+            btnBrokerStop.Location = new System.Drawing.Point(698, 10);
             btnBrokerStop.Name = "btnBrokerStop";
             btnBrokerStop.Size = new System.Drawing.Size(100, 32);
             btnBrokerStop.Text = "停止 Broker";
@@ -582,7 +622,7 @@
             lblClientCount.AutoSize = true;
             lblClientCount.Font = new System.Drawing.Font("Microsoft JhengHei UI", 10F, System.Drawing.FontStyle.Bold);
             lblClientCount.ForeColor = System.Drawing.Color.DarkSlateBlue;
-            lblClientCount.Location = new System.Drawing.Point(590, 16);
+            lblClientCount.Location = new System.Drawing.Point(815, 16);
             lblClientCount.Name = "lblClientCount";
             lblClientCount.Size = new System.Drawing.Size(160, 18);
             lblClientCount.Text = "目前連線 Client 數: 0";
@@ -662,6 +702,10 @@
 
             // panelEapTop
             panelEapTop.Controls.Add(lblEapStatus);
+            panelEapTop.Controls.Add(lblEapBrokerIp);
+            panelEapTop.Controls.Add(cboEapBrokerIp);
+            panelEapTop.Controls.Add(lblEapBrokerPort);
+            panelEapTop.Controls.Add(txtEapBrokerPort);
             panelEapTop.Controls.Add(btnEapStart);
             panelEapTop.Controls.Add(btnEapStop);
             panelEapTop.Controls.Add(btnSelectAllAutoReply);
@@ -700,36 +744,58 @@
             lblEapStatus.Size = new System.Drawing.Size(145, 18);
             lblEapStatus.Text = "● EAP Sim Stopped";
 
-            btnEapStart.Location = new System.Drawing.Point(175, 7);
+            lblEapBrokerIp.AutoSize = true;
+            lblEapBrokerIp.Location = new System.Drawing.Point(180, 13);
+            lblEapBrokerIp.Name = "lblEapBrokerIp";
+            lblEapBrokerIp.Size = new System.Drawing.Size(70, 17);
+            lblEapBrokerIp.Text = "Broker IP:";
+
+            cboEapBrokerIp.Location = new System.Drawing.Point(252, 9);
+            cboEapBrokerIp.Name = "cboEapBrokerIp";
+            cboEapBrokerIp.Size = new System.Drawing.Size(125, 24);
+            cboEapBrokerIp.Text = "127.0.0.1";
+
+            lblEapBrokerPort.AutoSize = true;
+            lblEapBrokerPort.Location = new System.Drawing.Point(382, 13);
+            lblEapBrokerPort.Name = "lblEapBrokerPort";
+            lblEapBrokerPort.Size = new System.Drawing.Size(38, 17);
+            lblEapBrokerPort.Text = "Port:";
+
+            txtEapBrokerPort.Location = new System.Drawing.Point(422, 9);
+            txtEapBrokerPort.Name = "txtEapBrokerPort";
+            txtEapBrokerPort.Size = new System.Drawing.Size(52, 24);
+            txtEapBrokerPort.Text = "1883";
+
+            btnEapStart.Location = new System.Drawing.Point(480, 7);
             btnEapStart.Name = "btnEapStart";
-            btnEapStart.Size = new System.Drawing.Size(95, 30);
+            btnEapStart.Size = new System.Drawing.Size(86, 30);
             btnEapStart.Text = "啟動 EAP";
             btnEapStart.UseVisualStyleBackColor = true;
             btnEapStart.Click += BtnEapStart_Click;
 
             btnEapStop.Enabled = false;
-            btnEapStop.Location = new System.Drawing.Point(276, 7);
+            btnEapStop.Location = new System.Drawing.Point(570, 7);
             btnEapStop.Name = "btnEapStop";
-            btnEapStop.Size = new System.Drawing.Size(95, 30);
+            btnEapStop.Size = new System.Drawing.Size(86, 30);
             btnEapStop.Text = "停止 EAP";
             btnEapStop.UseVisualStyleBackColor = true;
             btnEapStop.Click += BtnEapStop_Click;
 
-            btnSelectAllAutoReply.Location = new System.Drawing.Point(390, 7);
+            btnSelectAllAutoReply.Location = new System.Drawing.Point(664, 7);
             btnSelectAllAutoReply.Name = "btnSelectAllAutoReply";
             btnSelectAllAutoReply.Size = new System.Drawing.Size(120, 30);
             btnSelectAllAutoReply.Text = "☑ 全選自動回復";
             btnSelectAllAutoReply.UseVisualStyleBackColor = true;
             btnSelectAllAutoReply.Click += BtnSelectAllAutoReply_Click;
 
-            btnUnselectAllAutoReply.Location = new System.Drawing.Point(516, 7);
+            btnUnselectAllAutoReply.Location = new System.Drawing.Point(788, 7);
             btnUnselectAllAutoReply.Name = "btnUnselectAllAutoReply";
             btnUnselectAllAutoReply.Size = new System.Drawing.Size(130, 30);
             btnUnselectAllAutoReply.Text = "☐ 全部取消自動回復";
             btnUnselectAllAutoReply.UseVisualStyleBackColor = true;
             btnUnselectAllAutoReply.Click += BtnUnselectAllAutoReply_Click;
 
-            btnResetForceFail.Location = new System.Drawing.Point(652, 7);
+            btnResetForceFail.Location = new System.Drawing.Point(922, 7);
             btnResetForceFail.Name = "btnResetForceFail";
             btnResetForceFail.Size = new System.Drawing.Size(135, 30);
             btnResetForceFail.Text = "重設全部為 PASS";
@@ -971,6 +1037,8 @@
         // Tab 1 controls
         private System.Windows.Forms.Panel panelTop;
         private System.Windows.Forms.Label lblStatus;
+        private System.Windows.Forms.Label lblMesIp;
+        private System.Windows.Forms.ComboBox cboMesIp;
         private System.Windows.Forms.Label lblPort;
         private System.Windows.Forms.TextBox txtPort;
         private System.Windows.Forms.Label lblInRequireInputCode;
@@ -1006,6 +1074,8 @@
         // Tab 2 controls
         private System.Windows.Forms.Panel panelBrokerTop;
         private System.Windows.Forms.Label lblBrokerStatus;
+        private System.Windows.Forms.Label lblBrokerIp;
+        private System.Windows.Forms.ComboBox cboBrokerIp;
         private System.Windows.Forms.Label lblBrokerPort;
         private System.Windows.Forms.TextBox txtBrokerPort;
         private System.Windows.Forms.Button btnBrokerStart;
@@ -1021,6 +1091,10 @@
         // Tab 3 controls
         private System.Windows.Forms.Panel panelEapTop;
         private System.Windows.Forms.Label lblEapStatus;
+        private System.Windows.Forms.Label lblEapBrokerIp;
+        private System.Windows.Forms.ComboBox cboEapBrokerIp;
+        private System.Windows.Forms.Label lblEapBrokerPort;
+        private System.Windows.Forms.TextBox txtEapBrokerPort;
         private System.Windows.Forms.Button btnEapStart;
         private System.Windows.Forms.Button btnEapStop;
         private System.Windows.Forms.Button btnSelectAllAutoReply;

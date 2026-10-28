@@ -1,0 +1,30 @@
+{
+  "Model": "LF0007",
+  "Events": {
+    "103": "KPIV_Report",
+	"104": "USER_VERIFY"
+  },
+  "Variables": {
+	"1026": "UserID",
+	"1027": "UserPassword",
+	"1028": "User_Barcode"
+  },
+  "StatusMapping": {
+    "0": "Down",
+    "1": "Ready",
+    "2": "Idle",
+    "3": "Running",
+    "4": "Paused",
+    "5": "Mainte",
+    "6": "ReadyOff"
+  },
+  "AlarmMapping": {
+    "E004": "ALM_EMERGENCY_STOP",
+    "E001": "ALM_SAFETY_DOOR_OPEN",
+    "E002": "ALM_AIR_PRESSURE_LOW"
+  },
+  "ManagementItems":{
+	  "TE003": "Y",
+	  "EX001": "Y",
+  }
+}
