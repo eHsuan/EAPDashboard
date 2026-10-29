@@ -842,7 +842,7 @@ namespace MESSimulator
 
         private string GenerateMockReply(string jsonReq)
         {
-            if (string.IsNullOrEmpty(jsonReq)) return "{\"Result\":\"FAIL\", \"Message\":\"Empty Request\"}";
+            if (string.IsNullOrEmpty(jsonReq)) return "{\"Result\":\"FAIL\", \"ResultCode\":\"ERR_EMPTY_REQ\", \"Message\":\"Empty Request\"}";
 
             try
             {
@@ -1162,6 +1162,7 @@ namespace MESSimulator
                         }
                         _woAlreadyInMap[wonoIn] = true;
                         reply["Result"] = "success";
+                        reply["ResultCode"] = "W001";
                         reply["Message"] = "Simulation Success";
                         break;
 
@@ -1242,6 +1243,7 @@ namespace MESSimulator
                         _woAlreadyInMap[wonoOut] = false;
                         _woRequiredCodesMap.TryRemove(wonoOut, out _);
                         reply["Result"] = "success";
+                        reply["ResultCode"] = "W001";
                         reply["Message"] = "Simulation Success";
                         break;
 
@@ -1281,6 +1283,7 @@ namespace MESSimulator
 
                     case "EQPSTATUS":
                         reply["Result"] = "success";
+                        reply["ResultCode"] = "0";
                         reply["Message"] = "Simulation Success";
                         break;
 
@@ -1391,6 +1394,7 @@ namespace MESSimulator
 
                     default:
                         reply["Result"] = "FAIL";
+                        reply["ResultCode"] = "ERR_UNSUPPORTED";
                         reply["Message"] = $"Unsupported Transaction: {txn}";
                         break;
                 }
@@ -1399,7 +1403,7 @@ namespace MESSimulator
             }
             catch (Exception ex)
             {
-                return $"{{\"Result\":\"FAIL\", \"Message\":\"Simulator Error: {ex.Message}\"}}";
+                return $"{{\"Result\":\"FAIL\", \"ResultCode\":\"ERR_EXCEPTION\", \"Message\":\"Simulator Error: {ex.Message}\"}}";
             }
         }
 
