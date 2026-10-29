@@ -1368,6 +1368,15 @@ namespace MESSimulator
                         reply["Result"] = "success";
                         reply["ResultCode"] = "0000";
                         reply["Message"] = "Simulation Connection Success";
+                        var resultTable = new Newtonsoft.Json.Linq.JArray(
+                            new Newtonsoft.Json.Linq.JObject
+                            {
+                                ["EqpNo"] = connEqpNo,
+                                ["Status"] = "ONLINE",
+                                ["ConnectionTime"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                            }
+                        );
+                        reply["ResultDt"] = resultTable.ToString(Newtonsoft.Json.Formatting.None);
                         break;
 
                     case "EDCDATAADD":
