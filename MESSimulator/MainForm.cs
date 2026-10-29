@@ -709,26 +709,78 @@ namespace MESSimulator
                     soapRequest = await reader.ReadToEndAsync();
                 }
 
-                // 1. 解析 SOAP XML 提取 pParameter (JSON) 以利在 Header 顯示交易名稱
+                string soapAction = context.Request.Headers["SOAPAction"] ?? "";
                 string jsonReq = ExtractJsonFromSoap(soapRequest);
-                string txnName = "Unknown";
-                try { txnName = JObject.Parse(jsonReq)["TransactionName"]?.ToString() ?? "Unknown"; } catch { }
 
-                this.Invoke(new Action(() => {
-                    string header = $"[{DateTime.Now:HH:mm:ss.fff}] ======= {txnName} Request =======";
-                    txtRequest.AppendText(header + Environment.NewLine);
-                    txtRequest.AppendText(soapRequest + Environment.NewLine);
-                    txtRequest.AppendText(new string('=', header.Length) + Environment.NewLine + Environment.NewLine);
-                }));
+                JObject parsedReq = null;
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(jsonReq))
+                    {
+                        parsedReq = JObject.Parse(jsonReq);
+                    }
+                }
+                catch { }
 
-                Log($"[RECV] {jsonReq}");
+                bool isInsertLog = soapAction.IndexOf("InsertEqpTransactionLog", StringComparison.OrdinalIgnoreCase) >= 0
+                    || soapRequest.IndexOf("InsertEqpTransactionLog", StringComparison.OrdinalIgnoreCase) >= 0
+                    || parsedReq?["LogType"] != null;
 
-                // 2. 根據 TransactionName 生成回覆
-                string jsonReply = GenerateMockReply(jsonReq);
-                Log($"[SEND] {jsonReply}");
+                bool isInsertErrorLog = soapAction.IndexOf("InsertEqpErrorLog", StringComparison.OrdinalIgnoreCase) >= 0
+                    || soapRequest.IndexOf("InsertEqpErrorLog", StringComparison.OrdinalIgnoreCase) >= 0;
 
-                // 3. 封裝成 SOAP Response
-                string soapResponse = WrapInSoapResponse(jsonReply);
+                string soapResponse;
+
+                if (isInsertLog)
+                {
+                    string logType = parsedReq?["LogType"]?.ToString() ?? "InsertEqpTransactionLog";
+                    string machId = parsedReq?["MachID"]?.ToString() ?? parsedReq?["EqpNo"]?.ToString() ?? "";
+                    string logId = parsedReq?["LogID"]?.ToString() ?? "";
+
+                    this.Invoke(new Action(() => {
+                        string header = $"[{DateTime.Now:HH:mm:ss.fff}] ======= {logType} Request (Mach: {machId}) =======";
+                        txtRequest.AppendText(header + Environment.NewLine);
+                        txtRequest.AppendText(soapRequest + Environment.NewLine);
+                        txtRequest.AppendText(new string('=', header.Length) + Environment.NewLine + Environment.NewLine);
+                    }));
+
+                    Log($"[RECV-LOG] ({logType}) MachID={machId}, LogID={logId}");
+                    soapResponse = WrapInSoapResponse("true", "InsertEqpTransactionLog");
+                    Log($"[SEND-LOG] ({logType}) Result=true");
+                }
+                else if (isInsertErrorLog)
+                {
+                    this.Invoke(new Action(() => {
+                        string header = $"[{DateTime.Now:HH:mm:ss.fff}] ======= InsertEqpErrorLog Request =======";
+                        txtRequest.AppendText(header + Environment.NewLine);
+                        txtRequest.AppendText(soapRequest + Environment.NewLine);
+                        txtRequest.AppendText(new string('=', header.Length) + Environment.NewLine + Environment.NewLine);
+                    }));
+
+                    Log($"[RECV-ERRORLOG] {jsonReq}");
+                    soapResponse = WrapInSoapResponse("true", "InsertEqpErrorLog");
+                    Log($"[SEND-ERRORLOG] Result=true");
+                }
+                else
+                {
+                    string txnName = parsedReq?["TransactionName"]?.ToString() ?? "Unknown";
+
+                    this.Invoke(new Action(() => {
+                        string header = $"[{DateTime.Now:HH:mm:ss.fff}] ======= {txnName} Request =======";
+                        txtRequest.AppendText(header + Environment.NewLine);
+                        txtRequest.AppendText(soapRequest + Environment.NewLine);
+                        txtRequest.AppendText(new string('=', header.Length) + Environment.NewLine + Environment.NewLine);
+                    }));
+
+                    Log($"[RECV] {jsonReq}");
+
+                    // 2. 根據 TransactionName 生成回覆
+                    string jsonReply = GenerateMockReply(jsonReq);
+                    Log($"[SEND] {jsonReply}");
+
+                    // 3. 封裝成 SOAP Response
+                    soapResponse = WrapInSoapResponse(jsonReply, "EqpTransaction");
+                }
 
                 byte[] buffer = Encoding.UTF8.GetBytes(soapResponse);
                 context.Response.ContentType = "text/xml; charset=utf-8";
@@ -1342,14 +1394,15 @@ namespace MESSimulator
             }
         }
 
-        private string WrapInSoapResponse(string jsonReply)
+        private string WrapInSoapResponse(string replyContent, string methodName = "EqpTransaction")
         {
+            string innerContent = methodName == "EqpTransaction" ? SecurityElement.Escape(replyContent) : replyContent;
             return $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"" xmlns:xsd=""http://www.w3.org/2001/XMLSchema"">
   <soap:Body>
-    <EqpTransactionResponse xmlns=""CyntecMES"">
-      <EqpTransactionResult>{SecurityElement.Escape(jsonReply)}</EqpTransactionResult>
-    </EqpTransactionResponse>
+    <{methodName}Response xmlns=""CyntecMES"">
+      <{methodName}Result>{innerContent}</{methodName}Result>
+    </{methodName}Response>
   </soap:Body>
 </soap:Envelope>";
         }
